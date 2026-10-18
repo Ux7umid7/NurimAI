@@ -62,7 +62,7 @@ p { margin: 0; }
 .hero-grid { position: relative; z-index: 1; display: grid; grid-template-columns: 1.15fr .85fr; align-items: center; gap: 32px; padding-top: clamp(24px, 5vw, 64px); }
 .hero h1 { font-size: clamp(2.5rem, 5.6vw, 4.3rem); font-weight: 800; max-width: 11ch; }
 .lede { margin-top: 22px; max-width: 34em; color: #D9D4C8; font-size: 1.125rem; }
-.mascot { justify-self: center; width: min(400px, 100%); filter: drop-shadow(0 30px 60px rgba(0, 0, 0, .45)); }
+.mascot { justify-self: center; width: min(400px, 100%); height: auto; filter: drop-shadow(0 30px 60px rgba(0, 0, 0, .45)); }
 
 .downloads { margin-top: 34px; display: flex; flex-wrap: wrap; gap: 14px; }
 .dl { display: flex; align-items: center; gap: 14px; min-width: 268px; padding: 14px 22px 14px 18px; border-radius: 16px; text-decoration: none; color: var(--paper);
@@ -146,7 +146,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: cent
 
 @media (max-width: 880px) {
   .hero-grid { grid-template-columns: 1fr; }
-  .mascot { order: -1; width: min(240px, 60%); }
+  .mascot { order: -1; width: min(190px, 48%); }
   .hero h1 { max-width: none; }
   .panel, .use-grid { grid-template-columns: 1fr; }
   .shot { max-width: 340px; }
