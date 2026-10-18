@@ -36,12 +36,15 @@ jobs:
         if: runner.os == 'macOS'
         shell: bash
         # On failure, surface electron-builder's error lines as annotations in the run summary.
+        # Missing secrets arrive as empty strings; electron-builder treats an empty CSC_LINK as a path, so only export what exists.
         run: |
           set -o pipefail
+          if [ -n "$MAC_CERTIFICATE" ]; then export CSC_LINK="$MAC_CERTIFICATE" CSC_KEY_PASSWORD="$MAC_CERTIFICATE_PASSWORD"; fi
+          for name in APPLE_ID APPLE_APP_SPECIFIC_PASSWORD APPLE_TEAM_ID; do [ -n "${!name}" ] || unset "$name"; done
           npm run dist:mac 2>&1 | tee mac-build.log || { grep -E "⨯|Error|error:" mac-build.log | head -10 | sed 's/^[[:space:]]*/::error title=Mac build::/'; exit 1; }
         env:
-          CSC_LINK: ${{ secrets.MAC_CERTIFICATE }}
-          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
+          MAC_CERTIFICATE: ${{ secrets.MAC_CERTIFICATE }}
+          MAC_CERTIFICATE_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
