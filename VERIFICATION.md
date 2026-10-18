@@ -1,7 +1,10 @@
-# Verification
+# Verification — 2026-10-18
 
-Local Windows checks: 28 Node tests passed. Three Electron UI tests passed: no-key chat flow with explicit test reply, settings/copy/reset, masked password fields, renderer Node isolation and inert HTML text. Live AI is not simulated as a real answer in QA mode.
+- 30 Node tests and 3 Electron UI tests pass locally on Windows (no-key chat flow, settings, masked key fields, renderer isolation, inert HTML).
+- GitHub Actions: Windows and macOS jobs pass tests and packaging (Windows NSIS Setup, macOS universal DMG/ZIP, ad-hoc signed without a Developer ID).
+- Local Windows Setup builds as a one-click installer; the installer and app executable carry the new U+N icon; app.asar contains the tray icons and the fixed release feed.
+- Cloudflare gateway is deployed. Two Workers-only bugs were fixed before it answered: `fetch` called as a method ("Illegal invocation") and `redirect: 'error'` (unsupported). A live `/chat` request returned a real Gemini answer; `/health` reports ready.
+- Icons: the vector `assets/icon.svg` matches the source image on all but 0.13% of pixels (edge anti-aliasing only). All ICO sizes (16–256) load through the Windows icon API.
+- Download page renders on desktop and phone widths and is live on GitHub Pages.
 
-Cloudflare dry run and Windows packaging are being validated. GitHub macOS CI results and real server live-check results must be recorded before a user release.
-
-Mac automatic updates need Apple Developer ID signing/notarization; without those secrets the build is an unsigned preview with manual downloads. An old portable ZIP cannot receive updates retroactively.
+Not verified: installing the Mac DMG on a real Mac (Gatekeeper prompt, menu-bar icon, multi-monitor). Mac automatic updates stay off until the app is signed with an Apple Developer ID and notarized.

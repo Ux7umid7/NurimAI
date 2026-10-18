@@ -4,21 +4,25 @@ Mac va Windows uchun ekran chetida turadigan AI yordamchi. Qahramonni bosing, sa
 
 ## Foydalanuvchi uchun
 
-Windows: Releases’dan Setup EXE’ni yuklab o‘rnating. Eski portable ZIP o‘zini yangilay olmaydi; yangi Setup’ni bir marta o‘rnatish kerak.
+Yuklab olish sahifasi: https://ux7umid7.github.io/NurmiAI/ — Windows va Mac tugmalari hamda o‘rnatish ko‘rsatmasi shu yerda. Guruhga shu havolani bering.
 
-Mac: universal DMG Intel va Apple Silicon uchun. App’ni Applications’ga ko‘chiring. Mac avtomatik yangilanishi faqat Developer ID bilan imzolangan va notarizatsiya qilingan relizda ishlaydi. Imzosiz sinov paketida yangilanish qo‘lda yuklanadi.
+Windows: Setup EXE bir bosishda o‘rnatiladi, yorliq qo‘yadi va dasturni ochadi. SmartScreen chiqsa More info → Run anyway. Eski portable ZIP o‘zini yangilay olmaydi; yangi Setup’ni bir marta o‘rnatish kerak.
+
+Mac: universal DMG Intel va Apple Silicon uchun. App’ni Applications’ga ko‘chiring. Developer ID sertifikati bo‘lmasa ilova ad-hoc imzolanadi: birinchi ochishda System Settings → Privacy & Security → Open Anyway kerak. Mac avtomatik yangilanishi faqat Developer ID bilan imzolangan va notarizatsiya qilingan relizda ishlaydi; aks holda yangi versiya sahifadan qo‘lda yuklanadi.
 
 Qahramonni sudrab chetga suring; bosing — chat ochiladi/yig‘iladi. Enter yuboradi, Shift+Enter yangi qator. Ctrl/Command+Alt+Space tez ochadi. Tray menyusidagi Chiqish dasturni to‘liq yopadi. Suhbat xotirada turadi: chiqishdan oldin kerakli matnni TXT qilib saqlang.
 
 Bepul AI limiti barcha foydalanuvchilar orasida umumiy. Standart server limiti: jami 200 so‘rov/kun, qurilmaga 30/kun, IP manzilga 60/kun va 4/minut. Limit tugasa kutish kerak. Shaxsiy API kalitlari ixtiyoriy qo‘shimcha sozlama; ular OS shifrlashi bilan saqlanadi.
 
-## Hozirgi ishga tushirish tartibi
+## Reliz tartibi
 
-1. GitHub Actions Mac/Windows testlari va paketlarini yig‘adi.
-2. Cloudflare Workers Free hisobida serverni deploy qiling (server/README.md).
-3. Worker manzilini GitHub repository variable NURIMAI_GATEWAY_URL sifatida kiriting.
-4. package.json versiyasiga mos v0.3.0 tag yuboring. Reliz job’i gateway manzilisiz ommaviy reliz chiqarmaydi.
-5. Guruhga Releases havolasini bering. Keyingi relizlarda package.json versiyasini oshirib, mos vX.Y.Z tag yuboriladi. Barcha buildlar o‘tgandan keyin GitHub Release yaratiladi.
+1. GitHub Actions har push’da Mac/Windows testlari va paketlarini yig‘adi.
+2. Server Cloudflare Workers’da (server/README.md); manzili GitHub repository variable NURIMAI_GATEWAY_URL’da.
+3. Yangi versiya: package.json versiyasini oshiring, commit qiling va mos vX.Y.Z tag yuboring. Barcha buildlar o‘tgach GitHub Release yaratiladi. Reliz job’i gateway manzilisiz ommaviy reliz chiqarmaydi.
+4. Releasega doimiy nomli NurimAI-Windows-Setup.exe va NurimAI-Mac.dmg ham qo‘shiladi, shuning uchun sahifadagi havolalar har doim eng yangi versiyani beradi.
+5. Yuklab olish sahifasi docs/ papkasida, GitHub Pages (main, /docs) orqali chiqadi.
+
+Ikonkalar assets/icon.svg’dan yaratiladi (asli: assets/icon-source.jpg): npm run icons Windows .ico, Mac ikonkasi, Mac menyu paneli shabloni va sayt rasmlarini qayta yasaydi.
 
 Yangilanish boshlanishdan 30 soniya keyin va har 6 soatda tekshiriladi. Windows Setup versiyasi fonda yuklaydi va dasturdan to‘liq chiqishda o‘rnatadi. Ochiq suhbat majburan uzilmaydi. Sozlamalarda avtomatik yangilanishni o‘chirish, qo‘lda tekshirish va tayyor yangilanishni o‘rnatish mumkin. Oddiy oynani yig‘ishtirish dasturdan chiqish emas.
 
