@@ -130,6 +130,21 @@ kbd { display: inline-block; min-width: 2em; text-align: center; font: 600 .9rem
 .word { font-weight: 600; color: var(--paper); }
 .shot img { border-radius: 18px; box-shadow: 0 30px 70px -24px rgba(0, 0, 0, .8); border: 1px solid var(--line); }
 
+/* Updating */
+.update { background: var(--ink); padding-block: clamp(56px, 8vw, 96px); border-block: 1px solid var(--line); }
+.section-lede { color: var(--muted); max-width: 40em; margin-top: 10px; }
+.update-grid { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(28px, 5vw, 64px); margin-top: 36px; }
+.update-grid > div > h3 { font: 600 1.15rem/1.3 var(--display); margin-bottom: 20px; }
+
+/* Changelog */
+.changes { padding-block: clamp(56px, 8vw, 96px); }
+.change-list { margin-top: 26px; display: grid; gap: 24px; max-width: 760px; }
+.change-list article { padding-left: 20px; border-left: 2px solid var(--gold); }
+.change-list h3 { font: 800 1.3rem/1.2 var(--display); }
+.change-list h3 span { font: 400 .9rem var(--text); color: var(--muted); margin-left: 6px; }
+.change-list ul { margin: 10px 0 0; padding-left: 20px; color: #CFCAC0; }
+.change-list li + li { margin-top: 4px; }
+
 /* FAQ */
 .faq { padding-bottom: clamp(56px, 8vw, 96px); }
 .faq-list { margin-top: 26px; max-width: 760px; }
@@ -148,7 +163,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: cent
   .hero-grid { grid-template-columns: 1fr; }
   .mascot { order: -1; width: min(190px, 48%); }
   .hero h1 { max-width: none; }
-  .panel, .use-grid { grid-template-columns: 1fr; }
+  .panel, .use-grid, .update-grid { grid-template-columns: 1fr; }
   .shot { max-width: 340px; }
 }
 @media (max-width: 560px) {
@@ -171,6 +186,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: cent
     <a class="brand" href="./"><img src="logo.png" alt="" width="40" height="40">NurimAI</a>
     <nav aria-label="Sahifa bo‘limlari">
       <a href="#ornatish">O‘rnatish</a>
+      <a href="#yangilash">Yangilash</a>
       <a href="#savollar">Savollar</a>
       <a href="https://github.com/Ux7umid7/NurmiAI">GitHub</a>
     </nav>
@@ -178,7 +194,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: cent
   <div class="wrap hero-grid">
     <div>
       <h1>Yoningizdagi kichik yordamchi</h1>
-      <p class="lede">NurimAI ekran chetida turadi. Uni bosing va savolingizni yozing: mavzuni tushuntiradi, tarjima qiladi, matn yozishga va reja tuzishga yordam beradi. Ro‘yxatdan o‘tish ham, API kalit ham kerak emas.</p>
+      <p class="lede">NurimAI ekran chetida turadi. Uni bosing va savolingizni yozing yoki skrinshot, rasm, PDF, Word, Excel faylini bering: mavzuni tushuntiradi, tarjima qiladi, xatoni topadi, matn va reja tuzishga yordam beradi. Ro‘yxatdan o‘tish ham, API kalit ham kerak emas.</p>
       <div class="downloads" id="downloads">
         <a class="dl primary" id="dl-win" href="https://github.com/Ux7umid7/NurmiAI/releases/latest/download/NurimAI-Windows-Setup.exe">
           <svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M4 6.5 14 5v10H4zm12-1.8L28 3v12H16zM4 17h10v10L4 25.5zm12 0h12v12l-12-1.7z"/></svg>
@@ -266,13 +282,51 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: cent
         <dt><span class="word">Qahramonni bosing</span></dt><dd>Chat ochiladi yoki yopiladi. Qahramonni sudrab, ekranning istalgan chetiga qo‘ying.</dd>
         <dt><span data-keys-win><kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>Space</kbd></span><span data-keys-mac hidden><kbd>⌘</kbd> <kbd>⌥</kbd> <kbd>Space</kbd></span></dt><dd>Chatni istalgan dasturdan tez ochish.</dd>
         <dt><kbd>Enter</kbd></dt><dd>Savolni yuborish. Yangi qator uchun <kbd>Shift</kbd> <kbd>Enter</kbd>.</dd>
+        <dt><span class="word">📎 Fayl</span></dt><dd>Rasm, PDF, Word, Excel, PowerPoint yoki matn faylini biriktiring. Faylni NurimAI oynasiga sudrab tashlasangiz ham bo‘ladi. Fayl suhbat davomida esda qoladi, keyingi savollarda ham u haqida so‘rash mumkin.</dd>
+        <dt><span data-keys-win><kbd>Ctrl</kbd> <kbd>V</kbd></span><span data-keys-mac hidden><kbd>⌘</kbd> <kbd>V</kbd></span></dt><dd>Skrinshotni joylash. <span data-keys-win><kbd>Win</kbd> <kbd>Shift</kbd> <kbd>S</kbd></span><span data-keys-mac hidden><kbd>⌘</kbd> <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>4</kbd></span> bilan ekranning bir qismini oling va chatga joylang.</dd>
+        <dt><span class="word">Ekran tugmasi</span></dt><dd>📎 yonidagi tugma butun ekranni suratga oladi. NurimAI o‘z oynasini rasmga tushirmaydi. Mac’da birinchi marta Screen Recording ruxsati so‘raladi.</dd>
         <dt><span class="word">Nusxa, Saqlash</span></dt><dd>Javobni nusxalash yoki suhbatni TXT fayl qilib saqlash. Dastur yopilganda suhbat o‘chadi, keraklisini oldindan saqlang.</dd>
         <dt><span class="word">Chiqish</span></dt><dd>Qahramonni sichqonchaning o‘ng tugmasi bilan bosing va <span class="word">Chiqish</span> ni tanlang.</dd>
       </dl>
       <figure class="shot">
-        <img src="app.png" alt="NurimAI chat oynasi: savol yozish maydoni va tayyor savol tugmalari" width="440" height="700" loading="lazy">
-        <figcaption>NurimAI oynasi shunday ko‘rinadi.</figcaption>
+        <img src="app.png" alt="NurimAI chat oynasi: rasm va Word fayl biriktirilgan, ustida tezkor tugmalar" width="440" height="700" loading="lazy">
+        <figcaption>Fayl biriktirilganda tezkor tugmalar chiqadi: qisqacha mazmun, tushuntirish, tarjima, xatolar, test.</figcaption>
       </figure>
+    </div>
+  </section>
+
+  <section class="update" id="yangilash" aria-labelledby="update-title">
+    <div class="wrap">
+      <h2 id="update-title">Yangilash</h2>
+      <p class="section-lede">Yangi versiya chiqqanda nima qilish kompyuteringizga bog‘liq. Qaysi versiya o‘rnatilganini NurimAI Sozlamalari oynasining tepasida ko‘rasiz.</p>
+      <div class="update-grid">
+        <div>
+          <h3>Windows’da o‘zi yangilanadi</h3>
+          <ol class="steps">
+            <li><h3>Hech narsa qilmang</h3><p>NurimAI yangi versiyani o‘zi tekshiradi (ochilgandan keyin va har 6 soatda) va fonda yuklab oladi.</p></li>
+            <li><h3>Dasturdan to‘liq chiqing</h3><p>Qahramonni o‘ng tugma bilan bosing va <span class="q">Chiqish</span> ni tanlang. Yangi versiya shu paytda o‘rnatiladi.</p></li>
+            <li><h3>Qayta oching</h3><p>Ish stolidagi NurimAI yorlig‘i endi yangi versiyani ochadi. Shoshilsangiz: <span class="q">Sozlamalar → Yangilash va qayta ochish</span>.</p></li>
+          </ol>
+          <p class="aside-note">Bu faqat shu sahifadagi Setup bilan o‘rnatilganda ishlaydi. Eski ZIP versiyadan foydalansangiz, Setup’ni bir marta o‘rnating.</p>
+        </div>
+        <div>
+          <h3>Mac’da qo‘lda yangilanadi</h3>
+          <ol class="steps">
+            <li><h3>NurimAI’dan chiqing</h3><p>Menyu panelidagi NurimAI belgisini bosing va <span class="q">Chiqish</span> ni tanlang.</p></li>
+            <li><h3>Yangi versiyani yuklab oling</h3><p>Shu sahifadan <span class="q">NurimAI-Mac.dmg</span> ni oling va NurimAI’ni Applications papkasiga torting.</p></li>
+            <li><h3>Almashtiring</h3><p>So‘ralganda <span class="q">Replace</span> ni tanlang. Sozlamalaringiz saqlanib qoladi.</p></li>
+          </ol>
+          <p class="aside-note">Yangi versiya chiqqanini Sozlamalar → Yangilanishlar → <span class="q">Tekshirish</span> orqali bilib olasiz.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="changes wrap" id="yangiliklar" aria-labelledby="changes-title">
+    <h2 id="changes-title">Nima yangi</h2>
+    <div class="change-list" id="change-list">
+      <article><h3>0.4.0</h3><ul><li>Rasm, skrinshot, PDF, Word, Excel va PowerPoint yuborish: 📎 tugmasi, sudrab tashlash yoki Ctrl+V.</li><li>Ekranni bir bosishda suratga olib, savolga qo‘shish.</li><li>Fayl uchun tezkor tugmalar: qisqacha mazmun, tarjima, test savollari.</li><li>Javoblarda ro‘yxat, qalin matn va kod bloklari.</li></ul></article>
+      <article><h3>0.3.0</h3><ul><li>Birinchi ommaviy versiya: Windows va Mac, API kalitsiz bepul AI yordamchi.</li></ul></article>
     </div>
   </section>
 
@@ -280,8 +334,11 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: cent
     <h2 id="faq-title">Bilib qo‘ying</h2>
     <div class="faq-list">
       <details><summary>Pul to‘lash kerakmi?</summary><p>Yo‘q. NurimAI bepul AI xizmatlari orqali ishlaydi, shuning uchun kunlik limit bor: bitta kompyuterdan kuniga 30 tagacha savol. Umumiy limit hamma foydalanuvchilar uchun bitta, ba’zan u ertaroq tugashi mumkin. Limit tugasa, ertasi kuni yana ishlaydi.</p></details>
-      <details><summary>Savollarim qayerga yuboriladi?</summary><p>Savolingiz va suhbatning oxirgi qismi NurimAI serveri orqali Google Gemini yoki Groq AI xizmatiga yuboriladi. Server suhbatni saqlamaydi. Gemini bepul tarifida yuborilgan matn Google xizmatlarini yaxshilashda ishlatilishi mumkin, shuning uchun parol, hujjat raqami va shaxsiy ma’lumotlarni yozmang.</p></details>
-      <details><summary>Dastur o‘zi yangilanadimi?</summary><p>Windows’da ha: yangi versiya fonda yuklanadi va dasturdan chiqqaningizda o‘rnatiladi. Mac’da yangi versiyani shu sahifadan qayta yuklab olasiz.</p></details>
+      <details><summary>Qanday fayllarni yuborsa bo‘ladi?</summary><p>Rasm va skrinshot (PNG, JPG, WebP), PDF (7 MB gacha), Word (.docx), Excel (.xlsx), PowerPoint (.pptx), matn va CSV. Bitta suhbatda 5 tagacha fayl. Eski .doc, .xls va .ppt fayllarni Word yoki Excel’da “Save as” orqali .docx, .xlsx yoki PDF qilib saqlang. Rasm va PDF’ni Gemini o‘qiydi, shuning uchun ular kunlik limitni tezroq sarflaydi.</p></details>
+      <details><summary>NurimAI kompyuterimdagi fayllarni ko‘radimi?</summary><p>Yo‘q. NurimAI faqat siz o‘zingiz bergan fayl, joylagan rasm yoki ekran tugmasi bilan olgan skrinshotni ko‘radi. Papkalaringizni o‘zi ochmaydi va kompyuterni boshqarmaydi.</p></details>
+      <details><summary>Savollarim va fayllarim qayerga yuboriladi?</summary><p>Savolingiz, biriktirgan fayllaringiz va suhbatning oxirgi qismi NurimAI serveri orqali Google Gemini yoki Groq AI xizmatiga yuboriladi. Server ularni saqlamaydi. Gemini bepul tarifida yuborilgan narsalar Google xizmatlarini yaxshilashda ishlatilishi mumkin, shuning uchun parol, pasport, bank kartasi va boshqa shaxsiy ma’lumotli fayl yoki skrinshot yubormang.</p></details>
+      <details><summary>Dastur o‘zi yangilanadimi?</summary><p>Windows’da ha, Mac’da qo‘lda. Batafsil: <a href="#yangilash">Yangilash</a> bo‘limi.</p></details>
+      <details><summary>Javob kelmayapti, nima qilay?</summary><p>Avval internetni tekshiring. “Limit tugadi” yozuvi chiqsa, ertasi kuni yana ishlaydi. Katta PDF yoki ko‘p fayl bo‘lsa, keraksizini × bilan olib tashlang. Muammo qolsa, NurimAI’ning eng yangi versiyasini o‘rnating.</p></details>
       <details><summary>Qanday o‘chirib tashlayman?</summary><p>Windows’da: Sozlamalar → Ilovalar → NurimAI → O‘chirish. Mac’da: Applications papkasidagi NurimAI’ni Savatga tashlang.</p></details>
       <details><summary>Telefonda ishlaydimi?</summary><p>Hozircha yo‘q. NurimAI Windows va Mac kompyuterlari uchun.</p></details>
     </div>
@@ -333,19 +390,32 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: cent
   $('copy-link').addEventListener('click', e => copy(location.href.split('#')[0], e.currentTarget, 'Nusxalandi'));
   for (const b of document.querySelectorAll('[data-copy]')) b.addEventListener('click', () => copy($(b.dataset.copy).textContent, b, 'Nusxalandi'));
 
-  // Show the latest version; before the first release, explain instead of linking to a missing file.
+  // One request gives the latest version (download links, version line) and the changelog.
+  // Before the first release, explain instead of linking to a missing file; on API errors keep the static content.
   const months = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
-  fetch(`https://api.github.com/repos/${OWNER}/${REPO}/releases/latest`, { headers: { Accept: 'application/vnd.github+json' } })
-    .then(r => { if (r.status === 404) { document.body.classList.add('pending'); $('pending').hidden = false; for (const a of document.querySelectorAll('.dl')) a.setAttribute('aria-disabled', 'true'); return null; } return r.ok ? r.json() : null; })
-    .then(rel => {
-      if (!rel) return;
-      const assets = rel.assets || [];
+  const date = iso => { const d = new Date(iso); return `${d.getDate()}-${months[d.getMonth()]} ${d.getFullYear()}`; };
+  fetch(`https://api.github.com/repos/${OWNER}/${REPO}/releases?per_page=6`, { headers: { Accept: 'application/vnd.github+json' } })
+    .then(r => r.ok ? r.json() : null)
+    .then(list => {
+      if (!Array.isArray(list)) return;
+      const releases = list.filter(r => !r.draft && !r.prerelease);
+      if (!releases.length) { document.body.classList.add('pending'); $('pending').hidden = false; for (const a of document.querySelectorAll('.dl')) a.setAttribute('aria-disabled', 'true'); return; }
+      const latest = releases[0], assets = latest.assets || [];
       const pick = (stable, suffix) => assets.find(a => a.name === stable) || assets.find(a => a.name.endsWith(suffix));
       const win = pick('NurimAI-Windows-Setup.exe', '-win-x64.exe'), mac = pick('NurimAI-Mac.dmg', '.dmg');
       if (win) $('dl-win').href = win.browser_download_url;
       if (mac) $('dl-mac').href = mac.browser_download_url;
-      const d = new Date(rel.published_at);
-      $('release').textContent = `Bepul. ${rel.tag_name.replace(/^v/, '')} versiya, ${d.getDate()}-${months[d.getMonth()]} ${d.getFullYear()}.`;
+      $('release').textContent = `Bepul. ${latest.tag_name.replace(/^v/, '')} versiya, ${date(latest.published_at)}.`;
+      // Release notes list their changes as "- " lines (RELEASE-NOTES.md).
+      const articles = releases.slice(0, 4).map(rel => {
+        const items = (rel.body || '').split('\n').map(l => l.trim()).filter(l => l.startsWith('- ')).map(l => l.slice(2));
+        if (!items.length) return null;
+        const article = document.createElement('article'), head = document.createElement('h3'), when = document.createElement('span'), ul = document.createElement('ul');
+        head.textContent = rel.tag_name.replace(/^v/, ''); when.textContent = date(rel.published_at); head.append(' ', when);
+        for (const text of items) { const li = document.createElement('li'); li.textContent = text; ul.append(li); }
+        article.append(head, ul); return article;
+      }).filter(Boolean);
+      if (articles.length) $('change-list').replaceChildren(...articles);
     })
     .catch(() => {});
 })();

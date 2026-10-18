@@ -1,17 +1,78 @@
-const $=id=>document.getElementById(id);let state;let busy=false;
+const $=id=>document.getElementById(id);let state;let busy=false;let files=[];const shown=new Set(); // attachments already displayed on a sent message
 async function call(promise){const result=await promise;if(!result.ok)throw new Error(result.error);return result.data;}
 function notice(text){$('notice').textContent=text;$('notice').hidden=!text;}
 function scroll(){const area=$('chat-area');area.scrollTop=area.scrollHeight;}
-function bubble(role,text){$('welcome').hidden=true;const el=document.createElement('article');el.className=`bubble ${role}`;const head=document.createElement('div');head.className='bubble-head';const label=document.createElement('span');label.textContent=role==='user'?'SIZ':'NurimAI';head.append(label);if(role!=='user'){const copy=document.createElement('button');copy.textContent='Nusxa';copy.onclick=async()=>{await call(window.nurim.copy(text));copy.textContent='Olindi ✓';};head.append(copy);}const p=document.createElement('p');p.textContent=text;el.append(head,p);$('messages').append(el);scroll();}
-function setBusy(value){busy=value;$('waiting').hidden=!value;$('stop').hidden=!value;$('send').hidden=value;$('question').readOnly=value;for(const id of ['new','settings'])$(id).disabled=value;$('status').textContent=value?'Javob tayyorlanmoqda…':state?.settings.usePersonalKeys?'Shaxsiy AI · avtomatik':'Yoningizdagi yordamchi';scroll();}
+
+// Safe formatting for AI answers: builds DOM nodes (never HTML) for paragraphs, lists, **bold**, `code` and ``` blocks.
+function inline(parent,text){let last=0;for(const m of text.matchAll(/\*\*([^*\n]+)\*\*|`([^`\n]+)`/g)){if(m.index>last)parent.append(text.slice(last,m.index));const el=document.createElement(m[1]!==undefined?'strong':'code');el.textContent=m[1]??m[2];parent.append(el);last=m.index+m[0].length;}if(last<text.length)parent.append(text.slice(last));}
+function rich(container,text){
+  let list=null,para=null,code=null;
+  for(const line of text.split('\n')){
+    if(code){if(/^\s*```/.test(line))code=null;else code.textContent+=(code.textContent?'\n':'')+line;continue;}
+    if(/^\s*```/.test(line)){list=para=null;const pre=document.createElement('pre');code=document.createElement('code');pre.append(code);container.append(pre);continue;}
+    const bullet=/^\s*[-*•]\s+(.*)$/.exec(line),num=/^\s*(\d+)[.)]\s+(.*)$/.exec(line),head=/^\s*#{1,4}\s+(.*)$/.exec(line);
+    if(bullet||num){const tag=bullet?'UL':'OL';if(!list||list.tagName!==tag){list=document.createElement(tag);if(num)list.start=Number(num[1]);container.append(list);para=null;}const li=document.createElement('li');inline(li,bullet?bullet[1]:num[2]);list.append(li);continue;}
+    if(!line.trim()){list=para=null;continue;}
+    if(head){list=para=null;const h=document.createElement('p');h.className='head';inline(h,head[1].replace(/\*\*/g,''));container.append(h);continue;}
+    list=null;if(para)para.append(document.createElement('br'));else{para=document.createElement('p');container.append(para);}inline(para,line);
+  }
+}
+function chip(file,removable){
+  const el=document.createElement('span');el.className=`file-chip ${file.kind}`;el.title=file.note?`${file.name}\n${file.note}`:file.name;
+  if(file.thumb){const img=document.createElement('img');img.src=file.thumb;img.alt='';el.append(img);}else{const badge=document.createElement('b');badge.textContent=(file.ext||file.kind).slice(0,4).toUpperCase();el.append(badge);}
+  const name=document.createElement('span');name.textContent=file.name;el.append(name);
+  if(removable){const x=document.createElement('button');x.type='button';x.textContent='×';x.setAttribute('aria-label',`${file.name} faylini olib tashlash`);x.onclick=async()=>{try{renderFiles(await call(window.nurim.attachRemove(file.id)));}catch(e){notice(e.message);}};el.append(x);}
+  return el;
+}
+function renderFiles(list){files=list;$('attachments').replaceChildren(...files.map(f=>chip(f,true)));$('attachments').hidden=!files.length;$('file-actions').hidden=!files.length||busy;$('question').placeholder=files.length?'Fayl haqida savol yozing yoki tayyor tugmani bosing…':'Istalgan savolingizni yozing…';}
+function bubble(role,text,attached=[]){
+  $('welcome').hidden=true;const el=document.createElement('article');el.className=`bubble ${role}`;const head=document.createElement('div');head.className='bubble-head';const label=document.createElement('span');label.textContent=role==='user'?'SIZ':'NurimAI';head.append(label);
+  if(role!=='user'){const copy=document.createElement('button');copy.textContent='Nusxa';copy.onclick=async()=>{await call(window.nurim.copy(text));copy.textContent='Olindi ✓';};head.append(copy);}
+  el.append(head);
+  if(attached.length){const row=document.createElement('div');row.className='bubble-files';row.append(...attached.map(f=>chip(f,false)));el.append(row);}
+  if(role==='user'){const p=document.createElement('p');p.textContent=text;el.append(p);}else{const body=document.createElement('div');body.className='rich';rich(body,text);el.append(body);}
+  $('messages').append(el);scroll();
+}
+function setBusy(value){busy=value;$('waiting').hidden=!value;$('stop').hidden=!value;$('send').hidden=value;$('question').readOnly=value;for(const id of ['new','settings','attach','capture'])$(id).disabled=value;$('file-actions').hidden=!files.length||value;$('status').textContent=value?'Javob tayyorlanmoqda…':state?.settings.usePersonalKeys?'Shaxsiy AI · avtomatik':'Yoningizdagi yordamchi';scroll();}
 function updateView(value){$('update-status').textContent=value.text;$('install-update').hidden=value.phase!=='ready';$('check-update').disabled=['checking','downloading','ready'].includes(value.phase);}
-async function init(){state=await call(window.nurim.init());$('shortcut').textContent=state.platform==='darwin'?'⌘ + ⌥ + Space · tez ochish':'Ctrl + Alt + Space · tez ochish';for(const m of state.history)bubble(m.role,m.text);if(state.settings.warning)notice(state.settings.warning);setBusy(state.busy);}
-$('composer').onsubmit=async event=>{event.preventDefault();const question=$('question').value.trim();if(!question||busy)return;notice('');bubble('user',question);$('question').value='';setBusy(true);try{const reply=await call(window.nurim.send(question));bubble('assistant',reply.text);if(reply.incomplete)notice('Javob uzunligi chegarasiga yetdi. Davomini so‘rashingiz mumkin.');}catch(error){notice(error.message);bubble('assistant','Javob olinmadi. Savolni qayta yuborishingiz mumkin.');$('question').value=question;}finally{setBusy(false);$('question').focus();}};
+async function init(){
+  state=await call(window.nurim.init());$('shortcut').textContent=state.platform==='darwin'?'⌘ + ⌥ + Space · tez ochish':'Ctrl + Alt + Space · tez ochish';
+  for(const m of state.history)bubble(m.role,m.text,m.files||[]);renderFiles(state.files||[]);for(const id of state.sentIds||[])shown.add(id);
+  if(state.whatsNew?.length){$('whats-new-title').textContent=`NurimAI ${state.version} versiyasiga yangilandi`;$('whats-new-list').replaceChildren(...state.whatsNew.map(t=>{const li=document.createElement('li');li.textContent=t;return li;}));$('whats-new').hidden=false;}
+  if(state.settings.warning)notice(state.settings.warning);setBusy(state.busy);
+}
+async function ask(question){
+  if(!question||busy)return;notice('');const fresh=files.filter(f=>!shown.has(f.id));fresh.forEach(f=>shown.add(f.id));bubble('user',question,fresh.map(({name,ext,kind})=>({name,ext,kind})));$('question').value='';setBusy(true);
+  try{const reply=await call(window.nurim.send(question));bubble('assistant',reply.text);if(reply.incomplete)notice('Javob uzunligi chegarasiga yetdi. Davomini so‘rashingiz mumkin.');}
+  catch(error){notice(error.message);bubble('assistant','Javob olinmadi. Savolni qayta yuborishingiz mumkin.');$('question').value=question;}
+  finally{setBusy(false);$('question').focus();}
+}
+$('composer').onsubmit=event=>{event.preventDefault();ask($('question').value.trim());};
 $('question').onkeydown=event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();$('composer').requestSubmit();}};
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('settings-dialog').open)window.nurim.hide();});
 $('hide').onclick=()=>window.nurim.hide();$('stop').onclick=()=>window.nurim.stop();$('export').onclick=()=>call(window.nurim.exportChat()).catch(e=>notice(e.message));
-$('new').onclick=async()=>{await call(window.nurim.reset());$('messages').replaceChildren();$('welcome').hidden=false;$('question').value='';notice('');$('question').focus();};
+$('new').onclick=async()=>{await call(window.nurim.reset());$('messages').replaceChildren();$('welcome').hidden=false;$('question').value='';shown.clear();renderFiles([]);notice('');$('question').focus();};
 for(const button of document.querySelectorAll('[data-prompt]'))button.onclick=()=>{$('question').value=button.dataset.prompt;$('question').focus();};
+for(const button of document.querySelectorAll('[data-file-prompt]'))button.onclick=()=>ask(button.dataset.filePrompt);
+$('whats-new-close').onclick=()=>{$('whats-new').hidden=true;};
+
+// Attachments: picker, screen capture, paste and drag-and-drop all end up in the main process.
+function attached(result){const before=new Set(files.map(f=>f.id));renderFiles(result.files);notice([...result.errors,...result.files.filter(f=>!before.has(f.id)&&f.note).map(f=>`${f.name}: ${f.note}`)].join('\n'));if(result.files.length)$('question').focus();}
+$('attach').onclick=async()=>{try{attached(await call(window.nurim.attachPick()));}catch(e){notice(e.message);}};
+$('capture').onclick=async()=>{$('capture').disabled=true;notice('');try{attached(await call(window.nurim.attachScreen()));}catch(e){notice(e.message);}finally{$('capture').disabled=busy;}};
+async function addFiles(list){
+  for(const file of [...list].slice(0,5)){
+    const name=file.name&&file.name!=='image.png'?file.name:`Rasm ${new Date().toTimeString().slice(0,5).replace(':','-')}.png`;
+    try{attached(await call(window.nurim.attachData(name,await file.arrayBuffer())));}catch(e){notice(e.message);}
+  }
+}
+document.addEventListener('paste',event=>{const list=event.clipboardData?.files;if(list?.length&&!busy){event.preventDefault();addFiles(list);}});
+let dragDepth=0;const hasFiles=event=>[...(event.dataTransfer?.types||[])].includes('Files');
+document.addEventListener('dragenter',event=>{if(!hasFiles(event))return;event.preventDefault();dragDepth++;$('drop').hidden=busy;});
+document.addEventListener('dragover',event=>{if(hasFiles(event))event.preventDefault();});
+document.addEventListener('dragleave',event=>{if(hasFiles(event)&&--dragDepth<=0){dragDepth=0;$('drop').hidden=true;}});
+document.addEventListener('drop',event=>{event.preventDefault();dragDepth=0;$('drop').hidden=true;if(!busy&&event.dataTransfer?.files?.length)addFiles(event.dataTransfer.files);});
+
 $('settings').onclick=async()=>{
  state=await call(window.nurim.settings());const s=state.settings;$('version').textContent=`NurimAI ${state.version}`;$('server-status').textContent=state.gatewayConfigured?'Umumiy AI serveri sozlangan.':'Server manzili hali sozlanmagan.';
  $('topmost').checked=s.topmost;$('auto-update').checked=s.autoUpdate;$('personal').checked=s.usePersonalKeys;$('fallback').checked=s.autoFallback;$('remember').checked=s.remember;$('settings-error').textContent='';updateView(state.update);

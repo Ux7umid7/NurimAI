@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { ORDER, UserError } = require('./router.cjs');
-const defaults = () => ({ keys: { Gemini:'',Groq:'',OpenRouter:'' }, free: { Gemini:false,Groq:false }, autoFallback:true, topmost:true, autoUpdate:true, remember:true, usePersonalKeys:false, petPosition:null, deviceId:require('node:crypto').randomUUID() });
+const defaults = () => ({ keys: { Gemini:'',Groq:'',OpenRouter:'' }, free: { Gemini:false,Groq:false }, autoFallback:true, topmost:true, autoUpdate:true, remember:true, usePersonalKeys:false, petPosition:null, lastVersion:'', deviceId:require('node:crypto').randomUUID() });
 class Store {
   constructor(directory, crypto) { this.directory = directory; this.file = path.join(directory,'settings.json'); this.crypto = crypto; this.value = defaults(); this.warning = ''; }
   load() {
@@ -9,6 +9,7 @@ class Store {
     try {
       const data = JSON.parse(fs.readFileSync(this.file,'utf8'));
       for (const field of ['autoFallback','topmost','autoUpdate','remember','usePersonalKeys']) if(typeof data[field] === 'boolean') this.value[field] = data[field];
+      if(typeof data.lastVersion === 'string' && /^\d+\.\d+\.\d+$/.test(data.lastVersion)) this.value.lastVersion = data.lastVersion;
       if(typeof data.deviceId === 'string' && /^[a-f0-9-]{36}$/i.test(data.deviceId)) this.value.deviceId = data.deviceId;
       for(const p of ['Gemini','Groq']) this.value.free[p] = data.free?.[p] === true;
       if (Number.isFinite(data.petPosition?.x) && Number.isFinite(data.petPosition?.y)) this.value.petPosition = data.petPosition;

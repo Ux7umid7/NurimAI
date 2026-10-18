@@ -7,5 +7,7 @@ contextBridge.exposeInMainWorld('nurim',Object.freeze({
   checkUpdate:()=>ipcRenderer.invoke('check-update'), installUpdate:()=>ipcRenderer.invoke('install-update'),
   openLink:name=>ipcRenderer.invoke('open-link',name),
   movePet:point=>ipcRenderer.invoke('move-pet',point),
+  attachPick:()=>ipcRenderer.invoke('attach-pick'), attachData:(name,data)=>ipcRenderer.invoke('attach-data',name,data),
+  attachScreen:()=>ipcRenderer.invoke('attach-screen'), attachRemove:id=>ipcRenderer.invoke('attach-remove',id),
   onUpdate:callback=>{const listener=(_event,data)=>callback(data);ipcRenderer.on('update-status',listener);return ()=>ipcRenderer.removeListener('update-status',listener);}
 }));

@@ -12,13 +12,15 @@ Mac: universal DMG Intel va Apple Silicon uchun. App’ni Applications’ga ko�
 
 Qahramonni sudrab chetga suring; bosing — chat ochiladi/yig‘iladi. Enter yuboradi, Shift+Enter yangi qator. Ctrl/Command+Alt+Space tez ochadi. Tray menyusidagi Chiqish dasturni to‘liq yopadi. Suhbat xotirada turadi: chiqishdan oldin kerakli matnni TXT qilib saqlang.
 
+Fayllar (0.4.0+): 📎 tugmasi, oynaga sudrab tashlash yoki Ctrl+V bilan rasm, skrinshot, PDF (7 MB gacha), Word (.docx), Excel (.xlsx), PowerPoint (.pptx), matn/CSV yuboriladi; suhbatda 5 tagacha. Office va matn fayllari ilova ichida matnga aylantiriladi (src/attachments.cjs, tashqi kutubxonasiz), rasm va PDF Gemini’ga o‘zicha boradi. Ekran tugmasi NurimAI oynalarini yashirib, joriy monitorni suratga oladi (Mac’da Screen Recording ruxsati kerak). Dastur faqat foydalanuvchi bergan faylni o‘qiydi; papkalarni o‘zi ochmaydi.
+
 Bepul AI limiti barcha foydalanuvchilar orasida umumiy. Standart server limiti: jami 200 so‘rov/kun, qurilmaga 30/kun, IP manzilga 60/kun va 4/minut. Limit tugasa kutish kerak. Shaxsiy API kalitlari ixtiyoriy qo‘shimcha sozlama; ular OS shifrlashi bilan saqlanadi.
 
 ## Reliz tartibi
 
 1. GitHub Actions har push’da Mac/Windows testlari va paketlarini yig‘adi.
 2. Server Cloudflare Workers’da (server/README.md); manzili GitHub repository variable NURIMAI_GATEWAY_URL’da.
-3. Yangi versiya: package.json versiyasini oshiring, commit qiling va mos vX.Y.Z tag yuboring. Barcha buildlar o‘tgach GitHub Release yaratiladi. Reliz job’i gateway manzilisiz ommaviy reliz chiqarmaydi.
+3. Yangi versiya: package.json versiyasini oshiring, RELEASE-NOTES.md (“- ” bilan boshlangan qatorlar saytdagi “Nima yangi”ga chiqadi) va src/whats-new.json’ni yozing, commit qiling va mos vX.Y.Z tag yuboring. Barcha buildlar o‘tgach GitHub Release yaratiladi. Reliz job’i gateway manzilisiz ommaviy reliz chiqarmaydi. Server o‘zgargan bo‘lsa, relizdan oldin wrangler deploy qiling: eski ilovalar ham shu serverga ulanadi.
 4. Releasega doimiy nomli NurimAI-Windows-Setup.exe va NurimAI-Mac.dmg ham qo‘shiladi, shuning uchun sahifadagi havolalar har doim eng yangi versiyani beradi.
 5. Yuklab olish sahifasi docs/ papkasida, GitHub Pages (main, /docs) orqali chiqadi.
 
@@ -46,10 +48,10 @@ Repo Secrets: MAC_CERTIFICATE (Developer ID Application .p12 base64), MAC_CERTIF
 ## Ma’lumotlar va xavfsizlik
 
 - API kalitlari faqat Cloudflare Secrets’da; GitHub, frontend va o‘rnatish paketlariga kiritilmaydi.
-- Savol va yaqin suhbat konteksti server va tanlangan AI xizmatiga yuboriladi. Server kodida suhbatni saqlash/jurnalga yozish yo‘q. Cloudflare observability o‘chirilgan.
+- Savol, biriktirilgan fayllar va yaqin suhbat konteksti server va tanlangan AI xizmatiga yuboriladi. Server kodida suhbat yoki faylni saqlash/jurnalga yozish yo‘q. Cloudflare observability o‘chirilgan.
 - Rate limiting uchun kunlik saltlangan IP/device xeshlari va hisoblagichlar saqlanadi; ertasi kuni yozuv almashtiriladi. Qurilma ID’si tasodifiy, qurilma fingerprinti emas.
 - Login talab qilmaydigan ommaviy serverda suiiste’molni butunlay yo‘qotib bo‘lmaydi. Qattiq umumiy kunlik budjet va server tomonidagi tekshiruvlar qo‘yilgan; ilova ichida yashirin token yo‘q.
 - Electron renderer’da Node o‘chirilgan, sandbox/context isolation/CSP yoqilgan; AI javobi HTML sifatida bajarilmaydi.
 - O‘rnatuvchi va yangilanish HTTPS GitHub Releases’dan olinadi; electron-updater hashlarni va mavjud kod imzosini tekshiradi. Mac imzosi bo‘lmasa auto-install ishlatilmaydi.
 
-Qahramon hozir 2D rasm. Mikrofon, fayl, ekran o‘qish yoki kompyuterni boshqarish bu versiyaga kirmaydi.
+Qahramon hozir 2D rasm. Mikrofon va kompyuterni boshqarish bu versiyaga kirmaydi.

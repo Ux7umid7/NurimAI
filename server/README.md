@@ -25,7 +25,7 @@ GitHub bilan Cloudflare avtomatik build ulansa: root papka loyiha ildizi, build 
     npx wrangler deploy --config server/wrangler.jsonc --dry-run
     npm test
 
-/health ochiq bo‘lib faqat tayyorlikni qaytaradi; kalit yoki hisob ma’lumotlarini bermaydi. /chat JSON body: question, history (user/assistant juftlari), tasodifiy UUID deviceId. Worker real CF-Connecting-IP orqali cheklaydi. Browser Origin yuborgan so‘rovlar rad qilinadi. Bu desktop API uchun qo‘shimcha cheklov, autentifikatsiya emas.
+/health ochiq bo‘lib faqat tayyorlikni qaytaradi; kalit yoki hisob ma’lumotlarini bermaydi. /chat JSON body: question, history (user/assistant juftlari), tasodifiy UUID deviceId va ixtiyoriy files (0.4.0+): 5 tagacha {kind:'text',name,text} yoki {kind:'image'|'pdf',name,mime,data(base64)}. So‘rov 14 MB dan oshsa 413, AI fayl/savolni rad etsa 422 qaytadi. Rasm va PDF faqat Gemini’ga boradi. files maydoni bo‘lmagan 0.3.0 mijozlar ham ishlayveradi, shuning uchun serverni ilova relizidan oldin deploy qilish xavfsiz. Worker real CF-Connecting-IP orqali cheklaydi. Browser Origin yuborgan so‘rovlar rad qilinadi. Bu desktop API uchun qo‘shimcha cheklov, autentifikatsiya emas.
 
 Xato sababini ko‘rish: npx wrangler tail --config server/wrangler.jsonc. Worker faqat AI xizmati qaytargan HTTP kod va xato matnini yozadi; savol, suhbat va kalitlar yozilmaydi. Observability o‘chiq, shuning uchun bu log saqlanmaydi.
 
