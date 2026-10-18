@@ -1,0 +1,11 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "nurimai-api",
+  "main": "worker.mjs",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": true,
+  "observability": { "enabled": false },
+  "vars": { "GEMINI_FREE_TIER": "true", "GROQ_FREE_TIER": "true", "DAILY_TOTAL": "200", "DAILY_DEVICE": "30", "DAILY_IP": "60" },
+  "durable_objects": { "bindings": [{ "name": "BUDGET", "class_name": "AiGateway" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["AiGateway"] }]
+}

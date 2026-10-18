@@ -1,0 +1,51 @@
+# NurimAI
+
+Mac va Windows uchun ekran chetida turadigan AI yordamchi. Qahramonni bosing, savol yozing. Oddiy foydalanuvchidan API kaliti so‘ralmaydi: so‘rov NurimAI serveri orqali Gemini yoki Groq’ga yuboriladi.
+
+## Foydalanuvchi uchun
+
+Windows: Releases’dan Setup EXE’ni yuklab o‘rnating. Eski portable ZIP o‘zini yangilay olmaydi; yangi Setup’ni bir marta o‘rnatish kerak.
+
+Mac: universal DMG Intel va Apple Silicon uchun. App’ni Applications’ga ko‘chiring. Mac avtomatik yangilanishi faqat Developer ID bilan imzolangan va notarizatsiya qilingan relizda ishlaydi. Imzosiz sinov paketida yangilanish qo‘lda yuklanadi.
+
+Qahramonni sudrab chetga suring; bosing — chat ochiladi/yig‘iladi. Enter yuboradi, Shift+Enter yangi qator. Ctrl/Command+Alt+Space tez ochadi. Tray menyusidagi Chiqish dasturni to‘liq yopadi. Suhbat xotirada turadi: chiqishdan oldin kerakli matnni TXT qilib saqlang.
+
+Bepul AI limiti barcha foydalanuvchilar orasida umumiy. Standart server limiti: jami 200 so‘rov/kun, qurilmaga 30/kun, IP manzilga 60/kun va 4/minut. Limit tugasa kutish kerak. Shaxsiy API kalitlari ixtiyoriy qo‘shimcha sozlama; ular OS shifrlashi bilan saqlanadi.
+
+## Hozirgi ishga tushirish tartibi
+
+1. GitHub Actions Mac/Windows testlari va paketlarini yig‘adi.
+2. Cloudflare Workers Free hisobida serverni deploy qiling (server/README.md).
+3. Worker manzilini GitHub repository variable NURIMAI_GATEWAY_URL sifatida kiriting.
+4. package.json versiyasiga mos v0.3.0 tag yuboring. Reliz job’i gateway manzilisiz ommaviy reliz chiqarmaydi.
+5. Guruhga Releases havolasini bering. Keyingi relizlarda package.json versiyasini oshirib, mos vX.Y.Z tag yuboriladi. Barcha buildlar o‘tgandan keyin GitHub Release yaratiladi.
+
+Yangilanish boshlanishdan 30 soniya keyin va har 6 soatda tekshiriladi. Windows Setup versiyasi fonda yuklaydi va dasturdan to‘liq chiqishda o‘rnatadi. Ochiq suhbat majburan uzilmaydi. Sozlamalarda avtomatik yangilanishni o‘chirish, qo‘lda tekshirish va tayyor yangilanishni o‘rnatish mumkin. Oddiy oynani yig‘ishtirish dasturdan chiqish emas.
+
+## Mahalliy ishlab chiqish
+
+Node.js 24 talab qilinadi.
+
+    npm ci
+    npx install-electron --no
+    npm test
+    npm run test:ui
+    npm start
+    npm run dist:win
+
+Mac’da: npm run dist:mac. Windows’da Mac build bajarilmaydi; GitHub’dagi macOS runner ishlatiladi. CI testlari haqiqiy Mac foydalanuvchisining Gatekeeper, Keychain va ko‘p monitorli desktop tekshiruvini to‘liq almashtirmaydi.
+
+## Mac imzolash
+
+Repo Secrets: MAC_CERTIFICATE (Developer ID Application .p12 base64), MAC_CERTIFICATE_PASSWORD, APPLE_ID, APPLE_APP_SPECIFIC_PASSWORD, APPLE_TEAM_ID. Kalit va sertifikatlarni repoga yoki chatga yozmang. Ular bo‘lmasa CI imzosiz paket yaratadi va dastur Mac auto-updater’ini yoqmaydi. Sertifikatlar mavjud bo‘lganda build imzolash/notarizatsiya xatosida to‘xtaydi; imzoni tekshirish chetlab o‘tilmaydi.
+
+## Ma’lumotlar va xavfsizlik
+
+- API kalitlari faqat Cloudflare Secrets’da; GitHub, frontend va o‘rnatish paketlariga kiritilmaydi.
+- Savol va yaqin suhbat konteksti server va tanlangan AI xizmatiga yuboriladi. Server kodida suhbatni saqlash/jurnalga yozish yo‘q. Cloudflare observability o‘chirilgan.
+- Rate limiting uchun kunlik saltlangan IP/device xeshlari va hisoblagichlar saqlanadi; ertasi kuni yozuv almashtiriladi. Qurilma ID’si tasodifiy, qurilma fingerprinti emas.
+- Login talab qilmaydigan ommaviy serverda suiiste’molni butunlay yo‘qotib bo‘lmaydi. Qattiq umumiy kunlik budjet va server tomonidagi tekshiruvlar qo‘yilgan; ilova ichida yashirin token yo‘q.
+- Electron renderer’da Node o‘chirilgan, sandbox/context isolation/CSP yoqilgan; AI javobi HTML sifatida bajarilmaydi.
+- O‘rnatuvchi va yangilanish HTTPS GitHub Releases’dan olinadi; electron-updater hashlarni va mavjud kod imzosini tekshiradi. Mac imzosi bo‘lmasa auto-install ishlatilmaydi.
+
+Qahramon hozir 2D rasm. Mikrofon, fayl, ekran o‘qish yoki kompyuterni boshqarish bu versiyaga kirmaydi.

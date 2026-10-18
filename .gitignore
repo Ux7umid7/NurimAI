@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.cache/
+test-results/
+playwright-report/
+*.log
+*.p12
+*.pfx
+.env*
+data/
+settings.json
+qa-profile/
+src/build-info.json
+.wrangler/
