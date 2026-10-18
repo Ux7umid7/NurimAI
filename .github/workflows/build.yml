@@ -34,7 +34,11 @@ jobs:
         run: npm run dist:win
       - name: Mac universal package
         if: runner.os == 'macOS'
-        run: npm run dist:mac
+        shell: bash
+        # On failure, surface electron-builder's error lines as annotations in the run summary.
+        run: |
+          set -o pipefail
+          npm run dist:mac 2>&1 | tee mac-build.log || { grep -E "⨯|Error|error:" mac-build.log | head -10 | sed 's/^[[:space:]]*/::error title=Mac build::/'; exit 1; }
         env:
           CSC_LINK: ${{ secrets.MAC_CERTIFICATE }}
           CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
