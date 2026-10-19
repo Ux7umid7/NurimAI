@@ -104,16 +104,6 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v7
-      # One-time: the repository was renamed NurmiAI -> NurimAI on 2026-10-19, so older notes link to a dead Pages address.
-      - name: Fix download page links in published notes
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          for tag in $(gh release list --limit 50 --json tagName --jq '.[].tagName'); do
-            body=$(gh release view "$tag" --json body --jq .body)
-            fixed=${body//ux7umid7.github.io\/NurmiAI/ux7umid7.github.io\/NurimAI}
-            if [ "$fixed" != "$body" ]; then printf '%s\n' "$fixed" > "$RUNNER_TEMP/notes.md"; gh release edit "$tag" --notes-file "$RUNNER_TEMP/notes.md"; echo "Fixed links in $tag"; fi
-          done
       - name: Sync current release notes
         env:
           GH_TOKEN: ${{ github.token }}
