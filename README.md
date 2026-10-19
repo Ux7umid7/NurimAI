@@ -2,6 +2,8 @@
 
 Mac va Windows uchun ekran chetida turadigan AI yordamchi. Qahramonni bosing, savol yozing. Oddiy foydalanuvchidan API kaliti so‘ralmaydi: so‘rov NurimAI serveri orqali Gemini yoki Groq’ga yuboriladi.
 
+📖 Loyiha haqida batafsil — nima uchun kerak, texnologiyalar, server va API, AI modellari: **[HAQIDA.md](HAQIDA.md)**
+
 ## Foydalanuvchi uchun
 
 Yuklab olish sahifasi: https://ux7umid7.github.io/NurmiAI/ — Windows va Mac tugmalari hamda o‘rnatish ko‘rsatmasi shu yerda. Guruhga shu havolani bering.
