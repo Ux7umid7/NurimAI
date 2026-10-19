@@ -6,7 +6,7 @@ Mac va Windows uchun ekran chetida turadigan AI yordamchi. Qahramonni bosing, sa
 
 ## Foydalanuvchi uchun
 
-Yuklab olish sahifasi: https://ux7umid7.github.io/NurmiAI/ — Windows va Mac tugmalari hamda o‘rnatish ko‘rsatmasi shu yerda. Guruhga shu havolani bering.
+Yuklab olish sahifasi: https://ux7umid7.github.io/NurimAI/ — Windows va Mac tugmalari hamda o‘rnatish ko‘rsatmasi shu yerda. Guruhga shu havolani bering.
 
 Windows: Setup EXE bir bosishda o‘rnatiladi, yorliq qo‘yadi va dasturni ochadi. SmartScreen chiqsa More info → Run anyway. Eski portable ZIP o‘zini yangilay olmaydi; yangi Setup’ni bir marta o‘rnatish kerak.
 

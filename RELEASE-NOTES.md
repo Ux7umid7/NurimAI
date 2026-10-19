@@ -1,6 +1,6 @@
 NurimAI 0.4.0
 
-Yuklab olish va o‘rnatish ko‘rsatmasi: https://ux7umid7.github.io/NurmiAI/
+Yuklab olish va o‘rnatish ko‘rsatmasi: https://ux7umid7.github.io/NurimAI/
 
 - Rasm, skrinshot, PDF, Word, Excel va PowerPoint yuborish: 📎 tugmasi, faylni oynaga sudrab tashlash yoki Ctrl+V.
 - Ekranni bir bosishda suratga olib, savolga qo‘shish. NurimAI o‘z oynasini rasmga tushirmaydi.

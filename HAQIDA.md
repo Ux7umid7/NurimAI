@@ -3,7 +3,7 @@
 <h1 align="center">NurimAI — loyiha haqida</h1>
 
 <p align="center">Windows va Mac uchun bepul, o‘zbek tilidagi kichik AI yordamchi.<br>
-<a href="https://ux7umid7.github.io/NurmiAI/">Yuklab olish sahifasi</a> · <a href="https://github.com/Ux7umid7/NurmiAI/releases/latest">So‘nggi reliz</a> · Joriy versiya: <b>0.4.0</b></p>
+<a href="https://ux7umid7.github.io/NurimAI/">Yuklab olish sahifasi</a> · <a href="https://github.com/Ux7umid7/NurimAI/releases/latest">So‘nggi reliz</a> · Joriy versiya: <b>0.4.0</b></p>
 
 ---
 
@@ -192,7 +192,7 @@ Limitlar `server/wrangler.jsonc` dagi `DAILY_TOTAL`, `DAILY_DEVICE`, `DAILY_IP` 
 | Xizmat | Vazifasi |
 |---|---|
 | GitHub Releases | O‘rnatuvchilar va avtoyangilanish fayllari (`latest.yml`, `latest-mac.yml`). Doimiy nomli `NurimAI-Windows-Setup.exe` va `NurimAI-Mac.dmg` har doim eng yangi versiya |
-| GitHub Pages | [Yuklab olish sahifasi](https://ux7umid7.github.io/NurmiAI/) — `main` branchdagi `docs/` papkadan |
+| GitHub Pages | [Yuklab olish sahifasi](https://ux7umid7.github.io/NurimAI/) — `main` branchdagi `docs/` papkadan |
 | GitHub Actions | Har push’da test va build, `vX.Y.Z` teg bo‘yicha reliz |
 
 ---
@@ -278,4 +278,4 @@ Yangi reliz: `package.json` versiyasini oshirish → `RELEASE-NOTES.md` va `src/
 
 ---
 
-<p align="center">Muallif: <a href="https://github.com/Ux7umid7">Ux7umid7</a> · Savol yoki muammo bo‘lsa: <a href="https://github.com/Ux7umid7/NurmiAI/issues">Issues</a></p>
+<p align="center">Muallif: <a href="https://github.com/Ux7umid7">Ux7umid7</a> · Savol yoki muammo bo‘lsa: <a href="https://github.com/Ux7umid7/NurimAI/issues">Issues</a></p>
