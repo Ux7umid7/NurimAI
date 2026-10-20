@@ -1,4 +1,9 @@
 {
+  "0.5.0": [
+    "Nur endi 3D: ekran chetida nafas oladi, ko‘z qisadi, atrofida harflar suzib yuradi.",
+    "Savol yuborsangiz Nur o‘ylaydi — kitobi porlaydi, ko‘zlari tepaga qaraydi; javob kelganda quvonib sakraydi.",
+    "Suhbat oynasidagi qahramon va belgi ham yangi 3D ko‘rinishda."
+  ],
   "0.4.0": [
     "Endi rasm, skrinshot, PDF, Word, Excel va PowerPoint yuborish mumkin: 📎 tugmasi, faylni oynaga sudrab tashlash yoki Ctrl+V.",
     "📎 yonidagi yangi tugma ekranni suratga olib, savolingizga qo‘shadi. NurimAI o‘z oynasini suratga tushirmaydi.",

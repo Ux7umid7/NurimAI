@@ -1,11 +1,14 @@
-# Qahramon rasmi
+# Rasmlar va animatsiyalar manbasi
 
-`mascot.png` — foydalanuvchi bergan ikkinchi rasmning fonsiz varianti. Built-in ImageGen yordamida background-extraction tahriri bajarildi. Asl rasm o‘zgartirilmadi. Natija loyihaga nusxalandi va ilova ichiga joylandi. Bu 2D PNG, 3D mesh emas.
+## Qahramon Nur (0.5.0 dan)
 
-Original: `C:/Users/user/AppData/Local/Temp/codex-clipboard-d3979b3b-02e8-4bd6-be0b-ee77bad60cad.png`.
+Manba: foydalanuvchining Blender loyihasi `claude big papka/ustozimnurim icons 3d/Nur_mascot.blend` (Blender 5.1, Cycles, Geometry Nodes jun). Asl fayl o‘zgartirilmaydi; ilova uchun animatsiyalar `scripts/nur_app_anim.py` bilan `Nur_app.blend` nusxasida quriladi.
 
-Prompt:
+- `nur/idle.webm`, `nur/think.webm`, `nur/happy.webm` — 360×450, 24 fps, shaffof fonli WebM (VP9 + alfa). Kadrlar `nur_app_anim.py -- render`, video `-- encode` bilan olinadi.
+- `nur/still.png` — kutish animatsiyasining 1-kadri (video yuklanguncha va “kamroq harakat” rejimida ko‘rinadi).
+- `nur/avatar.png` — `output/Nur_kitob_4K_shaffof.png` dan bosh qismi, 160×160.
+- `mascot.png` — o‘sha 4K shaffof renderdan qirqilgan to‘liq qomat (supa ostidagi soya chetlari silliqlangan). Sayt rasmlari (`docs/mascot.webp`, `docs/og.jpg`) `npm run icons` bilan shundan yasaladi.
 
-> Use case: background-extraction. Asset type: transparent PNG mascot for a small Windows desktop AI companion. Input image is the edit target: the fluffy cream and gold character with round gold glasses holding a glowing open book. Remove ONLY the taupe studio background and the floor. Preserve the original character identity, face, huge brown eyes, glasses, book, hair tuft, full body, two feet, pose, soft fur, golden illumination and recognizable proportions. Keep whole figure centered with a little padding, no cropped hair or feet. Preserve warm glow around the book and small nearby golden sparks, with genuine alpha transparency around the figure and fine fur edges. No new objects, no text, no logos. Output one high quality transparent-background full-body character image.
+## Ilova belgisi
 
-`Nuri.ico` — build.ps1 orqali chiziladigan sodda N belgisi.
+`icon.svg` — foydalanuvchi bergan `icon-source.jpg` dan vektorga o‘girilgan U+N belgisi (asl rasmdan 0,13% pikselda farq qiladi, faqat chegaralarda). `Nuri.ico`, `icon-mac.png`, `trayTemplate*.png` va sayt belgilari `npm run icons` bilan shundan yasaladi.

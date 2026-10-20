@@ -9,5 +9,6 @@ contextBridge.exposeInMainWorld('nurim',Object.freeze({
   movePet:point=>ipcRenderer.invoke('move-pet',point),
   attachPick:()=>ipcRenderer.invoke('attach-pick'), attachData:(name,data)=>ipcRenderer.invoke('attach-data',name,data),
   attachScreen:()=>ipcRenderer.invoke('attach-screen'), attachRemove:id=>ipcRenderer.invoke('attach-remove',id),
+  onMood:callback=>{const listener=(_event,mood)=>callback(mood);ipcRenderer.on('mood',listener);return ()=>ipcRenderer.removeListener('mood',listener);},
   onUpdate:callback=>{const listener=(_event,data)=>callback(data);ipcRenderer.on('update-status',listener);return ()=>ipcRenderer.removeListener('update-status',listener);}
 }));

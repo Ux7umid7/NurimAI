@@ -66,7 +66,7 @@ class Router {
       const combined = AbortSignal.any([signal, attempt.signal]);
       const mark = (status, delay = 0, disabled = false) => { this.states[provider] = { status, retryAt: this.now() + delay, disabled }; };
       try {
-        const headers = { 'Content-Type': 'application/json', 'User-Agent': 'NurimAI/0.4' };
+        const headers = { 'Content-Type': 'application/json', 'User-Agent': 'NurimAI/0.5' };
         if (provider === 'Gemini') headers['x-goog-api-key'] = settings.keys[provider]; else headers.Authorization = `Bearer ${settings.keys[provider]}`;
         // 'manual' never follows a redirect (keys stay on the provider host) and works in Workers, unlike 'error'; a 3xx is handled as a failed route.
         const response = await this.fetcher(URLS[provider], { method: 'POST', headers, body: JSON.stringify(body(provider, history, question, files)), signal: combined, redirect: 'manual' });

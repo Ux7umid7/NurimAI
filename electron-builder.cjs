@@ -4,7 +4,7 @@ const macCertificate = Boolean(process.env.CSC_LINK);
 module.exports = {
   appId: 'com.nurimai.desktop', productName: 'NurimAI',
   asar: true, directories: { output: 'dist' },
-  files: ['src/**/*', 'assets/mascot.png', 'assets/Nuri.ico', 'assets/trayTemplate.png', 'assets/trayTemplate@2x.png', 'package.json'],
+  files: ['src/**/*', 'assets/Nuri.ico', 'assets/trayTemplate.png', 'assets/trayTemplate@2x.png', 'assets/nur/**/*', 'package.json'],
   artifactName: 'NurimAI-${version}-${os}-${arch}.${ext}',
   publish: release.owner && release.repo ? [{ provider: 'github', owner: release.owner, repo: release.repo, releaseType: 'release' }] : null,
   win: { target: ['nsis'], icon: 'assets/Nuri.ico' },

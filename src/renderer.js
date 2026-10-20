@@ -26,7 +26,7 @@ function chip(file,removable){
 }
 function renderFiles(list){files=list;$('attachments').replaceChildren(...files.map(f=>chip(f,true)));$('attachments').hidden=!files.length;$('file-actions').hidden=!files.length||busy;$('question').placeholder=files.length?'Fayl haqida savol yozing yoki tayyor tugmani bosing…':'Istalgan savolingizni yozing…';}
 function bubble(role,text,attached=[]){
-  $('welcome').hidden=true;const el=document.createElement('article');el.className=`bubble ${role}`;const head=document.createElement('div');head.className='bubble-head';const label=document.createElement('span');label.textContent=role==='user'?'SIZ':'NurimAI';head.append(label);
+  $('welcome').hidden=true;$('hero-nur').pause();const el=document.createElement('article');el.className=`bubble ${role}`;const head=document.createElement('div');head.className='bubble-head';const label=document.createElement('span');label.textContent=role==='user'?'SIZ':'NurimAI';head.append(label);
   if(role!=='user'){const copy=document.createElement('button');copy.textContent='Nusxa';copy.onclick=async()=>{await call(window.nurim.copy(text));copy.textContent='Olindi ✓';};head.append(copy);}
   el.append(head);
   if(attached.length){const row=document.createElement('div');row.className='bubble-files';row.append(...attached.map(f=>chip(f,false)));el.append(row);}
@@ -51,7 +51,7 @@ $('composer').onsubmit=event=>{event.preventDefault();ask($('question').value.tr
 $('question').onkeydown=event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();$('composer').requestSubmit();}};
 document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('settings-dialog').open)window.nurim.hide();});
 $('hide').onclick=()=>window.nurim.hide();$('stop').onclick=()=>window.nurim.stop();$('export').onclick=()=>call(window.nurim.exportChat()).catch(e=>notice(e.message));
-$('new').onclick=async()=>{await call(window.nurim.reset());$('messages').replaceChildren();$('welcome').hidden=false;$('question').value='';shown.clear();renderFiles([]);notice('');$('question').focus();};
+$('new').onclick=async()=>{await call(window.nurim.reset());$('messages').replaceChildren();$('welcome').hidden=false;heroPlay();$('question').value='';shown.clear();renderFiles([]);notice('');$('question').focus();};
 for(const button of document.querySelectorAll('[data-prompt]'))button.onclick=()=>{$('question').value=button.dataset.prompt;$('question').focus();};
 for(const button of document.querySelectorAll('[data-file-prompt]'))button.onclick=()=>ask(button.dataset.filePrompt);
 $('whats-new-close').onclick=()=>{$('whats-new').hidden=true;};
@@ -90,4 +90,11 @@ $('settings-form').onsubmit=async event=>{event.preventDefault();const keys={},c
 };
 $('check-update').onclick=async()=>{try{updateView(await call(window.nurim.checkUpdate()));}catch(e){$('settings-error').textContent=e.message;}};
 $('install-update').onclick=()=>call(window.nurim.installUpdate()).catch(e=>$('settings-error').textContent=e.message);$('release-page').onclick=()=>window.nurim.openLink('releases');window.nurim.onUpdate(updateView);
+// Welcome-screen Nur plays once while the chat is actually visible, then rests: a hidden or paused video costs no CPU.
+const calm=matchMedia('(prefers-reduced-motion: reduce)').matches;let heroRest=null;
+function heroPlay(){clearTimeout(heroRest);const hero=$('hero-nur');if(calm||document.visibilityState!=='visible'||$('welcome').hidden)return;hero.currentTime=0;hero.play().catch(()=>{});}
+$('hero-nur').onended=()=>{clearTimeout(heroRest);heroRest=setTimeout(heroPlay,8000+Math.random()*8000);};
+$('hero-nur').onpointerenter=()=>{if($('hero-nur').paused)heroPlay();};
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')heroPlay();else{clearTimeout(heroRest);$('hero-nur').pause();}});
+heroPlay();
 init().catch(e=>notice(e.message));

@@ -10,6 +10,9 @@ let chat,pet,tray,store,updates,controller;let history=[],visible=[],exiting=fal
 let files=[],fileSeq=0,previousVersion='';const sentIds=new Set(); // attachments already shown on a sent message
 const router = new Router();
 const asset = name=>path.join(root,'assets',name);
+const PET={width:144,height:180};
+// The 3D mascot plays idle / think / happy animations; the pet window only reacts to these moods.
+function mood(state){if(pet&&!pet.isDestroyed())pet.webContents.send('mood',state);}
 function summary(){return {version:app.getVersion(),platform:process.platform,settings:store.public(),routes:router.diagnostics(store.value),last:router.last,update:updates.state,gatewayConfigured:Boolean(release.gateway),history:visible,busy:Boolean(controller),files:forView(files),sentIds:[...sentIds],whatsNew:previousVersion&&previousVersion!==app.getVersion()?whatsNew[app.getVersion()]||[]:[]};}
 function clamp(point,width,height){const area=screen.getDisplayNearestPoint(point).workArea;return {x:Math.max(area.x,Math.min(Math.round(point.x),area.x+area.width-width)),y:Math.max(area.y,Math.min(Math.round(point.y),area.y+area.height-height))};}
 function showChat(){if(!chat || chat.isDestroyed())return;if(!chat.isVisible()){const p=pet.getBounds();const next=clamp({x:p.x-450,y:p.y-540},440,700);chat.setPosition(next.x,next.y);}chat.show();chat.focus();}
@@ -48,10 +51,10 @@ function lockWindow(window,file){
 function createWindows(){
   const webPreferences={preload:path.join(__dirname,'preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true};
   chat=new BrowserWindow({title:'NurimAI',width:440,height:700,minWidth:370,minHeight:490,show:false,frame:false,transparent:true,hasShadow:true,alwaysOnTop:store.value.topmost,icon:asset('Nuri.ico'),webPreferences});
-  pet=new BrowserWindow({title:'NurimAI — kichik yordamchi',width:114,height:152,show:false,frame:false,transparent:true,resizable:false,skipTaskbar:true,alwaysOnTop:store.value.topmost,webPreferences});
+  pet=new BrowserWindow({title:'NurimAI — kichik yordamchi',width:PET.width,height:PET.height,show:false,frame:false,transparent:true,resizable:false,skipTaskbar:true,alwaysOnTop:store.value.topmost,webPreferences});
   lockWindow(chat,'index.html');lockWindow(pet,'pet.html');
-  const area=screen.getPrimaryDisplay().workArea;const position=clamp(store.value.petPosition||{x:area.x+area.width-134,y:area.y+area.height-172},114,152);pet.setPosition(position.x,position.y);
-  pet.once('ready-to-show',()=>pet.show());chat.once('ready-to-show',()=>{if(!process.argv.includes('--compact'))showChat();});
+  const area=screen.getPrimaryDisplay().workArea;const position=clamp(store.value.petPosition||{x:area.x+area.width-PET.width-20,y:area.y+area.height-PET.height-20},PET.width,PET.height);pet.setPosition(position.x,position.y);
+  pet.once('ready-to-show',()=>{pet.show();setTimeout(()=>mood('happy'),1200);}); // small hop to say hellochat.once('ready-to-show',()=>{if(!process.argv.includes('--compact'))showChat();});
   chat.on('close',e=>{if(!exiting){e.preventDefault();chat.hide();}});
   pet.on('close',e=>{if(!exiting)e.preventDefault();});
   pet.on('moved',()=>{const [x,y]=pet.getPosition();store.value.petPosition={x,y};});
@@ -74,10 +77,11 @@ function registerIPC(){
     if(controller)throw new UserError('Avvalgi javobni kuting.');
     if(typeof question!=='string'||!question.trim()||question.length>6000)throw new UserError('Savol 1–6000 belgi bo‘lsin.');question=question.trim();
     controller=new AbortController();const sent=forRequest(files);const fresh=files.filter(f=>!sentIds.has(f.id));fresh.forEach(f=>sentIds.add(f.id));visible.push({role:'user',text:question,files:fresh.map(({name,ext,kind})=>({name,ext,kind}))});
+    mood('think');
     try{
       const reply=qa?{text:`Bu avtomatik UI sinovi uchun tayyor javob. Jonli AI emas.${sent.length?` Biriktirilgan fayllar: ${sent.length}.`:''}`,incomplete:false}:store.value.usePersonalKeys?await router.ask(store.value,history,question,controller.signal,sent):await askGateway({url:release.gateway,deviceId:store.value.deviceId,history,question,files:sent,signal:controller.signal});
-      history.push({role:'user',text:question},{role:'assistant',text:reply.text});history=history.slice(-24);visible.push({role:'assistant',text:reply.text});return reply;
-    }catch(e){visible.push({role:'assistant',text:'Javob olinmadi. Savolni qayta yuborishingiz mumkin.'});throw e;}finally{controller=null;}
+      history.push({role:'user',text:question},{role:'assistant',text:reply.text});history=history.slice(-24);visible.push({role:'assistant',text:reply.text});mood('happy');return reply;
+    }catch(e){visible.push({role:'assistant',text:'Javob olinmadi. Savolni qayta yuborishingiz mumkin.'});mood('idle');throw e;}finally{controller=null;}
   });
   register('stop',()=>controller?.abort());register('reset',()=>{if(controller)throw new UserError('Avval javobni to‘xtating.');history=[];visible=[];files=[];sentIds.clear();});
   register('save-settings',value=>{if(controller)throw new UserError('Javob tugashini kuting.');const old=store.value.keys;const result=store.update(value);for(const p of ORDER)if(old[p]!==store.value.keys[p])router.reset(p);chat.setAlwaysOnTop(store.value.topmost);pet.setAlwaysOnTop(store.value.topmost);updates.setEnabled(store.value.autoUpdate);return result;});
@@ -94,7 +98,7 @@ function registerIPC(){
   register('attach-data',(name,data)=>{if(typeof name!=='string'||!(data instanceof ArrayBuffer||ArrayBuffer.isView(data)))throw new UserError('Fayl o‘qilmadi.');return attach([{name,read:async()=>{const bytes=Buffer.from(data instanceof ArrayBuffer?data:data.buffer.slice(data.byteOffset,data.byteOffset+data.byteLength));if(bytes.length>LIMITS.inputBytes)throw new UserError(`${name}: fayl juda katta (15 MB gacha).`);return bytes;}}]);});
   register('attach-screen',async()=>{if(qa)throw new UserError('Sinov rejimida ekran olinmaydi.');const png=await captureScreen();const t=new Date();return attach([{name:`Skrinshot ${String(t.getHours()).padStart(2,'0')}-${String(t.getMinutes()).padStart(2,'0')}.png`,read:async()=>png}]);});
   register('attach-remove',id=>{files=files.filter(file=>file.id!==id);return forView(files);});
-  register('move-pet',point=>{if(!point||!Number.isFinite(point.x)||!Number.isFinite(point.y))return;const p=clamp(point,114,152);pet.setPosition(p.x,p.y);store.value.petPosition=p;},true);
+  register('move-pet',point=>{if(!point||!Number.isFinite(point.x)||!Number.isFinite(point.y))return;const p=clamp(point,PET.width,PET.height);pet.setPosition(p.x,p.y);store.value.petPosition=p;},true);
 }
 if(!app.requestSingleInstanceLock()){app.quit();}else{
   app.on('second-instance',showChat);app.on('activate',showChat);

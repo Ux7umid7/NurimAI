@@ -1,12 +1,11 @@
-NurimAI 0.4.0
+NurimAI 0.5.0
 
 Yuklab olish va o‘rnatish ko‘rsatmasi: https://ux7umid7.github.io/NurimAI/
 
-- Rasm, skrinshot, PDF, Word, Excel va PowerPoint yuborish: 📎 tugmasi, faylni oynaga sudrab tashlash yoki Ctrl+V.
-- Ekranni bir bosishda suratga olib, savolga qo‘shish. NurimAI o‘z oynasini rasmga tushirmaydi.
-- Fayl suhbat davomida esda qoladi; tezkor tugmalar: qisqacha mazmun, tushuntirish, tarjima, xatolar, test savollari.
-- Javoblarda ro‘yxat, qalin matn va kod bloklari.
-- Yangilangandan keyin dasturda “Nima yangi” xabari chiqadi.
+- Nur endi 3D: ekran chetida nafas oladi, ko‘z qisadi, atrofida harflar suzib yuradi.
+- Savol yuborilganda Nur o‘ylaydi (kitobi porlaydi, ko‘zlari tepaga qaraydi), javob kelganda quvonib sakraydi.
+- Suhbat oynasidagi qahramon va belgi yangi 3D ko‘rinishda.
+- Kompyuteringiz “kamroq harakat” sozlamasida bo‘lsa, Nur jim turadi.
 
 Windows’da yangilanish o‘zi yuklanadi va dasturdan to‘liq chiqqanda o‘rnatiladi. Mac’da yangi DMG’ni sahifadan yuklab, Applications’dagi eski NurimAI’ni almashtiring.
 

@@ -3,7 +3,7 @@
 <h1 align="center">NurimAI — loyiha haqida</h1>
 
 <p align="center">Windows va Mac uchun bepul, o‘zbek tilidagi kichik AI yordamchi.<br>
-<a href="https://ux7umid7.github.io/NurimAI/">Yuklab olish sahifasi</a> · <a href="https://github.com/Ux7umid7/NurimAI/releases/latest">So‘nggi reliz</a> · Joriy versiya: <b>0.4.0</b></p>
+<a href="https://ux7umid7.github.io/NurimAI/">Yuklab olish sahifasi</a> · <a href="https://github.com/Ux7umid7/NurimAI/releases/latest">So‘nggi reliz</a> · Joriy versiya: <b>0.5.0</b></p>
 
 ---
 
@@ -30,7 +30,8 @@ NurimAI — kompyuter ekranining chetida turadigan kichik qahramon. Uni bossangi
 - 📎 **Fayllar** — rasm, skrinshot, PDF, Word (.docx), Excel (.xlsx), PowerPoint (.pptx), matn va CSV. Faylni tugma, sudrab tashlash yoki `Ctrl+V` bilan berish mumkin.
 - 🖥️ **Ekranni suratga olish** — bitta tugma ekranni rasmga olib, savolga qo‘shadi. NurimAI o‘z oynasini rasmga tushirmaydi.
 - ⚡ **Tezkor tugmalar** — fayl uchun: qisqacha mazmun, tushuntirish, tarjima, xatolarni topish, test savollari tuzish.
-- 🧸 **Har doim yonida** — qahramonni ekranning istalgan chetiga sudrab qo‘yish mumkin, `Ctrl+Alt+Space` (Mac’da `⌘+⌥+Space`) chatni istalgan dasturdan ochadi.
+- 🧸 **3D qahramon Nur** — ekran chetida nafas oladi va ko‘z qisadi, javob tayyorlanayotganda o‘ylaydi, javob kelganda quvonib sakraydi.
+- 📌 **Har doim yonida** — qahramonni ekranning istalgan chetiga sudrab qo‘yish mumkin, `Ctrl+Alt+Space` (Mac’da `⌘+⌥+Space`) chatni istalgan dasturdan ochadi.
 - 🔄 **O‘zi yangilanadi** — Windows’da yangi versiya fonda yuklanadi va dasturdan chiqqanda o‘rnatiladi.
 - 🆓 **Bepul** — ro‘yxatdan o‘tish, to‘lov va API kalit kerak emas.
 
@@ -39,7 +40,7 @@ NurimAI — kompyuter ekranining chetida turadigan kichik qahramon. Uni bossangi
 | Platformalar | Windows 10/11 (64-bit), macOS (Apple Silicon va Intel) |
 | Til | O‘zbek (lotin), foydalanuvchi boshqa tilda yozsa — o‘sha tilda |
 | Narx | Bepul, umumiy kunlik limit bilan |
-| Joriy versiya | 0.4.0 (2026-yil 18-oktabr) |
+| Joriy versiya | 0.5.0 (2026-yil 20-oktabr) |
 
 ---
 
@@ -80,6 +81,7 @@ Ko‘p AI xizmatlari ingliz tilida ishlaydi, ro‘yxatdan o‘tish, karta yoki A
 | Testlar | `node:test` va Playwright (Electron) | Node 24, Playwright 1.64.1 | 46 ta unit va 5 ta UI test |
 | CI/CD | GitHub Actions | — | Har push’da Windows va macOS’da test va build, teg bo‘yicha reliz |
 | Sayt | GitHub Pages, oddiy HTML/CSS/JS | — | Yuklab olish sahifasi, yangilash ko‘rsatmasi |
+| 3D qahramon | Blender 5.1 (Cycles, Geometry Nodes jun) → shaffof WebM (VP9 + alfa) | — | Nur animatsiyalari: kutish, o‘ylash, quvonish |
 | Ikonkalar | SVG manba → `npm run icons` | — | `.ico`, Mac ikonkasi, menyu paneli belgisi, sayt rasmlari |
 
 **Arxitektura**
@@ -112,7 +114,7 @@ NurimAI-Desktop/
 │   └── whats-new.json    “Nima yangi” matnlari
 ├── server/               Cloudflare Worker (worker.mjs, wrangler.jsonc)
 ├── docs/                 GitHub Pages sayti
-├── assets/               Ikonkalar va qahramon rasmi
+├── assets/               Ikonkalar, qahramon rasmi, nur/ — 3D animatsiyalar (idle, think, happy)
 ├── scripts/              Reliz va ikonka skriptlari
 ├── tests/                Unit va UI testlar
 └── .github/workflows/    CI/CD
@@ -241,6 +243,7 @@ Limitlar `server/wrangler.jsonc` dagi `DAILY_TOTAL`, `DAILY_DEVICE`, `DAILY_IP` 
 
 | Versiya | Sana | Asosiy o‘zgarishlar |
 |---|---|---|
+| 0.5.0 | 2026-10-20 | 3D qahramon Nur: kutish, o‘ylash va quvonish animatsiyalari; suhbat oynasida 3D avatar va jonli qahramon |
 | 0.4.0 | 2026-10-18 | Rasm, skrinshot, PDF, Word, Excel, PowerPoint yuborish; ekranni suratga olish; tezkor tugmalar; formatlangan javoblar; “Nima yangi”; saytda “Yangilash” bo‘limi |
 | 0.3.0 | 2026-10-18 | Birinchi ommaviy versiya: Windows va Mac, API kalitsiz umumiy server, avtoyangilanish, yuklab olish sahifasi |
 
@@ -258,7 +261,8 @@ Limitlar `server/wrangler.jsonc` dagi `DAILY_TOTAL`, `DAILY_DEVICE`, `DAILY_IP` 
 - Suhbat tarixini ixtiyoriy saqlash va qidirish.
 - Mikrofon orqali ovozli savol berish.
 - Apple Developer ID bilan imzolash: Mac’da ham avtoyangilanish va ogohlantirishsiz ochilish.
-- Qahramonni 3D ko‘rinishga o‘tkazish va kayfiyatga qarab harakatlantirish.
+- Nur uchun yangi holatlar: salomlashish, uzoq kutganda “uxlash”, xato bo‘lganda xafa bo‘lish, fayl tashlanganda uni “qabul qilish”.
+- Ikkinchi qahramon (Nur shogirt) bilan qahramon tanlash.
 - Ko‘p foydalanuvchi uchun limitni kengaytirish (qo‘shimcha kalitlar yoki pullik tarif).
 - Ustozlar uchun tayyor shablonlar: dars rejasi, baholash mezonlari, test to‘plami.
 

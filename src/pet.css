@@ -1,1 +1,8 @@
-html,body{margin:0;background:transparent;overflow:hidden;user-select:none}button{display:flex;align-items:center;flex-direction:column;gap:0;background:transparent;border:0;cursor:grab;width:114px;height:152px;padding:0;outline-offset:-2px}button:active{cursor:grabbing}img{height:128px;width:106px;object-fit:contain;pointer-events:none;-webkit-user-drag:none}span{background:#45563a;color:#fff;border-radius:10px;font:10px "Segoe UI",sans-serif;padding:5px 13px;pointer-events:none}
+html,body{margin:0;background:transparent;overflow:hidden;user-select:none}
+button{position:relative;display:block;background:transparent;border:0;cursor:grab;width:144px;height:180px;padding:0;outline-offset:-2px}
+button:active{cursor:grabbing}
+.stage,.stage>*{position:absolute;inset:0;width:100%;height:100%}
+.stage>*{object-fit:contain;pointer-events:none;-webkit-user-drag:none}
+video{visibility:hidden}video.on{visibility:visible}
+.label{position:absolute;left:50%;bottom:4px;transform:translateX(-50%);background:#45563a;color:#fff;border-radius:10px;font:10px "Segoe UI",sans-serif;padding:4px 11px;pointer-events:none;opacity:0;transition:opacity .2s}
+button:hover .label,button:focus-visible .label{opacity:1}

@@ -27,3 +27,11 @@ test('answers are formatted safely: lists, bold and code stay inert DOM',async()
  const html=await page.evaluate(()=>{const d=document.createElement('div');rich(d,'**Qalin** va `kod`\n- bir\n- ikki\n1. birinchi\n```\n<img src=x onerror="window.pwned=1">\n```');return {strong:d.querySelector('p strong')?.textContent,items:d.querySelectorAll('ul li').length,ol:d.querySelectorAll('ol li').length,code:d.querySelector('pre code')?.textContent,img:d.querySelectorAll('img').length,pwned:window.pwned};});
  expect(html).toEqual({strong:'Qalin',items:2,ol:1,code:'<img src=x onerror="window.pwned=1">',img:0,pwned:undefined});
 });
+test('3D Nur hops when an answer arrives, then plays idle once',async()=>{
+ const pet=app.windows().find(w=>w.url().endsWith('/pet.html'));
+ await expect(pet.locator('#idle.on')).toBeVisible({timeout:15000});await expect(pet.locator('#still')).toBeHidden();
+ await page.locator('#new').click();await page.locator('#question').fill('Salom');await page.locator('#send').click();
+ await expect(pet.locator('#happy.on')).toBeVisible({timeout:5000});await expect(pet.locator('#idle.on')).toBeVisible({timeout:6000});
+ const before=await pet.evaluate(()=>document.getElementById('idle').currentTime);await pet.waitForTimeout(500);expect(await pet.evaluate(()=>document.getElementById('idle').currentTime)).toBeGreaterThan(before); // idle replays once after the hop
+ await expect(page.locator('.hero video')).toHaveAttribute('src',/nur\/idle\.webm/);
+});
