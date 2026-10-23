@@ -1,8 +1,8 @@
 import routerModule from '../src/router.cjs';
-const { Router, UserError } = routerModule;
+const { Router, UserError, speak, SPEECH } = routerModule;
 const json = (data,status=200,extra={})=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...extra}});
-const MEDIA = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/heic', 'image/heif', 'application/pdf']);
-// Optional attachments (absent in 0.3.0 clients): extracted document text, or base64 images/PDFs for Gemini.
+const MEDIA = { image: new Set(['image/png', 'image/jpeg', 'image/webp', 'image/heic', 'image/heif']), pdf: new Set(['application/pdf']), audio: new Set(['audio/wav']) };
+// Optional attachments (absent in 0.3.0 clients): extracted document text, or base64 images/PDFs/voice recordings (0.6.1+) for Gemini.
 function validateFiles(list) {
   if (list === undefined) return [];
   if (!Array.isArray(list) || list.length > 5) throw new Error('files');
@@ -10,7 +10,7 @@ function validateFiles(list) {
   const files = list.map(f => {
     if (!f || typeof f.name !== 'string' || !f.name || f.name.length > 200) throw new Error('files');
     if (f.kind === 'text') { if (typeof f.text !== 'string' || !f.text.trim() || f.text.length > 60000) throw new Error('files'); text += f.text.length; return { kind: 'text', name: f.name, text: f.text }; }
-    if (!['image', 'pdf'].includes(f.kind) || !MEDIA.has(f.mime) || (f.kind === 'pdf') !== (f.mime === 'application/pdf') || typeof f.data !== 'string' || !f.data || f.data.length > 10 * 1024 * 1024 || !/^[A-Za-z0-9+/]+={0,2}$/.test(f.data)) throw new Error('files');
+    if (!Object.hasOwn(MEDIA, f.kind) || !MEDIA[f.kind].has(f.mime) || typeof f.data !== 'string' || !f.data || f.data.length > (f.kind === 'audio' ? 6 : 10) * 1024 * 1024 || !/^[A-Za-z0-9+/]+={0,2}$/.test(f.data)) throw new Error('files');
     data += f.data.length; return { kind: f.kind, name: f.name, mime: f.mime, data: f.data };
   });
   if (data > 12.5 * 1024 * 1024 || text > 120000) throw new Error('files');
@@ -24,12 +24,17 @@ export function validatePayload(data) {
   if(count>12000)throw new Error('history');
   return {question:data.question.trim(),deviceId:data.deviceId,history:data.history.map(m=>({role:m.role,text:m.text})),files:validateFiles(data.files)};
 }
+export function validateSpeech(data) {
+  if(!data||typeof data.text!=='string'||!data.text.trim()||data.text.length>SPEECH.maxChars)throw new Error('text');
+  if(typeof data.deviceId!=='string'||!/^[a-f0-9-]{36}$/i.test(data.deviceId))throw new Error('device');
+  return {text:data.text.trim(),deviceId:data.deviceId};
+}
 export function budget(previous, now, ip, device, limits) {
   const day=Math.floor(now/86400000);const minute=Math.floor(now/60000);
   const data=previous?.day===day?structuredClone(previous):{day,total:0,ips:{},devices:{}};
   const row=data.ips[ip]||{count:0,minute,hits:0};if(row.minute!==minute){row.minute=minute;row.hits=0;}
   if(data.total>=limits.total||row.count>=limits.ip||(data.devices[device]||0)>=limits.device)return {allowed:false,retry:Math.ceil(((day+1)*86400000-now)/1000)};
-  if(row.hits>=4)return {allowed:false,retry:60};
+  if(row.hits>=(limits.minute||4))return {allowed:false,retry:60};
   row.count++;row.hits++;data.ips[ip]=row;data.devices[device]=(data.devices[device]||0)+1;data.total++;return {allowed:true,data};
 }
 // Logs only upstream status and the provider's own error text (never the question, history or keys); visible via `wrangler tail`.
@@ -47,21 +52,23 @@ async function readBounded(request,limit){const reader=request.body?.getReader()
 export default {async fetch(request,env){
   const url=new URL(request.url);
   if(request.method==='GET'&&url.pathname==='/health')return json({service:'NurimAI',ready:Boolean(env.RATE_SALT&&((env.GEMINI_API_KEY&&env.GEMINI_FREE_TIER==='true')||(env.GROQ_API_KEY&&env.GROQ_FREE_TIER==='true')))});
-  if(request.method!=='POST'||url.pathname!=='/chat')return json({error:'Not found'},404);
+  if(request.method!=='POST'||!['/chat','/speak'].includes(url.pathname))return json({error:'Not found'},404);
   if(request.headers.get('Origin'))return json({error:'Desktop API only'},403);
   if(!request.headers.get('content-type')?.startsWith('application/json'))return json({error:'JSON required'},415);
   if(!env.RATE_SALT||!env.BUDGET)return json({error:'Service not configured'},503);
-  let data;try{data=validatePayload(await readBounded(request,14*1024*1024));}catch(error){return error instanceof TooLarge?json({error:'Request too large'},413):json({error:'Invalid request'},400);}
+  const speech=url.pathname==='/speak';
+  let data;try{const body=await readBounded(request,speech?16*1024:14*1024*1024);data=speech?validateSpeech(body):validatePayload(body);}catch(error){return error instanceof TooLarge?json({error:'Request too large'},413):json({error:'Invalid request'},400);}
   const ip=request.headers.get('CF-Connecting-IP');if(!ip)return json({error:'Client unavailable'},403);
   const day=Math.floor(Date.now()/86400000);
   const identities={ip:await hash(`${env.RATE_SALT}:${day}:${ip}`),device:await hash(`${env.RATE_SALT}:${day}:${data.deviceId}`)};
-  try{return await env.BUDGET.get(env.BUDGET.idFromName('global')).fetch(new Request('https://internal/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data,identities})}));}catch{return json({error:'Service unavailable'},503);}
+  try{return await env.BUDGET.get(env.BUDGET.idFromName('global')).fetch(new Request(speech?'https://internal/speak':'https://internal/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data,identities})}));}catch{return json({error:'Service unavailable'},503);}
 }};
 export class AiGateway {
   constructor(state,env){this.state=state;this.env=env;this.router=new Router({fetcher:upstream});this.active=0;}
   async fetch(request){
     if(this.active>=4)return json({error:'Busy'},429,{'Retry-After':'20'});
     const {data,identities}=await request.json();
+    if(new URL(request.url).pathname==='/speak')return this.speech(data,identities);
     const limits={total:Math.min(1000,Math.max(1,Number(this.env.DAILY_TOTAL)||200)),ip:Math.min(100,Math.max(1,Number(this.env.DAILY_IP)||60)),device:Math.min(100,Math.max(1,Number(this.env.DAILY_DEVICE)||30))};
     const result=await this.state.storage.transaction(async tx=>{const next=budget(await tx.get('budget'),Date.now(),identities.ip,identities.device,limits);if(next.allowed)await tx.put('budget',next.data);return next;});
     if(!result.allowed)return json({error:'Free limit reached'},429,{'Retry-After':String(result.retry)});
@@ -71,5 +78,15 @@ export class AiGateway {
       const reply=await this.router.ask(settings,data.history,data.question,AbortSignal.timeout(85000),data.files);
       return json({text:reply.text,incomplete:reply.incomplete});
     }catch(error){console.log(`chat failed: ${error instanceof UserError?error.message:error?.name||'Error'}; routes: ${this.router.diagnostics(settings).map(r=>`${r.provider}=${r.status}`).join(', ')}`);const rejected=error instanceof UserError&&error.code==='input';return json({error:rejected?'Input rejected':error instanceof UserError?'AI temporarily unavailable':'Service unavailable'},rejected?422:503);}finally{this.active--;}
+  }
+  // Voice answers have their own daily budget, so listening never eats the chat limit.
+  async speech(data,identities){
+    if(!this.env.GEMINI_API_KEY||this.env.GEMINI_FREE_TIER!=='true')return json({error:'Speech not configured'},503);
+    const limits={total:Math.min(2000,Math.max(1,Number(this.env.SPEAK_TOTAL)||400)),ip:Math.min(200,Math.max(1,Number(this.env.SPEAK_IP)||80)),device:Math.min(200,Math.max(1,Number(this.env.SPEAK_DEVICE)||40)),minute:10};
+    const result=await this.state.storage.transaction(async tx=>{const next=budget(await tx.get('speech'),Date.now(),identities.ip,identities.device,limits);if(next.allowed)await tx.put('speech',next.data);return next;});
+    if(!result.allowed)return json({error:'Free limit reached'},429,{'Retry-After':String(result.retry)});
+    this.active++;
+    try{const audio=await speak({key:this.env.GEMINI_API_KEY,text:data.text,signal:AbortSignal.timeout(60000),fetcher:upstream});return json({mime:audio.mime,audio:audio.data});}
+    catch(error){console.log(`speech failed: ${error instanceof UserError?error.message:error?.name||'Error'}`);return json({error:error?.code==='limit'?'Free limit reached':'Speech unavailable'},error?.code==='limit'?429:503);}finally{this.active--;}
   }
 }

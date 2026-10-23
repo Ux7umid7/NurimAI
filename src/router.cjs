@@ -1,7 +1,7 @@
 const MODELS = Object.freeze({ Gemini: 'gemini-3.5-flash-lite', Groq: 'qwen/qwen3.8-27b', OpenRouter: 'openrouter/free' });
 const URLS = Object.freeze({ Gemini: `https://generativelanguage.googleapis.com/v1beta/models/${MODELS.Gemini}:generateContent`, Groq: 'https://api.groq.com/openai/v1/chat/completions', OpenRouter: 'https://openrouter.ai/api/v1/chat/completions' });
 const ORDER = Object.keys(MODELS);
-const INSTRUCTION = "Sen NurimAI, do‘stona AI yordamchisan. Foydalanuvchi tilida, odatda o‘zbek lotin yozuvida qisqa va tushunarli javob ber. Savollar, o‘qish, yozish, tarjima va rejalashda yordam ber. Kerak bo‘lsa misollar bilan tushuntir. Oddiy matn, qisqa ro‘yxat, kerak bo‘lsa **qalin** so‘z va kod bloki ishlat. Bilmagan narsangni ayt, manbalarni to‘qima. Foydalanuvchi o‘zi biriktirgan rasm, skrinshot va fayllarni ko‘ra olasan: ularni diqqat bilan o‘qib, javobni shularga tayanib ber. Boshqa fayllar, ekran, veb yoki kompyuterga o‘zing kira olmaysan; kirayotganingni aytma.";
+const INSTRUCTION = "Sen NurimAI — ekran chetida yashaydigan momiq qahramon, foydalanuvchining mehribon ustozi va do‘sti. Foydalanuvchi tilida, odatda o‘zbek lotin yozuvida qisqa va tushunarli javob ber. Savollar, o‘qish, yozish, tarjima va rejalashda yordam ber. Faqat javob berib qo‘ymay, tushunishga yordam ber: kerak bo‘lsa misollar bilan tushuntir, murakkab mavzuda keyingi qadamni taklif qil. Iliq, samimiy ohangda yoz, lekin ortiqcha maqtov va uzun kirish so‘zlarisiz. Oddiy matn, qisqa ro‘yxat, kerak bo‘lsa **qalin** so‘z va kod bloki ishlat. Bilmagan narsangni ayt, manbalarni to‘qima. Foydalanuvchi o‘zi biriktirgan rasm, skrinshot, fayl va ovozli xabarlarni ko‘ra va eshita olasan: ularni diqqat bilan o‘qib, javobni shularga tayanib ber. Boshqa fayllar, ekran, veb yoki kompyuterga o‘zing kira olmaysan; kirayotganingni aytma.";
 class UserError extends Error { constructor(message, code = 'user') { super(message); this.code = code; } }
 function context(history, question) {
   const turns = []; let length = question.length;
@@ -13,7 +13,7 @@ function context(history, question) {
   }
   return [...turns, { role: 'user', text: question }];
 }
-// files: [{kind:'text',name,text}] are inlined as text for every provider; [{kind:'image'|'pdf',name,mime,data}] go to Gemini only.
+// files: [{kind:'text',name,text}] are inlined as text for every provider; [{kind:'image'|'pdf'|'audio',name,mime,data}] go to Gemini only.
 const hasMedia = files => files.some(f => f.kind !== 'text');
 function body(provider, history, question, files = []) {
   const turns = context(history, question);
@@ -57,7 +57,7 @@ class Router {
     signal.throwIfAborted();
     let routes = ORDER.filter(p => ready(settings,p));
     if (!routes.length) throw new UserError('Sozlamalarda kamida bitta bepul AI xizmatini ulang.');
-    if (hasMedia(files)) { routes = routes.filter(p => p === 'Gemini'); if (!routes.length) throw new UserError('Rasm va PDF’ni faqat Gemini o‘qiydi. Sozlamalarda Gemini kalitini ulang.'); }
+    if (hasMedia(files)) { routes = routes.filter(p => p === 'Gemini'); if (!routes.length) throw new UserError('Rasm, PDF va ovozni faqat Gemini o‘qiydi. Sozlamalarda Gemini kalitini ulang.'); }
     if (!settings.autoFallback) routes = routes.slice(0,1);
     for (const provider of routes) {
       signal.throwIfAborted(); const state = this.states[provider];
@@ -66,7 +66,7 @@ class Router {
       const combined = AbortSignal.any([signal, attempt.signal]);
       const mark = (status, delay = 0, disabled = false) => { this.states[provider] = { status, retryAt: this.now() + delay, disabled }; };
       try {
-        const headers = { 'Content-Type': 'application/json', 'User-Agent': 'NurimAI/0.5' };
+        const headers = { 'Content-Type': 'application/json', 'User-Agent': 'NurimAI/0.6' };
         if (provider === 'Gemini') headers['x-goog-api-key'] = settings.keys[provider]; else headers.Authorization = `Bearer ${settings.keys[provider]}`;
         // 'manual' never follows a redirect (keys stay on the provider host) and works in Workers, unlike 'error'; a 3xx is handled as a failed route.
         const response = await this.fetcher(URLS[provider], { method: 'POST', headers, body: JSON.stringify(body(provider, history, question, files)), signal: combined, redirect: 'manual' });
@@ -85,7 +85,34 @@ class Router {
         mark(attempt.signal.aborted ? 'Kutish vaqti tugadi' : 'Tarmoq xatosi',30000);
       } finally { clearTimeout(timer); }
     }
-    signal.throwIfAborted(); throw new UserError(hasMedia(files) ? 'Rasm yoki PDF bilan savolga hozir javob berib bo‘lmadi: Gemini limiti tugagan yoki internet uzilgan. Birozdan keyin qayta urinib ko‘ring.' : 'Ulangan AI xizmatlari hozir javob bera olmadi. Limit, internet yoki kalitni tekshiring. Tafsilotlar Sozlamalarda.');
+    signal.throwIfAborted(); throw new UserError(hasMedia(files) ? 'Rasm, PDF yoki ovozli savolga hozir javob berib bo‘lmadi: Gemini limiti tugagan yoki internet uzilgan. Birozdan keyin qayta urinib ko‘ring.' : 'Ulangan AI xizmatlari hozir javob bera olmadi. Limit, internet yoki kalitni tekshiring. Tafsilotlar Sozlamalarda.');
   }
 }
-module.exports = { Router, UserError, MODELS, ORDER, URLS, ready, body, parse, retryDelay };
+// Text to speech (Gemini TTS, Interactions API): one request returns a 24 kHz mono WAV. Uzbek is supported by the 3.8 TTS models.
+const SPEECH = Object.freeze({ model: 'gemini-3.8-flash-lite-tts', voice: 'Sulafat', url: 'https://generativelanguage.googleapis.com/v1beta/interactions', maxChars: 1200 });
+function speechBody(text) {
+  return { model: SPEECH.model, input: [{ type: 'user_input', content: [{ type: 'text', text, annotations: [{ type: 'speech_metadata', style: 'iliq, mehribon va xotirjam; tabiiy o‘zbekcha talaffuz' }] }] }], response_format: { type: 'audio' }, generation_config: { speech_config: [{ voice: SPEECH.voice }] } };
+}
+// Raw 16-bit PCM (audio/L16;rate=24000) gets a WAV header so any player can open it.
+function toWav({ mime, data }) {
+  if (!/^audio\/l16/i.test(mime)) return { mime: mime.split(';')[0], data };
+  const pcm = Buffer.from(data, 'base64'), rate = Number(/rate=(\d+)/i.exec(mime)?.[1]) || 24000, h = Buffer.alloc(44);
+  h.write('RIFF', 0); h.writeUInt32LE(36 + pcm.length, 4); h.write('WAVEfmt ', 8); h.writeUInt32LE(16, 16); h.writeUInt16LE(1, 20); h.writeUInt16LE(1, 22); h.writeUInt32LE(rate, 24); h.writeUInt32LE(rate * 2, 28); h.writeUInt16LE(2, 32); h.writeUInt16LE(16, 34); h.write('data', 36); h.writeUInt32LE(pcm.length, 40);
+  return { mime: 'audio/wav', data: Buffer.concat([h, pcm]).toString('base64') };
+}
+function speechAudio(data) {
+  const audio = (data?.steps || []).filter(s => s?.type === 'model_output').flatMap(s => s.content || []).filter(c => c?.type === 'audio' && typeof c.data === 'string').at(-1);
+  if (audio) return toWav({ mime: audio.mime_type || 'audio/wav', data: audio.data });
+  const part = (data?.candidates?.[0]?.content?.parts || []).find(p => p.inlineData?.data); // generateContent shape, in case the API answers with it
+  if (part) return toWav({ mime: part.inlineData.mimeType || 'audio/wav', data: part.inlineData.data });
+  throw new Error('No audio');
+}
+async function speak({ key, text, signal, fetcher = (...args) => fetch(...args) }) {
+  if (typeof text !== 'string' || !text.trim() || text.length > SPEECH.maxChars) throw new UserError('Ovoz uchun matn noto‘g‘ri.');
+  const response = await fetcher(SPEECH.url, { method: 'POST', redirect: 'manual', signal, headers: { 'Content-Type': 'application/json', 'User-Agent': 'NurimAI/0.6', 'x-goog-api-key': key }, body: JSON.stringify(speechBody(text.trim())) });
+  const raw = await response.text();
+  if (!response.ok) throw new UserError([429, 402].includes(response.status) ? 'Ovozli javob limiti tugadi. Keyinroq urinib ko‘ring.' : 'Ovozli javob hozir ishlamayapti.', response.status === 429 ? 'limit' : 'speech');
+  let data; try { if (raw.length > 12 * 1024 * 1024) throw new Error(); data = JSON.parse(raw); } catch { throw new UserError('Ovozli javob o‘qilmadi.', 'speech'); }
+  try { return speechAudio(data); } catch { throw new UserError('Ovozli javob o‘qilmadi.', 'speech'); }
+}
+module.exports = { Router, UserError, MODELS, ORDER, URLS, ready, body, parse, retryDelay, SPEECH, speechBody, speechAudio, speak };

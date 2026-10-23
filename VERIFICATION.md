@@ -1,3 +1,9 @@
+# Verification — 0.6.1, 2026-10-23
+
+- 67 Node tests and 13 Electron UI tests pass locally on Windows. New coverage: quiz/flashcard JSON parsing and validation, prompts, Leitner review, streak, quiz results and mistake cards, reminders (once/daily, late start, practice reminder), practice data persistence; Gemini TTS request shape and errors, raw PCM → WAV, voice recordings as Gemini-only inline audio, server audio validation, `/speak` validation and its separate budget; app messages for an old server and the speech limit. UI: the Ustoz panel end to end (quiz, mistakes → cards, review, streak, teacher style), reminders, a voice question with transcript and read-aloud, and the talk/listen pet moods.
+- All nine mascot clips were rendered and checked frame by frame on dark and white backgrounds (no haze box or floor line); the mouth layer changes per mood.
+- Not verified yet: the live Gemini TTS and voice-question path (needs `wrangler deploy` of the updated worker), the microphone on a real Mac, and Windows/Mac CI builds of 0.6.1.
+
 # Verification — 0.6.0, 2026-10-23
 
 - 54 Node tests and 9 Electron UI tests pass locally on Windows. New coverage: encrypted chat history (save/reload, safe fields only, caps, search with any apostrophe style, broken or unencrypted storage), the history setting, selected-text capture (clipboard restored, nothing selected, clipboard with copied files left alone, Ctrl+Insert before Ctrl+C, terminal guard in the Ctrl+C script), mascot moods in the pet window (catch on a dropped file, sad on an error, sleep, wave on hover, happy then idle), the shortcut flow end to end in QA mode, and history search/reopen/continue/delete in the UI.

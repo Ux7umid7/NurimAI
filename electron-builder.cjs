@@ -10,6 +10,7 @@ module.exports = {
   win: { target: ['nsis'], icon: 'assets/Nuri.ico' },
   nsis: { oneClick: true, perMachine: false, runAfterFinish: true, createDesktopShortcut: true, createStartMenuShortcut: true, shortcutName: 'NurimAI', deleteAppDataOnUninstall: false },
   mac: { target: ['dmg', 'zip'], icon: 'assets/icon-mac.png', category: 'public.app-category.education',
+    extendInfo: { NSMicrophoneUsageDescription: 'NurimAI ovozli savolingizni faqat 🎤 tugmasi bosilganda yozadi.' },
     identity: macCertificate ? undefined : '-', hardenedRuntime: macCertificate,
     notarize: Boolean(macCertificate && process.env.APPLE_ID && process.env.APPLE_APP_SPECIFIC_PASSWORD && process.env.APPLE_TEAM_ID) },
   dmg: { title: 'NurimAI' },

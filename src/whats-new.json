@@ -1,4 +1,10 @@
 {
+  "0.6.1": [
+    "🎤 Ovozli savol: mikrofon tugmasini bosing, savolingizni ayting — NurimAI eshitganini yozib, javob beradi. Javobni 🔊 tugmasi bilan o‘zbekcha ovozda tinglash mumkin.",
+    "🎓 Ustoz rejimi: istalgan mavzu yoki suhbat bo‘yicha test, yodlash kartochkalari, kunlik mashq seriyasi 🔥 va eslatmalar. Xato javoblar o‘zi kartochkaga aylanadi.",
+    "“Ustoz uslubi”ni yoqsangiz, NurimAI javobni darhol aytmay, qadamma-qadam o‘rgatadi.",
+    "Qahramon jonlandi: endi og‘zi bilan gapiradi, xafa bo‘lsa lablari osiladi, uxlaganda “z” harflari chiqadi, faylni yuqoridan uchib kelganda ilib oladi, siz gapirganda quloq soladi."
+  ],
   "0.6.0": [
     "Yangi 3D qahramon: momiq, tutami nur sochib turadi.",
     "Qahramon endi salom beradi, uzoq kutsangiz uxlab qoladi (ustiga sichqonchani olib borsangiz uyg‘onadi), xato bo‘lsa xafa bo‘ladi, fayl bersangiz uni ilib oladi.",

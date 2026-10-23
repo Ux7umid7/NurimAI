@@ -3,7 +3,7 @@ let app,page,profile;
 test.beforeAll(async()=>{profile=fs.mkdtempSync(path.join(os.tmpdir(),'nurim-ui-'));app=await electron.launch({args:[path.resolve(__dirname,'../..'),'--qa'],env:{...process.env,NURIMAI_QA_PROFILE:profile},timeout:30000});await expect.poll(()=>app.windows().some(w=>w.url().endsWith('/index.html')),{timeout:20000}).toBeTruthy();page=app.windows().find(w=>w.url().endsWith('/index.html'));await page.locator('#question').waitFor();});
 test.afterAll(async()=>{await app?.close();if(profile)fs.rmSync(profile,{recursive:true,force:true});});
 test('welcome, send, copy, reset and settings work without an API key',async()=>{
- await expect(page.locator('.brand strong')).toHaveText('NurimAI');await page.locator('#question').fill('Kasr nima?');await page.locator('#send').click();await expect(page.locator('.bubble.assistant p')).toContainText('Jonli AI emas');await page.locator('.bubble.assistant button').click();await expect(page.locator('.bubble.assistant button')).toHaveText('Olindi ✓');
+ await expect(page.locator('.brand strong')).toHaveText('NurimAI');await page.locator('#question').fill('Kasr nima?');await page.locator('#send').click();await expect(page.locator('.bubble.assistant p')).toContainText('Jonli AI emas');await page.locator('.bubble.assistant .copy').click();await expect(page.locator('.bubble.assistant .copy')).toHaveText('Olindi ✓');
  await page.locator('#settings').click();await expect(page.locator('#settings-dialog')).toBeVisible();await expect(page.locator('#version')).toContainText(require('../../package.json').version);await page.locator('#topmost').uncheck();await page.locator('#settings-form button[type=submit]').click();await expect(page.locator('#settings-dialog')).not.toBeVisible();await page.locator('#new').click();await expect(page.locator('#welcome')).toBeVisible();await page.screenshot({path:'test-results/welcome.png'});
 });
 test('renderer has no Node access and AI markup remains inert text',async()=>{
@@ -58,4 +58,38 @@ test('history saves, searches, reopens and deletes conversations',async()=>{
  await page.locator('#history').click();await page.locator('#history-search').fill('fotosintez');await expect(page.locator('#history-list li')).toHaveCount(1);await expect(page.locator('#history-list li small')).toContainText('4 ta xabar');
  await page.locator('#history-list .history-delete').click();await expect(page.locator('#history-empty')).toHaveText('Hech narsa topilmadi.');await page.locator('#close-history').click();
  await page.locator('#settings').click();await expect(page.locator('#save-history')).toBeChecked();await page.locator('#close-settings').click();
+});
+test('Ustoz: AI test is solved step by step, mistakes become cards, cards are reviewed and the streak starts',async()=>{
+ await page.locator('#new').click();await page.locator('#ustoz').click();await expect(page.locator('#ustoz-dialog')).toBeVisible();await expect(page.locator('#streak-count')).toHaveText('Bugun boshlaymiz');
+ await page.locator('[data-tab=quiz]').click();await page.locator('#quiz-topic').fill('Qo‘shish');await page.locator('#quiz-form button[type=submit]').click();
+ await expect(page.locator('#quiz-run .question')).toHaveText('2 + 2 nechaga teng?');await page.locator('#quiz-run .option').nth(1).click();await expect(page.locator('#quiz-run .explain')).toContainText('To‘g‘ri!');
+ await page.locator('#quiz-run button.primary').click();await page.locator('#quiz-run .option').nth(0).click();await expect(page.locator('#quiz-run .option.wrong')).toHaveCount(1);await expect(page.locator('#quiz-run .option.right')).toHaveText('6');
+ await page.locator('#quiz-run button.primary').click();await page.locator('#quiz-run .option').nth(1).click();await page.locator('#quiz-run button.primary').click();
+ await expect(page.locator('#quiz-run .result strong')).toHaveText('2/3');await expect(page.locator('#quiz-run .result small')).toContainText('1 ta xato');await page.screenshot({path:'test-results/ustoz-quiz.png'});
+ await page.locator('[data-tab=cards]').click();await page.locator('#cards-topic').fill('Mevalar');await page.locator('#cards-form button[type=submit]').click();
+ await expect(page.locator('#study .card-front')).toBeVisible();await expect(page.locator('#study .run-head b')).toHaveText(/1\/[34]/);
+ for(let i=0;i<10&&await page.locator('#study .card-front').isVisible();i++){await page.locator('#study button.primary').click();await page.locator('#study .grade.know').click();}
+ await expect(page.locator('#ustoz-note')).toContainText('Takrorlash tugadi');await expect(page.locator('#decks li')).toHaveCount(2);
+ await page.locator('[data-tab=today]').click();await expect(page.locator('#streak-count')).toHaveText('1 kun ketma-ket');await expect(page.locator('#results li')).toHaveCount(1);await page.screenshot({path:'test-results/ustoz-today.png'});
+ await page.locator('#teacher').check();await expect(page.locator('#ustoz-note')).toContainText('yoqildi');await page.locator('#teacher').uncheck();await page.locator('#close-ustoz').click();
+});
+test('reminders can be added, fire as a note in chat and open the Ustoz panel',async()=>{
+ await page.locator('#ustoz').click();await page.locator('[data-tab=remind]').click();await page.locator('#remind-text').fill('Kitob o‘qish');await page.locator('#remind-time').fill('21:30');await page.locator('#remind-repeat').selectOption('daily');await page.locator('#remind-form button[type=submit]').click();
+ await expect(page.locator('#reminders li')).toContainText('21:30 · har kuni');await page.locator('#practice-on').check();await expect(page.locator('#ustoz-note')).toContainText('eslataman');await page.locator('#practice-on').uncheck();await expect(page.locator('#ustoz-note')).toContainText('o‘chirildi');
+ await page.locator('#reminders li').filter({hasText:'Kitob'}).locator('button').click();await expect(page.locator('#reminders li')).toHaveCount(0);await page.locator('#close-ustoz').click();
+ await app.evaluate(()=>globalThis.nurimQA.remind());await expect(page.locator('#notice')).toContainText('⏰ Sinov eslatmasi');
+});
+test('a voice question shows what was heard, the answer can be read aloud and stopped',async()=>{
+ await page.locator('#new').click();
+ await page.evaluate(()=>askVoice(encodeWav(new Float32Array(16000).map((_,i)=>Math.sin(i/10)*0.2),16000),1.2));
+ await expect(page.locator('.bubble.user').last()).toHaveText(/🎤 Kasr nima\?/);const answer=page.locator('.bubble.assistant').last();await expect(answer).toContainText('Jonli AI emas');await expect(answer).not.toContainText('Savolingiz');
+ await expect(answer.locator('.speak')).toHaveText('🔊 Tinglash',{timeout:5000});await answer.locator('.speak').click();await expect(answer.locator('.speak')).toHaveText('◼ To‘xtatish');await expect(answer.locator('.speak')).toHaveText('🔊 Tinglash',{timeout:5000});
+ expect(await page.evaluate(()=>speechParts(speechText('**Salom!** Bu `kod`. '+'Uzun gap. '.repeat(200))).map(p=>p.length<=1100))).not.toContain(false);
+ await page.evaluate(()=>{const b=document.getElementById('mic');return b.getAttribute('aria-label');}).then(label=>expect(label).toBe('Ovozli savol'));
+});
+test('Nur talks while an answer is read and listens while a question is recorded',async()=>{
+ const pet=app.windows().find(w=>w.url().endsWith('/pet.html'));
+ for(const mood of ['talk','listen']){await page.evaluate(m=>window.nurim.petMood(m),mood);await expect(pet.locator(`#${mood}.on`)).toBeVisible({timeout:5000});}
+ await page.evaluate(()=>window.nurim.petMood('idle'));await expect(pet.locator('#idle.on')).toBeVisible({timeout:5000});
+ expect(await page.evaluate(()=>window.nurim.petMood('happy'))).toEqual({ok:true,data:undefined}); // only talk/listen/idle are accepted from the chat window
 });

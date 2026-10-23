@@ -18,7 +18,11 @@ Belgilangan matn (0.6.0+): istalgan dasturda matnni belgilab Ctrl/Command+Alt+E 
 
 Suhbatlar tarixi (0.6.0+): har javobdan keyin suhbat userData/chats.bin ga safeStorage (Windows DPAPI, macOS Keychain) bilan shifrlab yoziladi; fayllarning faqat nomi saqlanadi. 🕘 oynasida qidirish, ochib davom ettirish, o‘chirish; Sozlamalarda o‘chiriladi (src/chats.cjs).
 
-Qahramon holatlari: idle, think, sleep — asosiy; happy, wave, sad, catch — bir marta o‘ynab asosiy holatga qaytadi. 3 daqiqa ishlatilmasa uxlaydi, ustiga sichqoncha olib borilsa yoki dastur ishlatilsa uyg‘onib qo‘l silkitadi.
+Ovoz (0.6.1+): 🎤 bosilganda mikrofon yoqiladi (faqat chat oynasi, faqat audio ruxsati), yozuv 16 kHz mono WAV qilinib bitta savol bilan Gemini’ga boradi (src/voice.js, `send-voice`); javobning birinchi qatori eshitilgan matn. 🔊 Tinglash javobni bo‘laklab serverning `/speak` (Gemini TTS) yo‘li orqali o‘qiydi; ovozli javoblar uchun alohida kunlik limit bor.
+
+Ustoz rejimi (0.6.1+): test va kartochkalar shu AI orqali JSON ko‘rinishida tuziladi va tekshiriladi (src/practice.cjs), kartochkalar Leitner qutilari bilan takrorlanadi, natijalar, seriya va eslatmalar userData/practice.json da. Eslatmalar ilova ishlab turganda tizim bildirishnomasi bo‘lib chiqadi.
+
+Qahramon holatlari: idle, think, sleep, talk, listen — asosiy; happy, wave, sad, catch — bir marta o‘ynab asosiy holatga qaytadi. 3 daqiqa ishlatilmasa uxlaydi, ustiga sichqoncha olib borilsa yoki dastur ishlatilsa uyg‘onib qo‘l silkitadi.
 
 Fayllar (0.4.0+): 📎 tugmasi, oynaga sudrab tashlash yoki Ctrl+V bilan rasm, skrinshot, PDF (7 MB gacha), Word (.docx), Excel (.xlsx), PowerPoint (.pptx), matn/CSV yuboriladi; suhbatda 5 tagacha. Office va matn fayllari ilova ichida matnga aylantiriladi (src/attachments.cjs, tashqi kutubxonasiz), rasm va PDF Gemini’ga o‘zicha boradi. Ekran tugmasi NurimAI oynalarini yashirib, joriy monitorni suratga oladi (Mac’da Screen Recording ruxsati kerak). Dastur faqat foydalanuvchi bergan faylni o‘qiydi; papkalarni o‘zi ochmaydi.
 

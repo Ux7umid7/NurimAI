@@ -5,8 +5,8 @@ document.getElementById('pet').onpointerup=()=>{if(!start)return;if(!moved)windo
 document.getElementById('pet').onpointercancel=()=>{start=null;};
 document.getElementById('pet').onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();window.nurim.toggle();}};
 
-// 3D Nur: idle, think and sleep are base moods; happy, wave, sad and catch play once and return to the base mood. Only one video is visible at a time.
-const clips=Object.fromEntries(['idle','think','happy','wave','sleep','sad','catch'].map(name=>[name,document.getElementById(name)]));
+// 3D Nur: idle, think, sleep, talk (speaking an answer) and listen (recording a voice question) are base moods; happy, wave, sad and catch play once and return to the base mood. Only one video is visible at a time.
+const clips=Object.fromEntries(['idle','think','happy','wave','sleep','sad','catch','talk','listen'].map(name=>[name,document.getElementById(name)]));
 const ONCE=new Set(['happy','wave','sad','catch']);
 const still=document.getElementById('still');
 let shown=null,base='idle',latest=0,rest=null;
