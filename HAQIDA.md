@@ -282,7 +282,7 @@ npm run dist:win       # Windows Setup yig‘ish
 npm run icons          # ikonkalarni assets/icon.svg dan qayta yasash
 ```
 
-Yangi reliz: `package.json` versiyasini oshirish → `RELEASE-NOTES.md` va `src/whats-new.json` ni yozish → commit → `vX.Y.Z` teg. Server o‘zgargan bo‘lsa, relizdan oldin `npx wrangler deploy --config server/wrangler.jsonc`. Batafsil: [README.md](README.md) va [server/README.md](server/README.md).
+Yangi reliz: `package.json` versiyasini oshirish → `RELEASE-NOTES.md` va `src/whats-new.json` ni yozish → sayt rasmlari o‘zgargan bo‘lsa, `docs/index.html` dagi `?v=` ni yangi versiyaga almashtirish (brauzer eski rasmni keshdan ko‘rsatmasligi uchun) → commit → `vX.Y.Z` teg. Server o‘zgargan bo‘lsa, relizdan oldin `npx wrangler deploy --config server/wrangler.jsonc`. Batafsil: [README.md](README.md) va [server/README.md](server/README.md).
 
 ---
 
