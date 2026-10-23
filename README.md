@@ -12,7 +12,13 @@ Windows: Setup EXE bir bosishda o‘rnatiladi, yorliq qo‘yadi va dasturni ocha
 
 Mac: universal DMG Intel va Apple Silicon uchun. App’ni Applications’ga ko‘chiring. Developer ID sertifikati bo‘lmasa ilova ad-hoc imzolanadi: birinchi ochishda System Settings → Privacy & Security → Open Anyway kerak. Mac avtomatik yangilanishi faqat Developer ID bilan imzolangan va notarizatsiya qilingan relizda ishlaydi; aks holda yangi versiya sahifadan qo‘lda yuklanadi.
 
-Qahramonni sudrab chetga suring; bosing — chat ochiladi/yig‘iladi. Enter yuboradi, Shift+Enter yangi qator. Ctrl/Command+Alt+Space tez ochadi. Tray menyusidagi Chiqish dasturni to‘liq yopadi. Suhbat xotirada turadi: chiqishdan oldin kerakli matnni TXT qilib saqlang.
+Qahramonni sudrab chetga suring; bosing — chat ochiladi/yig‘iladi. Enter yuboradi, Shift+Enter yangi qator. Ctrl/Command+Alt+Space tez ochadi. Tray menyusidagi Chiqish dasturni to‘liq yopadi.
+
+Belgilangan matn (0.6.0+): istalgan dasturda matnni belgilab Ctrl/Command+Alt+E bosiladi. Windows’da avval Ctrl+Insert, kerak bo‘lsa Ctrl+C yuboriladi (terminal oynalarida Ctrl+C yuborilmaydi), nusxa buferi keyin avvalgi holiga qaytariladi (src/selection.cjs). Mac’da Accessibility ruxsati kerak.
+
+Suhbatlar tarixi (0.6.0+): har javobdan keyin suhbat userData/chats.bin ga safeStorage (Windows DPAPI, macOS Keychain) bilan shifrlab yoziladi; fayllarning faqat nomi saqlanadi. 🕘 oynasida qidirish, ochib davom ettirish, o‘chirish; Sozlamalarda o‘chiriladi (src/chats.cjs).
+
+Qahramon holatlari: idle, think, sleep — asosiy; happy, wave, sad, catch — bir marta o‘ynab asosiy holatga qaytadi. 3 daqiqa ishlatilmasa uxlaydi, ustiga sichqoncha olib borilsa yoki dastur ishlatilsa uyg‘onib qo‘l silkitadi.
 
 Fayllar (0.4.0+): 📎 tugmasi, oynaga sudrab tashlash yoki Ctrl+V bilan rasm, skrinshot, PDF (7 MB gacha), Word (.docx), Excel (.xlsx), PowerPoint (.pptx), matn/CSV yuboriladi; suhbatda 5 tagacha. Office va matn fayllari ilova ichida matnga aylantiriladi (src/attachments.cjs, tashqi kutubxonasiz), rasm va PDF Gemini’ga o‘zicha boradi. Ekran tugmasi NurimAI oynalarini yashirib, joriy monitorni suratga oladi (Mac’da Screen Recording ruxsati kerak). Dastur faqat foydalanuvchi bergan faylni o‘qiydi; papkalarni o‘zi ochmaydi.
 

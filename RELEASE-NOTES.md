@@ -1,11 +1,12 @@
-NurimAI 0.5.0
+NurimAI 0.6.0
 
 Yuklab olish va o‘rnatish ko‘rsatmasi: https://ux7umid7.github.io/NurimAI/
 
-- Nur endi 3D: ekran chetida nafas oladi, ko‘z qisadi, atrofida harflar suzib yuradi.
-- Savol yuborilganda Nur o‘ylaydi (kitobi porlaydi, ko‘zlari tepaga qaraydi), javob kelganda quvonib sakraydi.
-- Suhbat oynasidagi qahramon va belgi yangi 3D ko‘rinishda.
-- Kompyuteringiz “kamroq harakat” sozlamasida bo‘lsa, Nur jim turadi.
+- Yangi 3D qahramon: momiq, tutami nur sochib turadi.
+- Qahramon salom beradi, 3 daqiqa ishlatilmasa uxlab qoladi (sichqonchani ustiga olib borsangiz uyg‘onib qo‘l silkitadi), xato bo‘lsa xafa bo‘ladi, fayl bersangiz uni ilib oladi.
+- Belgilangan matnni tushuntirish: istalgan dasturda matnni belgilab Ctrl + Alt + E (Mac’da ⌘ + ⌥ + E) bosing. Mac’da birinchi marta Accessibility ruxsati so‘raladi.
+- Suhbatlar tarixi: 🕘 tugmasi bilan eski suhbatlarni qidirish, ochib davom ettirish va o‘chirish. Tarix faqat shu kompyuterda, shifrlangan holda saqlanadi; Sozlamalarda o‘chirib qo‘yish mumkin.
+- Tuzatildi: 0.5.0 da dastur ochilganda chat oynasi o‘zi chiqmay qolardi.
 
 Windows’da yangilanish o‘zi yuklanadi va dasturdan to‘liq chiqqanda o‘rnatiladi. Mac’da yangi DMG’ni sahifadan yuklab, Applications’dagi eski NurimAI’ni almashtiring.
 

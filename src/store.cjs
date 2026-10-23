@@ -1,14 +1,14 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const { ORDER, UserError } = require('./router.cjs');
-const defaults = () => ({ keys: { Gemini:'',Groq:'',OpenRouter:'' }, free: { Gemini:false,Groq:false }, autoFallback:true, topmost:true, autoUpdate:true, remember:true, usePersonalKeys:false, petPosition:null, lastVersion:'', deviceId:require('node:crypto').randomUUID() });
+const defaults = () => ({ keys: { Gemini:'',Groq:'',OpenRouter:'' }, free: { Gemini:false,Groq:false }, autoFallback:true, topmost:true, autoUpdate:true, remember:true, usePersonalKeys:false, saveHistory:true, petPosition:null, lastVersion:'', deviceId:require('node:crypto').randomUUID() });
 class Store {
   constructor(directory, crypto) { this.directory = directory; this.file = path.join(directory,'settings.json'); this.crypto = crypto; this.value = defaults(); this.warning = ''; }
   load() {
     if (!fs.existsSync(this.file)) return;
     try {
       const data = JSON.parse(fs.readFileSync(this.file,'utf8'));
-      for (const field of ['autoFallback','topmost','autoUpdate','remember','usePersonalKeys']) if(typeof data[field] === 'boolean') this.value[field] = data[field];
+      for (const field of ['autoFallback','topmost','autoUpdate','remember','usePersonalKeys','saveHistory']) if(typeof data[field] === 'boolean') this.value[field] = data[field];
       if(typeof data.lastVersion === 'string' && /^\d+\.\d+\.\d+$/.test(data.lastVersion)) this.value.lastVersion = data.lastVersion;
       if(typeof data.deviceId === 'string' && /^[a-f0-9-]{36}$/i.test(data.deviceId)) this.value.deviceId = data.deviceId;
       for(const p of ['Gemini','Groq']) this.value.free[p] = data.free?.[p] === true;
@@ -34,7 +34,7 @@ class Store {
   update(input) {
     if(!input || typeof input !== 'object') throw new UserError('Sozlamalar noto‘g‘ri.');
     const next = { ...this.value, keys:{...this.value.keys}, free:{...this.value.free} };
-    for(const field of ['autoFallback','topmost','autoUpdate','remember','usePersonalKeys']) if(typeof input[field] === 'boolean') next[field] = input[field];
+    for(const field of ['autoFallback','topmost','autoUpdate','remember','usePersonalKeys','saveHistory']) if(typeof input[field] === 'boolean') next[field] = input[field];
     for(const p of ORDER) {
       if(input.clear?.[p] === true) next.keys[p] = '';
       const key = input.keys?.[p];

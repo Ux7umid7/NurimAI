@@ -33,10 +33,11 @@ function bubble(role,text,attached=[]){
   if(role==='user'){const p=document.createElement('p');p.textContent=text;el.append(p);}else{const body=document.createElement('div');body.className='rich';rich(body,text);el.append(body);}
   $('messages').append(el);scroll();
 }
-function setBusy(value){busy=value;$('waiting').hidden=!value;$('stop').hidden=!value;$('send').hidden=value;$('question').readOnly=value;for(const id of ['new','settings','attach','capture'])$(id).disabled=value;$('file-actions').hidden=!files.length||value;$('status').textContent=value?'Javob tayyorlanmoqda…':state?.settings.usePersonalKeys?'Shaxsiy AI · avtomatik':'Yoningizdagi yordamchi';scroll();}
+function setBusy(value){busy=value;$('waiting').hidden=!value;$('stop').hidden=!value;$('send').hidden=value;$('question').readOnly=value;for(const id of ['new','history','settings','attach','capture'])$(id).disabled=value;$('file-actions').hidden=!files.length||value;$('status').textContent=value?'Javob tayyorlanmoqda…':state?.settings.usePersonalKeys?'Shaxsiy AI · avtomatik':'Yoningizdagi yordamchi';scroll();}
 function updateView(value){$('update-status').textContent=value.text;$('install-update').hidden=value.phase!=='ready';$('check-update').disabled=['checking','downloading','ready'].includes(value.phase);}
 async function init(){
-  state=await call(window.nurim.init());$('shortcut').textContent=state.platform==='darwin'?'⌘ + ⌥ + Space · tez ochish':'Ctrl + Alt + Space · tez ochish';
+  state=await call(window.nurim.init());$('shortcut').textContent=(state.platform==='darwin'?'⌘ + ⌥ + Space · tez ochish':'Ctrl + Alt + Space · tez ochish')+(state.explainKey?`   ·   ${state.explainKey} · tushuntirish`:'');
+  if(state.explainKey){$('explain-tip').textContent=`✨ Istalgan dasturda matnni belgilab ${state.explainKey} ni bosing — NurimAI uni oddiy tilda tushuntirib beradi.`;$('explain-tip').hidden=false;}
   for(const m of state.history)bubble(m.role,m.text,m.files||[]);renderFiles(state.files||[]);for(const id of state.sentIds||[])shown.add(id);
   if(state.whatsNew?.length){$('whats-new-title').textContent=`NurimAI ${state.version} versiyasiga yangilandi`;$('whats-new-list').replaceChildren(...state.whatsNew.map(t=>{const li=document.createElement('li');li.textContent=t;return li;}));$('whats-new').hidden=false;}
   if(state.settings.warning)notice(state.settings.warning);setBusy(state.busy);
@@ -49,9 +50,10 @@ async function ask(question){
 }
 $('composer').onsubmit=event=>{event.preventDefault();ask($('question').value.trim());};
 $('question').onkeydown=event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();$('composer').requestSubmit();}};
-document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!$('settings-dialog').open)window.nurim.hide();});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!document.querySelector('dialog[open]'))window.nurim.hide();});
 $('hide').onclick=()=>window.nurim.hide();$('stop').onclick=()=>window.nurim.stop();$('export').onclick=()=>call(window.nurim.exportChat()).catch(e=>notice(e.message));
-$('new').onclick=async()=>{await call(window.nurim.reset());$('messages').replaceChildren();$('welcome').hidden=false;heroPlay();$('question').value='';shown.clear();renderFiles([]);notice('');$('question').focus();};
+function clearChat(){$('messages').replaceChildren();$('welcome').hidden=false;heroPlay();$('question').value='';shown.clear();renderFiles([]);notice('');}
+$('new').onclick=async()=>{try{await call(window.nurim.reset());clearChat();$('question').focus();}catch(e){notice(e.message);}};
 for(const button of document.querySelectorAll('[data-prompt]'))button.onclick=()=>{$('question').value=button.dataset.prompt;$('question').focus();};
 for(const button of document.querySelectorAll('[data-file-prompt]'))button.onclick=()=>ask(button.dataset.filePrompt);
 $('whats-new-close').onclick=()=>{$('whats-new').hidden=true;};
@@ -73,9 +75,37 @@ document.addEventListener('dragover',event=>{if(hasFiles(event))event.preventDef
 document.addEventListener('dragleave',event=>{if(hasFiles(event)&&--dragDepth<=0){dragDepth=0;$('drop').hidden=true;}});
 document.addEventListener('drop',event=>{event.preventDefault();dragDepth=0;$('drop').hidden=true;if(!busy&&event.dataTransfer?.files?.length)addFiles(event.dataTransfer.files);});
 
+// Selected-text shortcut: main copies the selection and hands it over as a "Belgilangan matn" chip, usually with a question to send.
+window.nurim.onExplain(data=>{for(const d of document.querySelectorAll('dialog[open]'))d.close();attached(data);if(data.question&&!busy)ask(data.question);});
+
+// Chat history: search, reopen and delete conversations saved on this computer.
+const MONTHS=['yan','fev','mar','apr','may','iyn','iyl','avg','sen','okt','noy','dek'];let historyTimer=null; // Chromium has no short Uzbek month names
+function when(time){const d=new Date(time),now=new Date(),hm=String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');const days=Math.round((new Date(now.toDateString())-new Date(d.toDateString()))/864e5);return days===0?'Bugun '+hm:days===1?'Kecha '+hm:d.getDate()+'-'+MONTHS[d.getMonth()]+(d.getFullYear()===now.getFullYear()?'':' '+d.getFullYear())+', '+hm;}
+function historyItem(item,current){
+  const li=document.createElement('li');if(item.id===current)li.className='current';
+  const open=document.createElement('button');open.type='button';open.className='history-open';
+  const title=document.createElement('strong');title.textContent=item.title;const meta=document.createElement('small');meta.textContent=`${when(item.updated)} · ${item.count} ta xabar${item.id===current?' · hozirgi':''}`;
+  const preview=document.createElement('span');preview.textContent=item.preview;open.append(title,meta,preview);
+  open.onclick=async()=>{try{const data=await call(window.nurim.historyOpen(item.id));clearChat();for(const m of data.history)bubble(m.role,m.text,m.files||[]);$('history-dialog').close();$('question').focus();}catch(e){$('history-note').textContent=e.message;}};
+  const del=document.createElement('button');del.type='button';del.className='history-delete';del.textContent='×';del.title='O‘chirish';del.setAttribute('aria-label',`“${item.title}” suhbatini o‘chirish`);
+  del.onclick=async()=>{try{await call(window.nurim.historyDelete(item.id));await showHistory();}catch(e){$('history-note').textContent=e.message;}};
+  li.append(open,del);return li;
+}
+async function showHistory(){
+  const query=$('history-search').value.trim();const data=await call(window.nurim.historyList(query));
+  $('history-list').replaceChildren(...data.items.map(item=>historyItem(item,data.current)));
+  $('history-count').textContent=query?`Topildi: ${data.items.length}`:data.items.length?`${data.items.length} ta suhbat`:'';
+  $('history-empty').textContent=!data.available?'Bu kompyuterda tizim shifrlashi mavjud emas, shuning uchun tarix saqlanmaydi.':query?'Hech narsa topilmadi.':data.enabled?'Hali saqlangan suhbat yo‘q. Savol bersangiz, suhbat shu yerda paydo bo‘ladi.':'Tarix saqlash o‘chirilgan. Uni Sozlamalarda yoqishingiz mumkin.';
+  $('history-empty').hidden=data.items.length>0;$('history-clear').hidden=!data.items.length||Boolean(query);$('history-note').textContent=data.warning||'';
+}
+$('history').onclick=async()=>{$('history-search').value='';try{await showHistory();$('history-dialog').showModal();$('history-search').focus();}catch(e){notice(e.message);}};
+$('history-search').oninput=()=>{clearTimeout(historyTimer);historyTimer=setTimeout(()=>showHistory().catch(e=>$('history-note').textContent=e.message),150);};
+$('close-history').onclick=()=>$('history-dialog').close();
+$('history-clear').onclick=async()=>{if(!confirm('Barcha saqlangan suhbatlar o‘chirilsinmi? Buni qaytarib bo‘lmaydi.'))return;try{await call(window.nurim.historyClear());await showHistory();}catch(e){$('history-note').textContent=e.message;}};
+
 $('settings').onclick=async()=>{
  state=await call(window.nurim.settings());const s=state.settings;$('version').textContent=`NurimAI ${state.version}`;$('server-status').textContent=state.gatewayConfigured?'Umumiy AI serveri sozlangan.':'Server manzili hali sozlanmagan.';
- $('topmost').checked=s.topmost;$('auto-update').checked=s.autoUpdate;$('personal').checked=s.usePersonalKeys;$('fallback').checked=s.autoFallback;$('remember').checked=s.remember;$('settings-error').textContent='';updateView(state.update);
+ $('topmost').checked=s.topmost;$('save-history').checked=s.saveHistory;$('auto-update').checked=s.autoUpdate;$('personal').checked=s.usePersonalKeys;$('fallback').checked=s.autoFallback;$('remember').checked=s.remember;$('settings-error').textContent='';updateView(state.update);
  $('providers').replaceChildren();for(const provider of ['Gemini','Groq','OpenRouter']){
   const section=document.createElement('section');section.className='provider';const head=document.createElement('div');head.className='provider-head';const title=document.createElement('strong');title.textContent=provider;const link=document.createElement('button');link.type='button';link.textContent='Kalit olish ↗';link.onclick=()=>window.nurim.openLink(provider);head.append(title,link);
   const key=document.createElement('input');key.type='password';key.id=`key-${provider}`;key.maxLength=512;key.autocomplete='off';key.placeholder=s.configured[provider]?'Kalit saqlangan — almashtirish uchun kiriting':'API kaliti';key.setAttribute('aria-label',`${provider} API kaliti`);section.append(head,key);
@@ -86,7 +116,7 @@ $('settings').onclick=async()=>{
 };
 $('close-settings').onclick=()=>$('settings-dialog').close();$('quit').onclick=()=>window.nurim.quit();
 $('settings-form').onsubmit=async event=>{event.preventDefault();const keys={},clear={},free={};for(const p of ['Gemini','Groq','OpenRouter']){keys[p]=$(`key-${p}`).value;clear[p]=$(`clear-${p}`).checked;if(p!=='OpenRouter')free[p]=$(`free-${p}`).checked;}
- try{const saved=await call(window.nurim.saveSettings({keys,clear,free,topmost:$('topmost').checked,autoUpdate:$('auto-update').checked,usePersonalKeys:$('personal').checked,autoFallback:$('fallback').checked,remember:$('remember').checked}));state.settings=saved;for(const p of Object.keys(keys))$(`key-${p}`).value='';$('settings-dialog').close();setBusy(false);notice('Sozlamalar saqlandi.');}catch(error){$('settings-error').textContent=error.message;}
+ try{const saved=await call(window.nurim.saveSettings({keys,clear,free,topmost:$('topmost').checked,saveHistory:$('save-history').checked,autoUpdate:$('auto-update').checked,usePersonalKeys:$('personal').checked,autoFallback:$('fallback').checked,remember:$('remember').checked}));state.settings=saved;for(const p of Object.keys(keys))$(`key-${p}`).value='';$('settings-dialog').close();setBusy(false);notice('Sozlamalar saqlandi.');}catch(error){$('settings-error').textContent=error.message;}
 };
 $('check-update').onclick=async()=>{try{updateView(await call(window.nurim.checkUpdate()));}catch(e){$('settings-error').textContent=e.message;}};
 $('install-update').onclick=()=>call(window.nurim.installUpdate()).catch(e=>$('settings-error').textContent=e.message);$('release-page').onclick=()=>window.nurim.openLink('releases');window.nurim.onUpdate(updateView);

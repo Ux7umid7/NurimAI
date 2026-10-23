@@ -1,4 +1,10 @@
 {
+  "0.6.0": [
+    "Yangi 3D qahramon: momiq, tutami nur sochib turadi.",
+    "Qahramon endi salom beradi, uzoq kutsangiz uxlab qoladi (ustiga sichqonchani olib borsangiz uyg‘onadi), xato bo‘lsa xafa bo‘ladi, fayl bersangiz uni ilib oladi.",
+    "Istalgan dasturda matnni belgilab Ctrl + Alt + E (Mac’da ⌘ + ⌥ + E) bosing — NurimAI uni oddiy tilda tushuntirib beradi.",
+    "Suhbatlar tarixi: 🕘 tugmasi orqali eski suhbatlarni qidirish, ochib davom ettirish va o‘chirish. Tarix faqat shu kompyuterda, shifrlangan holda saqlanadi."
+  ],
   "0.5.0": [
     "Nur endi 3D: ekran chetida nafas oladi, ko‘z qisadi, atrofida harflar suzib yuradi.",
     "Savol yuborsangiz Nur o‘ylaydi — kitobi porlaydi, ko‘zlari tepaga qaraydi; javob kelganda quvonib sakraydi.",

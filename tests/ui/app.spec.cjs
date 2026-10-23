@@ -35,3 +35,27 @@ test('3D Nur hops when an answer arrives, then plays idle once',async()=>{
  const before=await pet.evaluate(()=>document.getElementById('idle').currentTime);await pet.waitForTimeout(500);expect(await pet.evaluate(()=>document.getElementById('idle').currentTime)).toBeGreaterThan(before); // idle replays once after the hop
  await expect(page.locator('.hero video')).toHaveAttribute('src',/nur\/idle\.webm/);
 });
+test('Nur catches files, is sad on errors, sleeps and waves when woken',async()=>{
+ const pet=app.windows().find(w=>w.url().endsWith('/pet.html'));await page.locator('#new').click();
+ await page.evaluate(()=>{const dt=new DataTransfer();dt.items.add(new File(['Matn'],'eslatma.txt',{type:'text/plain'}));document.dispatchEvent(new DragEvent('drop',{dataTransfer:dt,bubbles:true,cancelable:true}));});
+ await expect(pet.locator('#catch.on')).toBeVisible({timeout:5000});await page.locator('#attachments .file-chip button').click();
+ await page.locator('#question').fill('/qa-xato');await page.locator('#send').click();await expect(page.locator('#notice')).toContainText('Sinov xatosi');await expect(pet.locator('#sad.on')).toBeVisible({timeout:5000});
+ await app.evaluate(()=>globalThis.nurimQA.sleep());await expect(pet.locator('#sleep.on')).toBeVisible({timeout:5000});
+ await pet.locator('#pet').hover();await expect(pet.locator('#wave.on')).toBeVisible({timeout:5000});await expect(pet.locator('#idle.on')).toBeVisible({timeout:8000});
+});
+test('selected-text shortcut attaches the selection and asks for an explanation',async()=>{
+ await page.locator('#new').click();await app.evaluate((_electron,text)=>globalThis.nurimQA.explain(text),'Fotosintez — yorug‘lik energiyasi.');
+ const asked=page.locator('.bubble.user').last();await expect(asked).toContainText('Belgilangan matnni oddiy tilda tushuntirib ber.');await expect(asked.locator('.file-chip')).toContainText('Belgilangan matn.txt');
+ await expect(page.locator('.bubble.assistant').last()).toContainText('Biriktirilgan fayllar: 1');
+ await app.evaluate(()=>globalThis.nurimQA.explain(''));await expect(page.locator('#notice')).toContainText('Belgilangan matn topilmadi');
+});
+test('history saves, searches, reopens and deletes conversations',async()=>{
+ for(const q of ['Fotosintez nima?','Kasr nima?']){await page.locator('#new').click();await page.locator('#question').fill(q);await page.locator('#send').click();await expect(page.locator('.bubble.assistant').last()).toContainText('Jonli AI emas');}
+ await page.locator('#history').click();await expect(page.locator('#history-dialog')).toBeVisible();await expect(page.locator('#history-list li.current strong')).toHaveText('Kasr nima?');
+ await page.locator('#history-search').fill('FOTOSINTEZ');await expect(page.locator('#history-list li')).toHaveCount(1);await page.screenshot({path:'test-results/history.png'});
+ await page.locator('#history-list .history-open').click();await expect(page.locator('#history-dialog')).not.toBeVisible();await expect(page.locator('.bubble.user').first()).toContainText('Fotosintez nima?');await expect(page.locator('.bubble')).toHaveCount(2);
+ await page.locator('#question').fill('Davom etamiz');await page.locator('#send').click();await expect(page.locator('.bubble')).toHaveCount(4);
+ await page.locator('#history').click();await page.locator('#history-search').fill('fotosintez');await expect(page.locator('#history-list li')).toHaveCount(1);await expect(page.locator('#history-list li small')).toContainText('4 ta xabar');
+ await page.locator('#history-list .history-delete').click();await expect(page.locator('#history-empty')).toHaveText('Hech narsa topilmadi.');await page.locator('#close-history').click();
+ await page.locator('#settings').click();await expect(page.locator('#save-history')).toBeChecked();await page.locator('#close-settings').click();
+});

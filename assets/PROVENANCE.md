@@ -1,13 +1,21 @@
 # Rasmlar va animatsiyalar manbasi
 
-## Qahramon Nur (0.5.0 dan)
+## Qahramon (0.6.0 dan)
 
-Manba: foydalanuvchining Blender loyihasi `claude big papka/ustozimnurim icons 3d/Nur_mascot.blend` (Blender 5.1, Cycles, Geometry Nodes jun). Asl fayl o‘zgartirilmaydi; ilova uchun animatsiyalar `scripts/nur_app_anim.py` bilan `Nur_app.blend` nusxasida quriladi.
+Manba: foydalanuvchi bergan `personaj_1v.glb` modeli va ikkita konsept rasm (momiq tuxumsimon qahramon, oltinrang qosh, nur sochuvchi tutam). Ishlov `claude big papka/ustozimnurim icons 3d` loyihasida bajariladi, foydalanuvchining asl `.blend` fayllari o‘zgartirilmaydi:
 
-- `nur/idle.webm`, `nur/think.webm`, `nur/happy.webm` — 360×450, 24 fps, shaffof fonli WebM (VP9 + alfa). Kadrlar `nur_app_anim.py -- render`, video `-- encode` bilan olinadi.
+- `scripts/pufak_app.py` — modelni `Nur_shogirt_mascot.blend` sahnasiga (yorug‘lik, kamera, jun) olib kiradi, rangini konseptga moslaydi, tutamga nur beradi → `Pufak_app.blend`.
+- `scripts/pufak_rig.py` — skelet (tana, qo‘llar, ko‘zlar, qoshlar, tutam) va ko‘z qovoqlari.
+- `scripts/pufak_anim.py` — 7 ta animatsiya, render, kadr tozalash va WebM.
+
+Fayllar:
+
+- `nur/idle.webm`, `think.webm`, `happy.webm`, `wave.webm`, `sleep.webm`, `sad.webm`, `catch.webm` — 360×450, 24 fps, shaffof fonli WebM (VP9 + alfa). Kadrlar `pufak_anim.py -- render`, video `-- encode` bilan olinadi (soya ushlagich izi va nurning butun kadrga yoyilgan xira qatlami tozalanadi).
 - `nur/still.png` — kutish animatsiyasining 1-kadri (video yuklanguncha va “kamroq harakat” rejimida ko‘rinadi).
-- `nur/avatar.png` — `output/Nur_kitob_4K_shaffof.png` dan bosh qismi, 160×160.
-- `mascot.png` — o‘sha 4K shaffof renderdan qirqilgan to‘liq qomat (supa ostidagi soya chetlari silliqlangan). Sayt rasmlari (`docs/mascot.webp`, `docs/og.jpg`) `npm run icons` bilan shundan yasaladi.
+- `nur/avatar.png` — `pufak_anim.py -- hero` (1080×1350) renderidan bosh qismi, 160×160.
+- `mascot.png` — o‘sha renderdan to‘liq qomat. Sayt rasmlari (`docs/mascot.webp`, `docs/og.jpg`) `npm run icons` bilan shundan yasaladi.
+
+0.5.0 dagi kitobli Nur (`Nur_mascot.blend`, `scripts/nur_app_anim.py`) git tarixida qoladi.
 
 ## Ilova belgisi
 

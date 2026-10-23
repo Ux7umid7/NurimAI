@@ -53,7 +53,7 @@ p { margin: 0; }
 .top nav a { color: var(--muted); text-decoration: none; }
 .top nav a:hover { color: var(--paper); }
 
-/* Hero: the mascot's book lights the page */
+/* Hero: the mascot's glowing tuft lights the page */
 .hero { position: relative; overflow: hidden; padding-bottom: clamp(56px, 8vw, 104px); }
 .lamp { position: absolute; inset: -20% -30% auto auto; width: min(1100px, 120vw); aspect-ratio: 1; pointer-events: none;
   background: radial-gradient(circle at 58% 52%, rgba(255, 216, 137, .30) 0, rgba(213, 173, 86, .14) 26%, rgba(213, 173, 86, 0) 58%);
@@ -212,7 +212,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: cent
         <div><button class="btn" type="button" id="copy-link">Havolani nusxalash</button></div>
       </div>
     </div>
-    <img class="mascot" src="mascot.webp" alt="NurimAI qahramoni: ko‘zoynakli, qo‘lida porlab turgan kitob" width="448" height="560">
+    <img class="mascot" src="mascot.webp" alt="NurimAI qahramoni: momiq, tutami nur sochib turadi, qo‘l silkitmoqda" width="502" height="560">
   </div>
 </header>
 
@@ -281,11 +281,13 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: cent
       <dl class="keys">
         <dt><span class="word">Qahramonni bosing</span></dt><dd>Chat ochiladi yoki yopiladi. Qahramonni sudrab, ekranning istalgan chetiga qo‘ying.</dd>
         <dt><span data-keys-win><kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>Space</kbd></span><span data-keys-mac hidden><kbd>⌘</kbd> <kbd>⌥</kbd> <kbd>Space</kbd></span></dt><dd>Chatni istalgan dasturdan tez ochish.</dd>
+        <dt><span data-keys-win><kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>E</kbd></span><span data-keys-mac hidden><kbd>⌘</kbd> <kbd>⌥</kbd> <kbd>E</kbd></span></dt><dd>Istalgan dasturda belgilangan matnni tushuntirish: matnni belgilang va tugmalarni bosing. Mac’da birinchi marta Accessibility ruxsati so‘raladi.</dd>
         <dt><kbd>Enter</kbd></dt><dd>Savolni yuborish. Yangi qator uchun <kbd>Shift</kbd> <kbd>Enter</kbd>.</dd>
         <dt><span class="word">📎 Fayl</span></dt><dd>Rasm, PDF, Word, Excel, PowerPoint yoki matn faylini biriktiring. Faylni NurimAI oynasiga sudrab tashlasangiz ham bo‘ladi. Fayl suhbat davomida esda qoladi, keyingi savollarda ham u haqida so‘rash mumkin.</dd>
         <dt><span data-keys-win><kbd>Ctrl</kbd> <kbd>V</kbd></span><span data-keys-mac hidden><kbd>⌘</kbd> <kbd>V</kbd></span></dt><dd>Skrinshotni joylash. <span data-keys-win><kbd>Win</kbd> <kbd>Shift</kbd> <kbd>S</kbd></span><span data-keys-mac hidden><kbd>⌘</kbd> <kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>4</kbd></span> bilan ekranning bir qismini oling va chatga joylang.</dd>
         <dt><span class="word">Ekran tugmasi</span></dt><dd>📎 yonidagi tugma butun ekranni suratga oladi. NurimAI o‘z oynasini rasmga tushirmaydi. Mac’da birinchi marta Screen Recording ruxsati so‘raladi.</dd>
-        <dt><span class="word">Nusxa, Saqlash</span></dt><dd>Javobni nusxalash yoki suhbatni TXT fayl qilib saqlash. Dastur yopilganda suhbat o‘chadi, keraklisini oldindan saqlang.</dd>
+        <dt><span class="word">Nusxa, Saqlash</span></dt><dd>Javobni nusxalash yoki suhbatni TXT fayl qilib saqlash.</dd>
+        <dt><span class="word">🕘 Tarix</span></dt><dd>Eski suhbatlarni qidirish, ochib davom ettirish yoki o‘chirish. Tarix faqat shu kompyuterda, shifrlangan holda saqlanadi; Sozlamalarda o‘chirib qo‘yish mumkin.</dd>
         <dt><span class="word">Chiqish</span></dt><dd>Qahramonni sichqonchaning o‘ng tugmasi bilan bosing va <span class="word">Chiqish</span> ni tanlang.</dd>
       </dl>
       <figure class="shot">
@@ -325,6 +327,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: cent
   <section class="changes wrap" id="yangiliklar" aria-labelledby="changes-title">
     <h2 id="changes-title">Nima yangi</h2>
     <div class="change-list" id="change-list">
+      <article><h3>0.6.0</h3><ul><li>Yangi 3D qahramon: momiq, tutami nur sochib turadi.</li><li>Qahramon salom beradi, uzoq kutsangiz uxlaydi, xato bo‘lsa xafa bo‘ladi, fayl bersangiz ilib oladi.</li><li>Belgilangan matnni tushuntirish: <kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>E</kbd>.</li><li>Suhbatlar tarixi: qidirish, ochib davom ettirish, o‘chirish.</li></ul></article>
       <article><h3>0.5.0</h3><ul><li>Nur endi 3D: ekran chetida nafas oladi, ko‘z qisadi, atrofida harflar suzib yuradi.</li><li>Savol yuborilganda Nur o‘ylaydi, javob kelganda quvonib sakraydi.</li><li>Suhbat oynasida 3D avatar va jonli qahramon.</li></ul></article>
       <article><h3>0.4.0</h3><ul><li>Rasm, skrinshot, PDF, Word, Excel va PowerPoint yuborish: 📎 tugmasi, sudrab tashlash yoki Ctrl+V.</li><li>Ekranni bir bosishda suratga olib, savolga qo‘shish.</li><li>Fayl uchun tezkor tugmalar: qisqacha mazmun, tarjima, test savollari.</li><li>Javoblarda ro‘yxat, qalin matn va kod bloklari.</li></ul></article>
       <article><h3>0.3.0</h3><ul><li>Birinchi ommaviy versiya: Windows va Mac, API kalitsiz bepul AI yordamchi.</li></ul></article>
@@ -336,7 +339,8 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: cent
     <div class="faq-list">
       <details><summary>Pul to‘lash kerakmi?</summary><p>Yo‘q. NurimAI bepul AI xizmatlari orqali ishlaydi, shuning uchun kunlik limit bor: bitta kompyuterdan kuniga 30 tagacha savol. Umumiy limit hamma foydalanuvchilar uchun bitta, ba’zan u ertaroq tugashi mumkin. Limit tugasa, ertasi kuni yana ishlaydi.</p></details>
       <details><summary>Qanday fayllarni yuborsa bo‘ladi?</summary><p>Rasm va skrinshot (PNG, JPG, WebP), PDF (7 MB gacha), Word (.docx), Excel (.xlsx), PowerPoint (.pptx), matn va CSV. Bitta suhbatda 5 tagacha fayl. Eski .doc, .xls va .ppt fayllarni Word yoki Excel’da “Save as” orqali .docx, .xlsx yoki PDF qilib saqlang. Rasm va PDF’ni Gemini o‘qiydi, shuning uchun ular kunlik limitni tezroq sarflaydi.</p></details>
-      <details><summary>NurimAI kompyuterimdagi fayllarni ko‘radimi?</summary><p>Yo‘q. NurimAI faqat siz o‘zingiz bergan fayl, joylagan rasm yoki ekran tugmasi bilan olgan skrinshotni ko‘radi. Papkalaringizni o‘zi ochmaydi va kompyuterni boshqarmaydi.</p></details>
+      <details><summary>NurimAI kompyuterimdagi fayllarni ko‘radimi?</summary><p>Yo‘q. NurimAI faqat siz o‘zingiz bergan fayl, joylagan rasm yoki ekran tugmasi bilan olgan skrinshotni ko‘radi. Papkalaringizni o‘zi ochmaydi va kompyuterni boshqarmaydi. <kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>E</kbd> bosganingizda faqat belgilangan matnni oladi, nusxa buferini esa avvalgi holiga qaytaradi.</p></details>
+      <details><summary>Suhbatlarim qayerda saqlanadi?</summary><p>Faqat sizning kompyuteringizda, Windows yoki macOS shifrlashi bilan. Fayllarning o‘zi saqlanmaydi, faqat nomlari. 🕘 Tarix oynasida istalgan suhbatni yoki hammasini o‘chirish mumkin, Sozlamalarda esa saqlashni butunlay o‘chirib qo‘yasiz. Server suhbatlarni saqlamaydi.</p></details>
       <details><summary>Savollarim va fayllarim qayerga yuboriladi?</summary><p>Savolingiz, biriktirgan fayllaringiz va suhbatning oxirgi qismi NurimAI serveri orqali Google Gemini yoki Groq AI xizmatiga yuboriladi. Server ularni saqlamaydi. Gemini bepul tarifida yuborilgan narsalar Google xizmatlarini yaxshilashda ishlatilishi mumkin, shuning uchun parol, pasport, bank kartasi va boshqa shaxsiy ma’lumotli fayl yoki skrinshot yubormang.</p></details>
       <details><summary>Dastur o‘zi yangilanadimi?</summary><p>Windows’da ha, Mac’da qo‘lda. Batafsil: <a href="#yangilash">Yangilash</a> bo‘limi.</p></details>
       <details><summary>Javob kelmayapti, nima qilay?</summary><p>Avval internetni tekshiring. “Limit tugadi” yozuvi chiqsa, ertasi kuni yana ishlaydi. Katta PDF yoki ko‘p fayl bo‘lsa, keraksizini × bilan olib tashlang. Muammo qolsa, NurimAI’ning eng yangi versiyasini o‘rnating.</p></details>

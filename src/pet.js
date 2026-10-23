@@ -5,22 +5,28 @@ document.getElementById('pet').onpointerup=()=>{if(!start)return;if(!moved)windo
 document.getElementById('pet').onpointercancel=()=>{start=null;};
 document.getElementById('pet').onkeydown=event=>{if(event.key==='Enter'||event.key===' '){event.preventDefault();window.nurim.toggle();}};
 
-// 3D Nur: idle and think loop, happy plays once and returns to the looping mood. Only one video is visible at a time.
-const clips={idle:document.getElementById('idle'),think:document.getElementById('think'),happy:document.getElementById('happy')};
+// 3D Nur: idle, think and sleep are base moods; happy, wave, sad and catch play once and return to the base mood. Only one video is visible at a time.
+const clips=Object.fromEntries(['idle','think','happy','wave','sleep','sad','catch'].map(name=>[name,document.getElementById(name)]));
+const ONCE=new Set(['happy','wave','sad','catch']);
 const still=document.getElementById('still');
-let shown=null,base='idle',latest=0;
+let shown=null,base='idle',latest=0,rest=null;
 function show(name){
   const clip=clips[name],ticket=++latest; // moods can arrive faster than play() resolves; only the newest may take over
+  clearTimeout(rest);
   if(shown===name&&!clip.paused)return;
   clip.currentTime=0;
-  clip.play().then(()=>{if(ticket!==latest)return;for(const [key,video] of Object.entries(clips)){video.classList.toggle('on',key===name);if(key!==name)video.pause();}shown=name;still.hidden=true;}).catch(()=>{}); // without video support the still image stays
+  clip.play().then(()=>{if(ticket!==latest)return;for(const [key,video] of Object.entries(clips)){video.classList.toggle('on',key===name);if(key!==name)video.pause();}shown=name;still.hidden=true;}).catch(()=>{if(ticket===latest&&ONCE.has(name))show(base);}); // without video support the still image stays
 }
-clips.happy.onended=()=>show(base);
-// Idle plays once, then Nur rests on the (identical) first frame for a few seconds: a paused video costs almost no CPU.
-let rest=null;
-clips.idle.onended=()=>{clearTimeout(rest);rest=setTimeout(()=>{if(base==='idle'&&shown==='idle')show('idle');},6000+Math.random()*8000);};
-document.getElementById('pet').onpointerenter=()=>{if(base==='idle'&&shown==='idle'&&clips.idle.paused){clearTimeout(rest);show('idle');}};
+for(const name of ONCE)clips[name].onended=()=>show(base);
+// Idle and sleep play once, then Nur rests on the (identical) first frame for a few seconds: a paused video costs almost no CPU.
+const pause={idle:[6000,8000],sleep:[3000,6000]};
+for(const name of ['idle','sleep'])clips[name].onended=()=>{clearTimeout(rest);rest=setTimeout(()=>{if(base===name&&shown===name)show(name);},pause[name][0]+Math.random()*pause[name][1]);};
+document.getElementById('pet').onpointerenter=()=>{if(base==='sleep'){window.nurim.petActive();return;}if(base==='idle'&&shown==='idle'&&clips.idle.paused)show('idle');}; // hovering wakes a sleeping Nur
 if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
   show('idle');
-  window.nurim.onMood(mood=>{if(mood==='happy'){base='idle';show('happy');}else{base=mood==='think'?'think':'idle';if(shown!=='happy'||base==='think')show(base);}});
+  window.nurim.onMood(mood=>{
+    if(!clips[mood])return;
+    if(ONCE.has(mood)){if(mood==='happy'||mood==='sad'||base==='sleep')base='idle';show(mood);return;} // an answer or an error ends the thinking
+    base=mood;if(!ONCE.has(shown)||(mood==='think'&&shown!=='catch'))show(mood); // a reaction finishes first, except that thinking cuts in (after a catch)
+  });
 }
