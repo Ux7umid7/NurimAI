@@ -1,0 +1,19 @@
+{
+  "name": "nurimai-mobile",
+  "version": "0.7.0",
+  "private": true,
+  "description": "NurimAI Android ilovasi (Capacitor): docs/app dagi telefon veb-ilovasini o'raydi",
+  "scripts": {
+    "sync": "node ../scripts/mobile-sync.cjs && cap sync android && node ../scripts/android-csp.cjs",
+    "apk": "npm run sync && cd android && ./gradlew assembleRelease"
+  },
+  "dependencies": {
+    "@capacitor/android": "8.5.3",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.5.3",
+    "@capacitor/local-notifications": "8.3.1"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3"
+  }
+}

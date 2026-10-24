@@ -1,4 +1,8 @@
 {
+  "0.7.0": [
+    "📱 NurimAI endi telefonda ham: Android uchun ilova (APK) va iPhone uchun “Bosh ekranga qo‘shish”. Yuklab olish sahifasida “Telefon” bo‘limini oching.",
+    "Telefonda ham hammasi bor: chat, masalani kamera bilan rasmga olish, fayllar, 🎤 ovozli savol, 🔊 tinglash, 🎓 Ustoz va suhbatlar tarixi."
+  ],
   "0.6.1": [
     "🎤 Ovozli savol: mikrofon tugmasini bosing, savolingizni ayting — NurimAI eshitganini yozib, javob beradi. Javobni 🔊 tugmasi bilan o‘zbekcha ovozda tinglash mumkin.",
     "🎓 Ustoz rejimi: istalgan mavzu yoki suhbat bo‘yicha test, yodlash kartochkalari, kunlik mashq seriyasi 🔥 va eslatmalar. Xato javoblar o‘zi kartochkaga aylanadi.",

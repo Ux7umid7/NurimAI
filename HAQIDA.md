@@ -2,8 +2,8 @@
 
 <h1 align="center">NurimAI — loyiha haqida</h1>
 
-<p align="center">Windows va Mac uchun bepul, o‘zbek tilidagi kichik AI yordamchi.<br>
-<a href="https://ux7umid7.github.io/NurimAI/">Yuklab olish sahifasi</a> · <a href="https://github.com/Ux7umid7/NurimAI/releases/latest">So‘nggi reliz</a> · Joriy versiya: <b>0.6.1</b></p>
+<p align="center">Windows, Mac, Android va iPhone uchun bepul, o‘zbek tilidagi kichik AI yordamchi.<br>
+<a href="https://ux7umid7.github.io/NurimAI/">Yuklab olish sahifasi</a> · <a href="https://github.com/Ux7umid7/NurimAI/releases/latest">So‘nggi reliz</a> · Joriy versiya: <b>0.7.0</b></p>
 
 ---
 
@@ -34,6 +34,7 @@ NurimAI — kompyuter ekranining chetida turadigan kichik qahramon. Uni bossangi
 - ✨ **Belgilangan matnni tushuntirish** — istalgan dasturda matnni belgilab `Ctrl+Alt+E` (Mac’da `⌘+⌥+E`) bosiladi, NurimAI uni oddiy tilda tushuntiradi.
 - 🎤 **Ovozli savol va javob** — mikrofon tugmasi bilan savol beriladi, NurimAI eshitganini yozib javob beradi; javobni 🔊 bilan o‘zbekcha ovozda tinglash mumkin (Gemini TTS).
 - 🎓 **Ustoz rejimi** — mavzu yoki suhbat bo‘yicha test (har javobga izoh), yodlash kartochkalari (Leitner takrorlash jadvali), kunlik mashq seriyasi 🔥, eslatmalar; xato javoblar o‘zi kartochkaga aylanadi. “Ustoz uslubi” yoqilsa, javob qadamma-qadam o‘rgatiladi.
+- 📱 **Telefon versiyasi** — Android ilova (APK) va iPhone uchun veb-ilova (“Bosh ekranga qo‘shish”): chat, kamera, fayllar, ovoz, Ustoz va tarix telefonda ham.
 - 🕘 **Suhbatlar tarixi** — eski suhbatlarni qidirish, ochib davom ettirish va o‘chirish; faqat shu kompyuterda, shifrlangan holda.
 - 📌 **Har doim yonida** — qahramonni ekranning istalgan chetiga sudrab qo‘yish mumkin, `Ctrl+Alt+Space` (Mac’da `⌘+⌥+Space`) chatni istalgan dasturdan ochadi.
 - 🔄 **O‘zi yangilanadi** — Windows’da yangi versiya fonda yuklanadi va dasturdan chiqqanda o‘rnatiladi.
@@ -41,10 +42,10 @@ NurimAI — kompyuter ekranining chetida turadigan kichik qahramon. Uni bossangi
 
 | | |
 |---|---|
-| Platformalar | Windows 10/11 (64-bit), macOS (Apple Silicon va Intel) |
+| Platformalar | Windows 10/11 (64-bit), macOS (Apple Silicon va Intel), Android 7+ (APK), iPhone va boshqa telefonlar (veb-ilova) |
 | Til | O‘zbek (lotin), foydalanuvchi boshqa tilda yozsa — o‘sha tilda |
 | Narx | Bepul, umumiy kunlik limit bilan |
-| Joriy versiya | 0.6.1 (2026-yil 23-oktabr) |
+| Joriy versiya | 0.7.0 (2026-yil 24-oktabr) |
 
 ---
 
@@ -77,12 +78,13 @@ Ko‘p AI xizmatlari ingliz tilida ishlaydi, ro‘yxatdan o‘tish, karta yoki A
 | Qism | Texnologiya | Versiya | Vazifasi |
 |---|---|---|---|
 | Desktop ilova | [Electron](https://www.electronjs.org/) (Chromium + Node.js) | 44.9.0 | Windows va Mac uchun bitta kod bazasi |
+| Telefon ilovasi | Veb-ilova (PWA, `docs/app`) + [Capacitor](https://capacitorjs.com/) Android | Capacitor 8.5.3 | iPhone’da Safari orqali, Android’da APK; test, ovoz va fayl mantiqi desktop bilan umumiy (`src/shared`) |
 | Interfeys | Oddiy HTML, CSS, JavaScript (freymvorksiz) | — | Chat oynasi, qahramon, sozlamalar |
 | O‘rnatuvchi | electron-builder | 26.15.3 | Windows NSIS Setup, Mac universal DMG/ZIP |
 | Avtoyangilanish | electron-updater + GitHub Releases | 6.8.9 | Yangi versiyani topish, yuklash, o‘rnatish |
 | Server | Cloudflare Workers + Durable Objects (SQLite) | Wrangler 4.151.1 | AI’ga so‘rov yuborish, kunlik limitlar |
 | Fayllarni o‘qish | O‘zimizning ZIP o‘quvchi (Node.js `zlib`) | — | Word/Excel/PowerPoint’dan matn ajratish, tashqi kutubxonasiz |
-| Testlar | `node:test` va Playwright (Electron) | Node 24, Playwright 1.64.1 | 67 ta unit va 13 ta UI test |
+| Testlar | `node:test` va Playwright (Electron) | Node 24, Playwright 1.64.1 | 71 ta unit va 17 ta UI test (4 tasi telefon ilovasi uchun) |
 | CI/CD | GitHub Actions | — | Har push’da Windows va macOS’da test va build, teg bo‘yicha reliz |
 | Sayt | GitHub Pages, oddiy HTML/CSS/JS | — | Yuklab olish sahifasi, yangilash ko‘rsatmasi |
 | 3D qahramon | Blender 5.1 (Cycles, Geometry Nodes jun) → shaffof WebM (VP9 + alfa) | — | 9 ta animatsiya: kutish, o‘ylash, quvonish, salom, uyqu, xafa bo‘lish, faylni ilib olish, gapirish, tinglash; og‘iz holati shader bilan boshqariladi |
@@ -117,11 +119,13 @@ NurimAI-Desktop/
 │   ├── chats.cjs         Suhbatlar tarixi (shifrlangan, qidiruv bilan)
 │   ├── selection.cjs     Belgilangan matnni olish (Ctrl+Alt+E), buferni tiklash
 │   ├── practice.cjs      Ustoz rejimi: testlar, kartochkalar, seriya, eslatmalar
+│   ├── shared/           Telefon ilovasi bilan umumiy mantiq (test/kartochka, Office fayllar)
 │   ├── voice.js, ustoz.js Ovoz yozish/tinglash va Ustoz paneli
 │   ├── updater.cjs       Avtoyangilanish boshqaruvi
 │   └── whats-new.json    “Nima yangi” matnlari
 ├── server/               Cloudflare Worker (worker.mjs, wrangler.jsonc)
-├── docs/                 GitHub Pages sayti
+├── docs/                 GitHub Pages sayti; docs/app/ — telefon veb-ilovasi
+├── mobile/               Capacitor Android loyihasi (APK)
 ├── assets/               Ikonkalar, qahramon rasmi, nur/ — 3D animatsiyalar (idle, think, happy, wave, sleep, sad, catch, talk, listen)
 ├── scripts/              Reliz va ikonka skriptlari
 ├── tests/                Unit va UI testlar
@@ -137,6 +141,8 @@ NurimAI-Desktop/
 | Platforma | Paket | O‘rnatish | Yangilanish |
 |---|---|---|---|
 | Windows 10/11, 64-bit | `NurimAI-Windows-Setup.exe` (NSIS) | Bir bosishda, administrator huquqisiz | Avtomatik |
+| Android 7+ | `NurimAI-Android.apk` (Capacitor) | APK’ni ochib “noma’lum manbaga ruxsat” | Qo‘lda (yangi APK) |
+| iPhone va boshqa telefonlar | Veb-ilova: https://ux7umid7.github.io/NurimAI/app/ | Safari → Ulashish → Bosh ekranga qo‘shish | Avtomatik (sahifa yangilanadi) |
 | macOS, Apple Silicon va Intel | `NurimAI-Mac.dmg` (universal) | Applications’ga sudrab tashlash | Qo‘lda (Apple Developer ID imzosi yo‘q) |
 
 ### Backend: Cloudflare Workers
@@ -257,6 +263,7 @@ Limitlar `server/wrangler.jsonc` dagi `DAILY_TOTAL`, `DAILY_DEVICE`, `DAILY_IP` 
 
 | Versiya | Sana | Asosiy o‘zgarishlar |
 |---|---|---|
+| 0.7.0 | 2026-10-24 | Telefon versiyasi: Android APK va iPhone veb-ilova (chat, kamera, fayllar, ovoz, Ustoz, tarix); server telefon ilovasidan so‘rovlarni qabul qiladi (CORS) |
 | 0.6.1 | 2026-10-23 | Ovozli savol va 🔊 javob (Gemini TTS); Ustoz rejimi: test, kartochkalar, kunlik mashq seriyasi, eslatmalar, “Ustoz uslubi”; qahramon og‘zi va yangi gapirish/tinglash animatsiyalari, harakatlar aniqroq |
 | 0.6.0 | 2026-10-23 | Yangi 3D qahramon (momiq, nurli tutam); salom, uyqu, xafa bo‘lish, faylni ilib olish holatlari; belgilangan matnni tushuntirish (`Ctrl+Alt+E`); suhbatlar tarixi va qidiruv; ochilishda chat oynasi chiqmasligi tuzatildi |
 | 0.5.0 | 2026-10-20 | 3D qahramon Nur: kutish, o‘ylash va quvonish animatsiyalari; suhbat oynasida 3D avatar va jonli qahramon |

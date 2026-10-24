@@ -22,6 +22,8 @@ Ovoz (0.6.1+): 🎤 bosilganda mikrofon yoqiladi (faqat chat oynasi, faqat audio
 
 Ustoz rejimi (0.6.1+): test va kartochkalar shu AI orqali JSON ko‘rinishida tuziladi va tekshiriladi (src/practice.cjs), kartochkalar Leitner qutilari bilan takrorlanadi, natijalar, seriya va eslatmalar userData/practice.json da. Eslatmalar ilova ishlab turganda tizim bildirishnomasi bo‘lib chiqadi.
 
+Telefon (0.7.0+): docs/app — veb-ilova (GitHub Pages’da /app/, iPhone uchun “Bosh ekranga qo‘shish”), mobile/ — uni o‘raydigan Capacitor Android loyihasi. Umumiy kod src/shared, src/voice.js, src/ustoz.js dan `npm run mobile:sync` bilan docs/app/lib ga ko‘chiriladi (test nusxalar bir xilligini tekshiradi). APK CI’da yig‘iladi; ANDROID_KEYSTORE (base64), ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_PASSWORD, ANDROID_KEY_ALIAS secret’lari bo‘lsa release-imzoli, bo‘lmasa sinov uchun debug APK. Lokal ko‘rish: `node scripts/serve-docs.cjs` → http://localhost:8787/app/?qa=1 (qa — jonli AI o‘rniga tayyor javob).
+
 Qahramon holatlari: idle, think, sleep, talk, listen — asosiy; happy, wave, sad, catch — bir marta o‘ynab asosiy holatga qaytadi. 3 daqiqa ishlatilmasa uxlaydi, ustiga sichqoncha olib borilsa yoki dastur ishlatilsa uyg‘onib qo‘l silkitadi.
 
 Fayllar (0.4.0+): 📎 tugmasi, oynaga sudrab tashlash yoki Ctrl+V bilan rasm, skrinshot, PDF (7 MB gacha), Word (.docx), Excel (.xlsx), PowerPoint (.pptx), matn/CSV yuboriladi; suhbatda 5 tagacha. Office va matn fayllari ilova ichida matnga aylantiriladi (src/attachments.cjs, tashqi kutubxonasiz), rasm va PDF Gemini’ga o‘zicha boradi. Ekran tugmasi NurimAI oynalarini yashirib, joriy monitorni suratga oladi (Mac’da Screen Recording ruxsati kerak). Dastur faqat foydalanuvchi bergan faylni o‘qiydi; papkalarni o‘zi ochmaydi.

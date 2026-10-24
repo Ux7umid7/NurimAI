@@ -66,9 +66,47 @@ jobs:
           name: UI-tests-${{ runner.os }}
           path: test-results/
           retention-days: 7
+  android:
+    # The phone app (docs/app) packed by Capacitor. With the ANDROID_KEYSTORE secrets the APK is release-signed with the same key
+    # every time, so new versions install over old ones; without them a debug APK is built for testing only.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - run: npm ci
+        working-directory: mobile
+      - name: Build APK
+        working-directory: mobile
+        shell: bash
+        run: |
+          export JAVA_HOME="$JAVA_HOME_21_X64"
+          if [ -n "$KEYSTORE_B64" ]; then echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/nurimai.jks"; export NURIM_KEYSTORE="$RUNNER_TEMP/nurimai.jks"; fi
+          npx cap sync android && node ../scripts/android-csp.cjs
+          cd android && chmod +x gradlew
+          if [ -n "${NURIM_KEYSTORE:-}" ]; then
+            ./gradlew --no-daemon assembleRelease && cp app/build/outputs/apk/release/app-release.apk ../../NurimAI-Android.apk
+          else
+            echo "::warning title=Android signing::ANDROID_KEYSTORE secret is not set: built a debug APK for testing (it will not update an earlier install)."
+            ./gradlew --no-daemon assembleDebug && cp app/build/outputs/apk/debug/app-debug.apk ../../NurimAI-Android.apk
+          fi
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE }}
+          NURIM_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          NURIM_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          NURIM_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: NurimAI-Android
+          if-no-files-found: error
+          path: NurimAI-Android.apk
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: desktop
+    needs: [desktop, android]
     runs-on: ubuntu-latest
     permissions:
       contents: write

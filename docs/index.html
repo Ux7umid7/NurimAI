@@ -62,6 +62,7 @@ p { margin: 0; }
 .hero-grid { position: relative; z-index: 1; display: grid; grid-template-columns: 1.15fr .85fr; align-items: center; gap: 32px; padding-top: clamp(24px, 5vw, 64px); }
 .hero h1 { font-size: clamp(2.5rem, 5.6vw, 4.3rem); font-weight: 800; max-width: 11ch; }
 .lede { margin-top: 22px; max-width: 34em; color: #D9D4C8; font-size: 1.125rem; }
+.phone-shot { width: min(260px, 100%); height: auto; border-radius: 28px; border: 6px solid #2b2c31; box-shadow: 0 24px 60px -20px rgba(0, 0, 0, .6); }
 .mascot { justify-self: center; width: min(400px, 100%); height: auto; filter: drop-shadow(0 30px 60px rgba(0, 0, 0, .45)); }
 
 .downloads { margin-top: 34px; display: flex; flex-wrap: wrap; gap: 14px; }
@@ -77,7 +78,7 @@ p { margin: 0; }
 .release { margin-top: 18px; color: var(--muted); font-size: .95rem; }
 .notice { margin-top: 18px; max-width: 34em; padding: 14px 16px; border-radius: 12px; border: 1px solid rgba(255, 216, 137, .35); background: rgba(213, 173, 86, .1); color: var(--paper); }
 .notice button { margin-top: 10px; }
-body.pending .dl { opacity: .45; pointer-events: none; }
+body.pending .dl:not(#dl-web) { opacity: .45; pointer-events: none; }
 
 /* Install */
 .install { background: var(--ink); padding-block: clamp(56px, 8vw, 96px); border-block: 1px solid var(--line); }
@@ -194,7 +195,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: cent
   <div class="wrap hero-grid">
     <div>
       <h1>Yoningizdagi kichik yordamchi</h1>
-      <p class="lede">NurimAI ekran chetida turadi. Uni bosing va savolingizni yozing yoki skrinshot, rasm, PDF, Word, Excel faylini bering: mavzuni tushuntiradi, tarjima qiladi, xatoni topadi, matn va reja tuzishga yordam beradi. Ro‘yxatdan o‘tish ham, API kalit ham kerak emas.</p>
+      <p class="lede">NurimAI kompyuteringiz chetida va telefoningizda turadi. Savolingizni yozing yoki ayting, masalani rasmga oling, PDF, Word, Excel faylini bering: mavzuni tushuntiradi, tarjima qiladi, xatoni topadi, test va kartochka bilan o‘rgatadi. Ro‘yxatdan o‘tish ham, API kalit ham kerak emas.</p>
       <div class="downloads" id="downloads">
         <a class="dl primary" id="dl-win" href="https://github.com/Ux7umid7/NurimAI/releases/latest/download/NurimAI-Windows-Setup.exe">
           <svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M4 6.5 14 5v10H4zm12-1.8L28 3v12H16zM4 17h10v10L4 25.5zm12 0h12v12l-12-1.7z"/></svg>
@@ -204,11 +205,19 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: cent
           <svg viewBox="0 0 32 32" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round" d="M6 7.5h20a1 1 0 0 1 1 1V22H5V8.5a1 1 0 0 1 1-1zM2.5 22h27l-1.6 3.2a1.5 1.5 0 0 1-1.3.8H5.4a1.5 1.5 0 0 1-1.3-.8z"/></svg>
           <span><strong>Mac uchun yuklab olish</strong><small>Apple Silicon va Intel</small></span>
         </a>
+        <a class="dl" id="dl-android" href="https://github.com/Ux7umid7/NurimAI/releases/latest/download/NurimAI-Android.apk">
+          <svg viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M8.5 12.5h15v10a2 2 0 0 1-2 2h-1v3.2a1.6 1.6 0 0 1-3.2 0v-3.2h-2.6v3.2a1.6 1.6 0 0 1-3.2 0v-3.2h-1a2 2 0 0 1-2-2zM5.6 12.5a1.6 1.6 0 0 1 1.6 1.6v6.4a1.6 1.6 0 0 1-3.2 0v-6.4a1.6 1.6 0 0 1 1.6-1.6zm20.8 0a1.6 1.6 0 0 1 1.6 1.6v6.4a1.6 1.6 0 0 1-3.2 0v-6.4a1.6 1.6 0 0 1 1.6-1.6zM8.6 11a7.4 7.4 0 0 1 3.9-5.6l-1.3-2.3.9-.5 1.3 2.4a7.6 7.6 0 0 1 5.2 0L19.9 2.6l.9.5-1.3 2.3a7.4 7.4 0 0 1 3.9 5.6zm4.4-3a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8zm6 0a.9.9 0 1 0 0 1.8.9.9 0 0 0 0-1.8z"/></svg>
+          <span><strong>Android uchun (APK)</strong><small>Android 7 va yangilari</small></span>
+        </a>
+        <a class="dl" id="dl-web" href="app/">
+          <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="9" y="3" width="14" height="26" rx="3" fill="none" stroke="currentColor" stroke-width="2.2"/><path d="M14 25h4" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          <span><strong>Telefonda ochish</strong><small>iPhone va boshqa telefonlar, o‘rnatmasdan</small></span>
+        </a>
       </div>
       <p class="release" id="release">Bepul. Yuklab olingach, pastdagi o‘rnatish qadamlariga qarang.</p>
       <div class="notice" id="pending" hidden>Birinchi versiya hozir tayyorlanmoqda. Tez orada shu yerdan yuklab olasiz.</div>
       <div class="notice" id="mobile" hidden>
-        NurimAI kompyuterda ishlaydi. Havolani nusxalang va kompyuteringizda oching.
+        Telefoningizda: Android’da APK’ni o‘rnating, iPhone’da “Telefonda ochish” ni bosib, Safari’da <b>Ulashish → Bosh ekranga qo‘shish</b> ni tanlang — NurimAI oddiy ilovadek ochiladi. Kompyuter uchun havolani nusxalab oling.
         <div><button class="btn" type="button" id="copy-link">Havolani nusxalash</button></div>
       </div>
     </div>
@@ -222,11 +231,12 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: cent
       <div class="install-head">
         <div>
           <h2 id="install-title">O‘rnatish</h2>
-          <p>Bir necha daqiqa oladi. NurimAI hali yangi dastur, shuning uchun birinchi ochishda kompyuter ogohlantirishi mumkin. Qaysi tugmani bosishni quyida ko‘rsatdik.</p>
+          <p>Bir necha daqiqa oladi. NurimAI hali yangi dastur, shuning uchun birinchi ochishda kompyuter yoki telefon ogohlantirishi mumkin. Qaysi tugmani bosishni quyida ko‘rsatdik.</p>
         </div>
         <div class="tabs" role="tablist" aria-label="Kompyuter turi">
           <button role="tab" id="tab-win" aria-controls="panel-win" aria-selected="true">Windows</button>
           <button role="tab" id="tab-mac" aria-controls="panel-mac" aria-selected="false" tabindex="-1">Mac</button>
+          <button role="tab" id="tab-phone" aria-controls="panel-phone" aria-selected="false" tabindex="-1">Telefon</button>
         </div>
       </div>
 
@@ -270,6 +280,21 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: cent
             <div class="row"><span>“NurimAI” was blocked to protect your Mac.</span><span class="open hot">Open Anyway</span></div>
           </div>
           <figcaption>System Settings ichidagi shu qatorni toping va sariq ramkadagi tugmani bosing.</figcaption>
+        </figure>
+      </div>
+
+      <div class="panel" id="panel-phone" role="tabpanel" aria-labelledby="tab-phone" hidden>
+        <div>
+          <ol class="steps">
+            <li><h3>Android: APK’ni yuklab oling</h3><p>Telefoningizda shu sahifani oching va <span class="q">Android uchun (APK)</span> ni bosing. Fayl nomi <span class="q">NurimAI-Android.apk</span>.</p></li>
+            <li><h3>O‘rnatishga ruxsat bering</h3><p>Faylni ochganda “noma’lum manbadan o‘rnatish” so‘ralsa, <span class="q">Sozlamalar</span> → <span class="q">Ushbu manbaga ruxsat berish</span> ni yoqing va <span class="q">O‘rnatish</span> ni bosing. Play Protect ogohlantirsa, <span class="q">Baribir o‘rnatish</span> ni tanlang.</p></li>
+            <li><h3>iPhone: Bosh ekranga qo‘shing</h3><p><a href="app/">Telefonda ochish</a> havolasini <b>Safari</b>’da oching, pastdagi <span class="q">Ulashish ⬆︎</span> tugmasini bosing va <span class="q">Bosh ekranga qo‘shish</span> ni tanlang. NurimAI belgisi paydo bo‘ladi va ilovadek ochiladi.</p></li>
+          </ol>
+          <p class="aside-note">Telefon ilovasi kompyuterdagi kabi bepul va API kalitsiz. Suhbatlar, kartochkalar va eslatmalar faqat shu telefonda saqlanadi. Android’dagi eslatmalar ilova yopiq bo‘lsa ham chiqadi; iPhone’da ular NurimAI ochilganda ko‘rinadi.</p>
+        </div>
+        <figure>
+          <img class="phone-shot" src="app-phone.png?v=0.7.0" alt="NurimAI telefon ilovasi: momiq qahramon, salom va tezkor tugmalar" width="390" height="844" loading="lazy">
+          <figcaption>Telefondagi NurimAI: chat, kamera, fayl, 🎤 ovoz va 🎓 Ustoz.</figcaption>
         </figure>
       </div>
     </div>
@@ -349,7 +374,7 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: cent
       <details><summary>Dastur o‘zi yangilanadimi?</summary><p>Windows’da ha, Mac’da qo‘lda. Batafsil: <a href="#yangilash">Yangilash</a> bo‘limi.</p></details>
       <details><summary>Javob kelmayapti, nima qilay?</summary><p>Avval internetni tekshiring. “Limit tugadi” yozuvi chiqsa, ertasi kuni yana ishlaydi. Katta PDF yoki ko‘p fayl bo‘lsa, keraksizini × bilan olib tashlang. Muammo qolsa, NurimAI’ning eng yangi versiyasini o‘rnating.</p></details>
       <details><summary>Qanday o‘chirib tashlayman?</summary><p>Windows’da: Sozlamalar → Ilovalar → NurimAI → O‘chirish. Mac’da: Applications papkasidagi NurimAI’ni Savatga tashlang.</p></details>
-      <details><summary>Telefonda ishlaydimi?</summary><p>Hozircha yo‘q. NurimAI Windows va Mac kompyuterlari uchun.</p></details>
+      <details><summary>Telefonda ishlaydimi?</summary><p>Ha, 0.7.0 dan. Android uchun APK’ni yuklab o‘rnating; iPhone’da <a href="app/">telefon ilovasini</a> Safari’da ochib, “Bosh ekranga qo‘shish” ni tanlang. Ikkalasi ham bepul. App Store va Google Play’ga keyinroq chiqadi.</p></details>
     </div>
   </section>
 </main>
@@ -376,20 +401,26 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: cent
     for (const el of document.querySelectorAll('[data-keys-win]')) el.hidden = true;
     for (const el of document.querySelectorAll('[data-keys-mac]')) el.hidden = false;
   }
-  if (os === 'mobile') $('mobile').hidden = false;
+  if (os === 'mobile') {
+    $('mobile').hidden = false;
+    const ios = /iPhone|iPod|iPad/i.test(ua) || (/Mac/i.test(platform) && navigator.maxTouchPoints > 1);
+    for (const id of ['dl-win', 'dl-mac', 'dl-android', 'dl-web']) $(id).classList.remove('primary');
+    const first = ios ? $('dl-web') : $('dl-android'); first.classList.add('primary');
+    $('downloads').prepend(ios ? $('dl-android') : $('dl-web')); $('downloads').prepend(first);
+  }
 
   // Install tabs.
-  const tabs = [$('tab-win'), $('tab-mac')];
+  const tabs = [$('tab-win'), $('tab-mac'), $('tab-phone')];
   function select(tab, focus) {
     for (const t of tabs) { const on = t === tab; t.setAttribute('aria-selected', on); t.tabIndex = on ? 0 : -1; $(t.getAttribute('aria-controls')).hidden = !on; }
     if (focus) tab.focus();
   }
   for (const t of tabs) {
     t.addEventListener('click', () => select(t));
-    t.addEventListener('keydown', e => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); select(tabs[(tabs.indexOf(t) + 1) % 2], true); } });
+    t.addEventListener('keydown', e => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); select(tabs[(tabs.indexOf(t) + (e.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length], true); } });
   }
-  if (os === 'mac') select($('tab-mac'));
-  for (const a of document.querySelectorAll('.dl')) a.addEventListener('click', () => select(a.id === 'dl-mac' ? $('tab-mac') : $('tab-win')));
+  if (os === 'mac') select($('tab-mac')); else if (os === 'mobile') select($('tab-phone'));
+  for (const a of document.querySelectorAll('.dl')) a.addEventListener('click', () => select(a.id === 'dl-mac' ? $('tab-mac') : a.id === 'dl-win' ? $('tab-win') : $('tab-phone')));
 
   // Copy helpers.
   async function copy(text, button, done) {
@@ -408,12 +439,13 @@ footer .wrap { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: cent
     .then(list => {
       if (!Array.isArray(list)) return;
       const releases = list.filter(r => !r.draft && !r.prerelease);
-      if (!releases.length) { document.body.classList.add('pending'); $('pending').hidden = false; for (const a of document.querySelectorAll('.dl')) a.setAttribute('aria-disabled', 'true'); return; }
+      if (!releases.length) { document.body.classList.add('pending'); $('pending').hidden = false; for (const a of document.querySelectorAll('.dl:not(#dl-web)')) a.setAttribute('aria-disabled', 'true'); return; }
       const latest = releases[0], assets = latest.assets || [];
       const pick = (stable, suffix) => assets.find(a => a.name === stable) || assets.find(a => a.name.endsWith(suffix));
-      const win = pick('NurimAI-Windows-Setup.exe', '-win-x64.exe'), mac = pick('NurimAI-Mac.dmg', '.dmg');
+      const win = pick('NurimAI-Windows-Setup.exe', '-win-x64.exe'), mac = pick('NurimAI-Mac.dmg', '.dmg'), apk = pick('NurimAI-Android.apk', '.apk');
       if (win) $('dl-win').href = win.browser_download_url;
       if (mac) $('dl-mac').href = mac.browser_download_url;
+      if (apk) $('dl-android').href = apk.browser_download_url; else $('dl-android').hidden = true; // before the first Android release
       $('release').textContent = `Bepul. ${latest.tag_name.replace(/^v/, '')} versiya, ${date(latest.published_at)}.`;
       // Release notes list their changes as "- " lines (RELEASE-NOTES.md).
       const articles = releases.slice(0, 4).map(rel => {

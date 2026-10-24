@@ -1,6 +1,6 @@
 {
   "name": "nurimai-desktop",
-  "version": "0.6.1",
+  "version": "0.7.0",
   "description": "NurimAI — yoningizdagi AI yordamchi",
   "main": "src/main.cjs",
   "author": "NurimAI",
@@ -14,7 +14,8 @@
     "pack": "electron-builder --dir --publish never",
     "configure:release": "node scripts/configure-release.cjs",
     "verify:package": "node scripts/verify-package.cjs",
-    "icons": "electron scripts/make-icons.cjs"
+    "icons": "electron scripts/make-icons.cjs",
+    "mobile:sync": "node scripts/mobile-sync.cjs"
   },
   "dependencies": {
     "electron-updater": "6.8.9"

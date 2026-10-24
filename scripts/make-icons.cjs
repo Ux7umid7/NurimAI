@@ -44,8 +44,22 @@ async function render(svg, mascot) {
   out['favicon.svg'] = svg.replace('<rect id="bg"', '<rect id="bg" rx="128"');
   out['apple-touch-icon'] = (await (async () => { const c = canvas(180); c.getContext('2d').drawImage(await load(svgUrl(svg, 180)), 0, 0, 180, 180); return c; })()).toDataURL('image/png');
   out['logo-256'] = (await tile(256, 0.22)).toDataURL('image/png');
+  // Phone app: square icons (the OS rounds them), a maskable one with the glyph inside the safe zone, and Android launcher sizes.
+  const square = async (size, scale = 1, withBg = true) => { const c = canvas(size), ctx = c.getContext('2d'); if (withBg) { ctx.fillStyle = bg; ctx.fillRect(0, 0, size, size); } const art = withBg ? svg : svg.replace(/<rect id="bg"[^>]*\/>/, ''); const s = Math.round(size * scale), o = (size - s) / 2; ctx.drawImage(await load(svgUrl(art, s)), o, o, s, s); return c; };
+  out['app-192'] = (await square(192)).toDataURL('image/png'); out['app-512'] = (await square(512)).toDataURL('image/png'); out['app-maskable'] = (await square(512, 0.8)).toDataURL('image/png'); out['app-apple'] = (await square(180)).toDataURL('image/png');
+  for (const [d, n] of [['mdpi', 48], ['hdpi', 72], ['xhdpi', 96], ['xxhdpi', 144], ['xxxhdpi', 192]]) {
+    out[`mip-${d}`] = (await tile(n, 0.22)).toDataURL('image/png');
+    { const c = canvas(n), ctx = c.getContext('2d'); ctx.beginPath(); ctx.arc(n / 2, n / 2, n / 2, 0, Math.PI * 2); ctx.clip(); ctx.drawImage(await load(svgUrl(svg, n)), 0, 0, n, n); out[`round-${d}`] = c.toDataURL('image/png'); }
+    out[`fg-${d}`] = (await square(Math.round(n * 2.25), 0.6, false)).toDataURL('image/png'); // adaptive icon: 108dp layer, glyph inside the 66dp safe zone
+  }
   const pet = await load(mascot);
   { const h = 560, w = Math.round(pet.width * h / pet.height), c = document.createElement('canvas'); c.width = w; c.height = h; c.getContext('2d').drawImage(pet, 0, 0, w, h); out['mascot'] = c.toDataURL('image/webp', 0.9); }
+  // Android launch screens (Capacitor's default splash sizes): cream background, the mascot in the middle.
+  for (const [w, h] of [[320, 480], [480, 800], [720, 1280], [960, 1600], [1280, 1920], [480, 320], [800, 480], [1280, 720], [1600, 960], [1920, 1280]]) {
+    const c = document.createElement('canvas'); c.width = w; c.height = h; const ctx = c.getContext('2d'); ctx.fillStyle = '#FCFCF8'; ctx.fillRect(0, 0, w, h);
+    const ph = Math.min(h * 0.34, w * 0.42 * pet.height / pet.width), pw = pet.width * ph / pet.height; ctx.drawImage(pet, (w - pw) / 2, (h - ph) / 2, pw, ph);
+    out[`splash-${w}x${h}`] = c.toDataURL('image/png');
+  }
   { const c = document.createElement('canvas'); c.width = 1200; c.height = 630; const ctx = c.getContext('2d');
     const g = ctx.createLinearGradient(0, 0, 1200, 630); g.addColorStop(0, '#1C1D21'); g.addColorStop(1, '#2A2B31'); ctx.fillStyle = g; ctx.fillRect(0, 0, 1200, 630);
     const glow = ctx.createRadialGradient(930, 330, 20, 930, 330, 330); glow.addColorStop(0, 'rgba(213,173,86,0.38)'); glow.addColorStop(1, 'rgba(213,173,86,0)'); ctx.fillStyle = glow; ctx.fillRect(560, 0, 640, 630);
@@ -95,8 +109,23 @@ app.whenReady().then(async () => {
     [path.join(docs, 'apple-touch-icon.png')]: fromDataUrl(out['apple-touch-icon']),
     [path.join(docs, 'logo.png')]: fromDataUrl(out['logo-256']),
     [path.join(docs, 'mascot.webp')]: fromDataUrl(out.mascot),
-    [path.join(docs, 'og.jpg')]: fromDataUrl(out.og)
+    [path.join(docs, 'og.jpg')]: fromDataUrl(out.og),
+    [path.join(docs, 'app', 'icons', 'icon-192.png')]: fromDataUrl(out['app-192']),
+    [path.join(docs, 'app', 'icons', 'icon-512.png')]: fromDataUrl(out['app-512']),
+    [path.join(docs, 'app', 'icons', 'maskable-512.png')]: fromDataUrl(out['app-maskable']),
+    [path.join(docs, 'app', 'icons', 'apple-touch-icon.png')]: fromDataUrl(out['app-apple'])
   };
+  const res = path.join(root, 'mobile', 'android', 'app', 'src', 'main', 'res');
+  if (fs.existsSync(res)) for (const d of ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi']) Object.assign(files, {
+    [path.join(res, `mipmap-${d}`, 'ic_launcher.png')]: fromDataUrl(out[`mip-${d}`]),
+    [path.join(res, `mipmap-${d}`, 'ic_launcher_round.png')]: fromDataUrl(out[`round-${d}`]),
+    [path.join(res, `mipmap-${d}`, 'ic_launcher_foreground.png')]: fromDataUrl(out[`fg-${d}`])
+  });
+  if (fs.existsSync(res)) for (const dir of fs.readdirSync(res).filter(d => d.startsWith('drawable'))) { // replace Capacitor's placeholder splash at its own size
+    const file = path.join(res, dir, 'splash.png'); if (!fs.existsSync(file)) continue;
+    const png = fs.readFileSync(file), key = `splash-${png.readUInt32BE(16)}x${png.readUInt32BE(20)}`; if (out[key]) files[file] = fromDataUrl(out[key]);
+  }
+  fs.mkdirSync(path.join(docs, 'app', 'icons'), { recursive: true });
   for (const [file, data] of Object.entries(files)) { fs.writeFileSync(file, data); console.log(path.relative(root, file), data.length, 'bytes'); }
   app.quit();
 }).catch(error => { console.error(error); app.exit(1); });

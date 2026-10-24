@@ -1,6 +1,8 @@
 // Ovoz: 🎤 bilan savol (mikrofon -> 16 kHz mono WAV -> NurimAI) va javobni ovoz chiqarib o'qish (🔊).
 // Mikrofon faqat tugma bosilganda yoqiladi; yozuv xotirada turadi va faqat shu savol uchun yuboriladi.
 let recorder=null,recStart=0,recTimer=null,recChunks=[],speaking=null;
+// Chromium yozadi WebM/Opus, iPhone Safari esa MP4/AAC: qaysi biri bo'lsa ham keyin WAV'ga aylantiriladi.
+const REC_TYPE=['audio/webm;codecs=opus','audio/mp4','audio/aac'].find(t=>globalThis.MediaRecorder?.isTypeSupported?.(t))||'';
 const MAX_RECORD=60;
 const clock=seconds=>`${Math.floor(seconds/60)}:${String(Math.floor(seconds%60)).padStart(2,'0')}`;
 function showRecording(on){$('rec').hidden=!on;$('enter-hint').hidden=on;$('mic').classList.toggle('recording',on);$('mic').setAttribute('aria-label',on?'Yozishni tugatib yuborish':'Ovozli savol');$('mic').title=on?'Tugatib yuborish':'Ovozli savol: bosing, gapiring, yana bosing';}
@@ -11,7 +13,7 @@ async function startRecording(){
     if(!await call(window.nurim.micAccess()))throw Object.assign(new Error(),{name:'NotAllowedError'});
     stream=await navigator.mediaDevices.getUserMedia({audio:{channelCount:1,echoCancellation:true,noiseSuppression:true,autoGainControl:true}});
   }catch(e){notice(['NotAllowedError','SecurityError'].includes(e.name)?'Mikrofonga ruxsat yo‘q. Windows: Sozlamalar → Maxfiylik → Mikrofon; Mac: System Settings → Privacy & Security → Microphone’da NurimAI’ni yoqing.':e.name==='NotFoundError'?'Mikrofon topilmadi. Mikrofon ulanganini tekshiring.':'Mikrofonni yoqib bo‘lmadi.');return;}
-  recChunks=[];recorder=new MediaRecorder(stream,{mimeType:'audio/webm;codecs=opus'});
+  recChunks=[];recorder=new MediaRecorder(stream,REC_TYPE?{mimeType:REC_TYPE}:undefined);
   recorder.ondataavailable=e=>{if(e.data.size)recChunks.push(e.data);};recorder.onstop=()=>stream.getTracks().forEach(t=>t.stop());
   recorder.start(250);recStart=Date.now();$('rec-time').textContent='0:00';showRecording(true);window.nurim.petMood('listen');
   recTimer=setInterval(()=>{const s=(Date.now()-recStart)/1000;$('rec-time').textContent=clock(s);if(s>=MAX_RECORD)stopRecording(true);},250);
@@ -21,7 +23,7 @@ async function stopRecording(send){
   const seconds=Math.min(MAX_RECORD,(Date.now()-recStart)/1000);
   await new Promise(resolve=>{r.addEventListener('stop',resolve,{once:true});r.stop();});
   if(!send||seconds<0.8){window.nurim.petMood('idle');if(send)notice('Juda qisqa bo‘ldi. 🎤 ni bosing, savolingizni ayting va yana bosing.');return;}
-  try{await askVoice(await toWav(new Blob(recChunks,{type:'audio/webm'})),seconds);}catch(e){notice(e.message||'Ovozni o‘qib bo‘lmadi.');window.nurim.petMood('idle');}
+  try{await askVoice(await toWav(new Blob(recChunks,{type:r.mimeType||REC_TYPE||'audio/webm'})),seconds);}catch(e){notice(e.message||'Ovozni o‘qib bo‘lmadi.');window.nurim.petMood('idle');}
 }
 // Brauzer yozgan WebM/Opus -> 16 kHz mono PCM -> WAV (Gemini WAV'ni to'g'ridan-to'g'ri tinglaydi).
 async function toWav(blob){

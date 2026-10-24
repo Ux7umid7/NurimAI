@@ -1,0 +1,7 @@
+{
+  "appId": "com.nurimai.app",
+  "appName": "NurimAI",
+  "webDir": "../docs/app",
+  "android": { "allowMixedContent": false, "captureInput": true, "webContentsDebuggingEnabled": false },
+  "plugins": { "LocalNotifications": { "smallIcon": "ic_stat_nurimai", "iconColor": "#45563A" } }
+}

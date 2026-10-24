@@ -49,11 +49,23 @@ async function upstream(url,options){
 async function hash(text){const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));return Array.from(new Uint8Array(digest),x=>x.toString(16).padStart(2,'0')).join('');}
 class TooLarge extends Error {}
 async function readBounded(request,limit){const reader=request.body?.getReader();if(!reader)throw new Error();const parts=[];let size=0;while(true){const {value,done}=await reader.read();if(done)break;size+=value.length;if(size>limit){await reader.cancel();throw new TooLarge();}parts.push(value);}const bytes=new Uint8Array(size);let pos=0;for(const p of parts){bytes.set(p,pos);pos+=p.length;}return JSON.parse(new TextDecoder().decode(bytes));}
+// Browsers may call the API only from NurimAI's own phone app: the web app on GitHub Pages and the Android app (Capacitor serves it from https://localhost).
+const WEB_ORIGINS=['https://ux7umid7.github.io','https://localhost','capacitor://localhost'];
+export function allowedOrigin(origin,env={}){const extra=String(env.WEB_ORIGINS||'').split(',').map(o=>o.trim()).filter(Boolean);return Boolean(origin)&&[...WEB_ORIGINS,...extra].includes(origin);}
+function cors(origin){return {'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Methods':'GET, POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type','Access-Control-Expose-Headers':'Retry-After','Access-Control-Max-Age':'86400','Vary':'Origin'};}
 export default {async fetch(request,env){
+  const origin=request.headers.get('Origin');
+  if(origin&&!allowedOrigin(origin,env))return json({error:'Desktop API only'},403);
+  if(request.method==='OPTIONS')return origin?new Response(null,{status:204,headers:cors(origin)}):json({error:'Not found'},404);
+  const response=await handle(request,env);
+  if(!origin)return response;
+  const headers=new Headers(response.headers);for(const [k,v] of Object.entries(cors(origin)))headers.set(k,v);
+  return new Response(response.body,{status:response.status,headers});
+}};
+async function handle(request,env){
   const url=new URL(request.url);
   if(request.method==='GET'&&url.pathname==='/health')return json({service:'NurimAI',ready:Boolean(env.RATE_SALT&&((env.GEMINI_API_KEY&&env.GEMINI_FREE_TIER==='true')||(env.GROQ_API_KEY&&env.GROQ_FREE_TIER==='true')))});
   if(request.method!=='POST'||!['/chat','/speak'].includes(url.pathname))return json({error:'Not found'},404);
-  if(request.headers.get('Origin'))return json({error:'Desktop API only'},403);
   if(!request.headers.get('content-type')?.startsWith('application/json'))return json({error:'JSON required'},415);
   if(!env.RATE_SALT||!env.BUDGET)return json({error:'Service not configured'},503);
   const speech=url.pathname==='/speak';
@@ -62,7 +74,7 @@ export default {async fetch(request,env){
   const day=Math.floor(Date.now()/86400000);
   const identities={ip:await hash(`${env.RATE_SALT}:${day}:${ip}`),device:await hash(`${env.RATE_SALT}:${day}:${data.deviceId}`)};
   try{return await env.BUDGET.get(env.BUDGET.idFromName('global')).fetch(new Request(speech?'https://internal/speak':'https://internal/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data,identities})}));}catch{return json({error:'Service unavailable'},503);}
-}};
+}
 export class AiGateway {
   constructor(state,env){this.state=state;this.env=env;this.router=new Router({fetcher:upstream});this.active=0;}
   async fetch(request){
