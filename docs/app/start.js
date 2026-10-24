@@ -2,6 +2,7 @@
 // Tugmalar va ishga tushirish (app.js, voice.js va ustoz.js yuklangandan keyin).
 $('composer').onsubmit = event => { event.preventDefault(); askText($('question').value.trim()); };
 $('question').oninput = grow;
+window.addEventListener('resize', grow); // telefon burilsa yoki oyna o'zgarsa, yozish maydoni balandligi qayta hisoblanadi
 $('question').onkeydown = event => { if (event.key === 'Enter' && !event.shiftKey && !event.isComposing && finePointer) { event.preventDefault(); $('composer').requestSubmit(); } };
 $('stop').onclick = () => window.nurim.stop();
 $('new').onclick = newChat; $('drawer-new').onclick = () => { closeDrawer(); newChat(); };

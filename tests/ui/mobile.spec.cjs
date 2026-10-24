@@ -21,6 +21,8 @@ test('phone app: greeting, a typed question, answer actions and the chat in the 
  await page.locator('#menu').click();await expect(page.locator('#drawer')).toBeVisible();await expect(page.locator('#history-list li strong')).toHaveText('Kasr nima?');
  await page.locator('#history-search').fill('yoq narsa');await expect(page.locator('#history-empty')).toHaveText('Hech narsa topilmadi.');await page.locator('#history-search').fill('');
  await page.locator('#drawer-new').click();await expect(page.locator('#welcome')).toBeVisible();await page.screenshot({path:'test-results/mobile-welcome.png'});
+ expect(await page.evaluate(async()=>{const q=document.getElementById('question'),bar=q.parentElement;bar.style.width='60px';grow();const narrow=parseFloat(q.style.height);bar.style.width='';window.dispatchEvent(new Event('resize'));return {narrow,after:parseFloat(q.style.height)};})).toEqual(expect.objectContaining({after:expect.any(Number)}));
+ expect(await page.evaluate(()=>parseFloat(document.getElementById('question').style.height))).toBeLessThan(60); // an empty composer is one line again after a resize
 });
 test('phone app: photo, Word and text files become chips and go with the question',async()=>{
  await page.locator('#pick-image').setInputFiles({name:'masala.png',mimeType:'image/png',buffer:PNG});
