@@ -28,6 +28,8 @@ test('answers are formatted safely: lists, bold and code stay inert DOM',async()
  expect(html).toEqual({strong:'Qalin',items:2,ol:1,code:'<img src=x onerror="window.pwned=1">',img:0,pwned:undefined});
  const math=await page.evaluate(()=>{const was=$('welcome').hidden,el=bubble('assistant','Masalan: $\\frac{1}{2}$ va $x^2$, kodda `$\\frac{1}{2}$`');const text=el.querySelector('.rich').textContent;el.remove();$('welcome').hidden=was;return text;});
  expect(math).toBe('Masalan: 1/2 va x², kodda $\\frac{1}{2}$'); // LaTeX math reads as plain text, code stays as written
+ const rule=await page.evaluate(()=>{const was=$('welcome').hidden,el=bubble('assistant','Bir\n\n---\n\nIkki\n* * *\n```\n---\n```'),body=el.querySelector('.rich'),hr=body.querySelectorAll(':scope>hr');const out={hr:hr.length,text:[...body.querySelectorAll(':scope>p')].map(p=>p.textContent),code:body.querySelector('pre code').textContent,full:Math.round(hr[0].getBoundingClientRect().width)===Math.round(body.getBoundingClientRect().width),spoken:speechText('Bir\n---\nIkki')};el.remove();$('welcome').hidden=was;return out;});
+ expect(rule).toEqual({hr:2,text:['Bir','Ikki'],code:'---',full:true,spoken:'Bir\nIkki'}); // --- and * * * draw a full-width line, stay text in code, and are not read aloud
 });
 test('3D Nur hops when an answer arrives, then plays idle once',async()=>{
  const pet=app.windows().find(w=>w.url().endsWith('/pet.html'));

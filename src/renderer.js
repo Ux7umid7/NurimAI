@@ -10,6 +10,7 @@ function rich(container,text){
   for(const line of text.split('\n')){
     if(code){if(/^\s*```/.test(line))code=null;else code.textContent+=(code.textContent?'\n':'')+line;continue;}
     if(/^\s*```/.test(line)){list=para=null;const pre=document.createElement('pre');code=document.createElement('code');pre.append(code);container.append(pre);continue;}
+    if(/^\s*([-*_])(?:\s*\1){2,}\s*$/.test(line)){list=para=null;container.append(document.createElement('hr'));continue;} // --- is a full-width divider
     const bullet=/^\s*[-*•]\s+(.*)$/.exec(line),num=/^\s*(\d+)[.)]\s+(.*)$/.exec(line),head=/^\s*#{1,4}\s+(.*)$/.exec(line);
     if(bullet||num){const tag=bullet?'UL':'OL';if(!list||list.tagName!==tag){list=document.createElement(tag);if(num)list.start=Number(num[1]);container.append(list);para=null;}const li=document.createElement('li');inline(li,bullet?bullet[1]:num[2]);list.append(li);continue;}
     if(!line.trim()){list=para=null;continue;}

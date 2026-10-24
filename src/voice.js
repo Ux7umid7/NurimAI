@@ -48,7 +48,7 @@ $('mic').onclick=()=>recorder?stopRecording(true):startRecording();
 $('rec-cancel').onclick=()=>stopRecording(false);
 
 // O'qish uchun matn: kod bloklari va belgilash olib tashlanadi; birinchi bo'lak qisqa (tez boshlanadi), keyingilari kattaroq.
-function speechText(text){return text.replace(/```[\s\S]*?```/g,' (kod) ').replace(/`([^`]+)`/g,'$1').replace(/\*\*([^*]+)\*\*/g,'$1').replace(/^\s*#{1,4}\s+/gm,'').replace(/^\s*(?:[-*•]|\d+[.)])\s+/gm,'').replace(/\n{2,}/g,'\n').trim();}
+function speechText(text){return text.replace(/```[\s\S]*?```/g,' (kod) ').replace(/^\s*([-*_])(?:\s*\1){2,}\s*$/gm,'').replace(/`([^`]+)`/g,'$1').replace(/\*\*([^*]+)\*\*/g,'$1').replace(/^\s*#{1,4}\s+/gm,'').replace(/^\s*(?:[-*•]|\d+[.)])\s+/gm,'').replace(/\n{2,}/g,'\n').trim();}
 function speechParts(text){
   const pieces=text.match(/[^.!?…\n]+[.!?…]*\s*|\n+/g)||[text];const out=[];let current='';
   for(const piece of pieces){const limit=out.length?700:220;if((current+piece).length>limit&&current.trim()){out.push(current.trim());current='';}current+=piece.slice(0,1100);}

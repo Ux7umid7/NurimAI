@@ -32,7 +32,7 @@ svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.9;stroke
 .bubble-files{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
 .bubble.assistant{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:start}
 .bubble.assistant>img{width:28px;height:28px;border-radius:9px;object-fit:cover;background:var(--cream)}
-.rich{font-size:16px;line-height:1.6;overflow-wrap:anywhere;user-select:text;min-width:0}.rich>*{margin:0}.rich>*+*{margin-top:10px}.rich ul,.rich ol{padding-left:22px}.rich li+li{margin-top:4px}.rich .head{font-weight:650}
+.rich{font-size:16px;line-height:1.6;overflow-wrap:anywhere;user-select:text;min-width:0}.rich>*{margin:0}.rich>*+*{margin-top:10px}.rich ul,.rich ol{padding-left:22px}.rich li+li{margin-top:4px}.rich .head{font-weight:650}.rich hr{border:0;border-top:1px solid color-mix(in srgb,var(--muted) 40%,transparent);margin:16px 0}
 .rich code{font-family:ui-monospace,Consolas,Menlo,monospace;font-size:14px;background:var(--soft);padding:1px 5px;border-radius:6px}
 .rich pre{font:13px/1.5 ui-monospace,Consolas,Menlo,monospace;background:#26291f;color:#eef0e7;padding:12px;border-radius:12px;overflow-x:auto;white-space:pre}.rich pre code{background:none;padding:0;color:inherit}
 .actions{grid-column:2;display:flex;gap:2px;margin-top:-4px}.actions button{background:transparent;color:var(--muted);font-size:13px;padding:6px 8px;border-radius:8px}.actions button.on{color:var(--brand);background:var(--soft)}
