@@ -244,7 +244,7 @@ function mood(name) {
   $('dock').hidden = false; $('dock').dataset.mood = name; $('dock-text').textContent = DOCK_TEXT[name] || ''; show($('dock-still'), name, back);
 }
 function heroIdle() { if (!$('welcome').hidden) show($('hero-still'), 'idle'); }
-function heroStop() { moodTicket++; }
+function heroStop() {} // 2D rasmda to'xtatadigan narsa yo'q; pastdagi "dock" o'z taymerini tugatib, o'zi yopiladi
 
 // --- window.nurim: desktop bilan bir xil API ---
 const ok = fn => async (...args) => { try { return { ok: true, data: await fn(...args) }; } catch (e) { return { ok: false, error: e?.name === 'AbortError' ? 'Javob to‘xtatildi.' : e instanceof UserError ? e.message : 'Amal bajarilmadi. Qayta urinib ko‘ring.' }; } };

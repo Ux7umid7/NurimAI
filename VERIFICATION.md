@@ -1,3 +1,8 @@
+# Verification — 0.8.1, 2026-10-24
+
+- Found while checking 0.8.0 live on the site: after an answer the phone app kept the "Tayyor!" Pufak panel open, because rendering the answer cancelled the panel's timer. Fixed; a new UI test waits for the panel to close and fails on the 0.8.0 code.
+- Live on the site (0.8.0): a real question got a step-by-step Uzbek answer in the new design, read-aloud played and stopped, and the drawer, new chat, bottom menu, Ustoz, settings and the practice card all worked.
+
 # Verification — 0.8.0, 2026-10-24
 
 - 74 Node tests and 17 Electron UI tests pass locally on Windows, with new UI coverage: the wide window's chats sidebar (current chat, search), the week streak row and the gold practice card, the full-screen listening view on both apps, the phone's bottom menu (home screen only) and the 2D avatar.
