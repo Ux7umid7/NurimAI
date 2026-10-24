@@ -12,3 +12,7 @@ settings.json
 qa-profile/
 src/build-info.json
 .wrangler/
+
+# Android signing key: keep it outside git (it lives only in your backup and the GitHub secret)
+*.jks
+*.keystore
