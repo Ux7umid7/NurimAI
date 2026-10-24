@@ -1,3 +1,11 @@
+# Verification — 0.7.0, 2026-10-24
+
+- 71 Node tests and 17 Electron UI tests pass locally on Windows, including 4 for the phone app (docs/app opened in a 390×844 window in QA mode): a typed question and answer actions, history and search in the menu, a photo plus Word and text files as chips (the Word file is read in the browser with the shared Office parser and DecompressionStream), an old .doc refused, a voice question with transcript and read-aloud, the Ustoz quiz and streak, settings, and history after a reload. Unit tests check that the phone app carries the same shared code as the desktop app and that the versions match.
+- Checked by hand in a phone-sized browser, light and dark: welcome screen, chat, menu with history, Ustoz test, attach sheet.
+- Live, after the worker was deployed: a request with the GitHub Pages origin got CORS headers and an Uzbek answer; another origin was refused (403).
+- GitHub Actions passed on Windows, macOS and Android for the 0.7.0 branch; the Android job builds the APK with Capacitor 8.5.3.
+- Not verified yet: installing the APK on a real Android phone (microphone, camera, notifications) and the web app on a real iPhone (Safari, Bosh ekranga qo‘shish, voice recording in MP4).
+
 # Verification — 0.6.1, 2026-10-23
 
 - 67 Node tests and 13 Electron UI tests pass locally on Windows. New coverage: quiz/flashcard JSON parsing and validation, prompts, Leitner review, streak, quiz results and mistake cards, reminders (once/daily, late start, practice reminder), practice data persistence; Gemini TTS request shape and errors, raw PCM → WAV, voice recordings as Gemini-only inline audio, server audio validation, `/speak` validation and its separate budget; app messages for an old server and the speech limit. UI: the Ustoz panel end to end (quiz, mistakes → cards, review, streak, teacher style), reminders, a voice question with transcript and read-aloud, and the talk/listen pet moods.
