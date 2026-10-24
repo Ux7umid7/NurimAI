@@ -4,7 +4,8 @@ const SHELL = ['./', 'index.html', 'app.css', 'app.js', 'start.js', 'config.js',
   'lib/cap/capacitor.js', 'lib/cap/app.js', 'lib/cap/local-notifications.js', 'icons/icon-192.png', 'fonts.css',
   'fonts/commissioner-latin.woff2', 'fonts/commissioner-latin-ext.woff2', 'fonts/onest-latin.woff2', 'fonts/onest-latin-ext.woff2',
   'pufak/pufak.webp', 'pufak/think.webp', 'pufak/happy.webp', 'pufak/wave.webp', 'brand/horizontal-reverse.svg', 'brand/horizontal.svg'];
-self.addEventListener('install', event => { event.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
+// Yangi versiya fayllari serverdan olinadi (cache: 'reload'): aks holda brauzerning HTTP keshidagi eski app.js yangi keshga tushib qoladi.
+self.addEventListener('install', event => { event.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL.map(url => new Request(url, { cache: 'reload' })))).then(() => self.skipWaiting())); });
 self.addEventListener('activate', event => { event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith('nurimai-app-') && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', event => {
   const url = new URL(event.request.url);
