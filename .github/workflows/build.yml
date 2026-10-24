@@ -83,13 +83,22 @@ jobs:
       - name: Build APK
         working-directory: mobile
         shell: bash
+        # Failures are turned into annotations (readable without access to the full log); secrets are masked by GitHub.
         run: |
           export JAVA_HOME="$JAVA_HOME_21_X64"
-          if [ -n "$KEYSTORE_B64" ]; then echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/nurimai.jks"; export NURIM_KEYSTORE="$RUNNER_TEMP/nurimai.jks"; fi
+          fail() { echo "::error title=$1::$2"; exit 1; }
+          if [ -n "$KEYSTORE_B64" ]; then
+            printf '%s' "$KEYSTORE_B64" | tr -d ' \r\n' | base64 -d > "$RUNNER_TEMP/nurimai.jks" 2>/dev/null || fail "Android signing" "ANDROID_KEYSTORE is not valid base64: copy the key again with the [Convert]::ToBase64String command and paste it into the secret."
+            export NURIM_KEYSTORE="$RUNNER_TEMP/nurimai.jks"
+            [ -n "$NURIM_KEYSTORE_PASSWORD" ] || fail "Android signing" "ANDROID_KEYSTORE_PASSWORD secret is empty or missing."
+            check=$("$JAVA_HOME/bin/keytool" -list -keystore "$NURIM_KEYSTORE" -storepass "$NURIM_KEYSTORE_PASSWORD" -alias "${NURIM_KEY_ALIAS:-nurimai}" 2>&1) || fail "Android signing" "keytool could not open the key: $(echo "$check" | grep -iE 'error|exception|password|alias|tampered' | head -2 | tr '\n' ' ')"
+          fi
           npx cap sync android && node ../scripts/android-csp.cjs
           cd android && chmod +x gradlew
           if [ -n "${NURIM_KEYSTORE:-}" ]; then
-            ./gradlew --no-daemon assembleRelease && cp app/build/outputs/apk/release/app-release.apk ../../NurimAI-Android.apk
+            ./gradlew --no-daemon assembleRelease 2>&1 | tee gradle.log || true
+            [ -f app/build/outputs/apk/release/app-release.apk ] || { grep -A6 "What went wrong" gradle.log | head -8 | tr '\n' ' ' | sed 's/^/::error title=Android release build::/'; echo; exit 1; }
+            cp app/build/outputs/apk/release/app-release.apk ../../NurimAI-Android.apk
           else
             echo "::warning title=Android signing::ANDROID_KEYSTORE secret is not set: built a debug APK for testing (it will not update an earlier install)."
             ./gradlew --no-daemon assembleDebug && cp app/build/outputs/apk/debug/app-debug.apk ../../NurimAI-Android.apk
