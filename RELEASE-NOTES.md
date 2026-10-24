@@ -1,10 +1,9 @@
-NurimAI 0.7.1
+NurimAI 0.7.2
 
 Yuklab olish va o‘rnatish ko‘rsatmasi: https://ux7umid7.github.io/NurimAI/
 
-- 🧮 Javoblardagi matematika endi oddiy yozuvda: kasr 1/2, daraja x², ildiz √9, 3 × 4, 90° — “$\frac{1}{2}$” kabi tushunarsiz kod belgilarisiz. Bu kompyuter va telefon ilovalarida, 🔊 tinglashda va nusxa olganda ham ishlaydi.
-- 🎓 Ustoz testlari va kartochkalaridagi formulalar ham shunday oddiy ko‘rinishda chiqadi.
-- Eski suhbatlardagi javoblar ham ochilganda oddiy yozuvda ko‘rinadi.
+- ➖ Javob bo‘limlari orasidagi “---” belgisi endi butun kenglikdagi ingichka chiziq bo‘lib ko‘rinadi (kompyuter va telefonda, tun rejimida ham). 🔊 Tinglashda u o‘qilmaydi.
+- 0.7.1 dan: javoblardagi matematika oddiy yozuvda — kasr 1/2, daraja x², ildiz √9, 3 × 4, 90° — kod belgilarisiz; Ustoz testlari va kartochkalarida ham.
 
 0.7.0 dagi telefon versiyasi o‘z joyida: Android uchun NurimAI-Android.apk va iPhone uchun veb-ilova (Safari’da “Bosh ekranga qo‘shish”).
 

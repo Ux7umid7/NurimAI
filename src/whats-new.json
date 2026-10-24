@@ -1,4 +1,7 @@
 {
+  "0.7.2": [
+    "➖ Javob bo‘limlari orasidagi “---” belgisi endi butun kenglikdagi ingichka chiziq bo‘lib ko‘rinadi. Tinglashda u o‘qilmaydi."
+  ],
   "0.7.1": [
     "🧮 Javoblardagi matematika endi oddiy yozuvda ko‘rinadi va o‘qiladi: kasr 1/2, daraja x², ildiz √9 — tushunarsiz kod belgilarisiz.",
     "Ustoz testlari va kartochkalaridagi formulalar ham, eski suhbatlardagi javoblar ham shunday oddiy ko‘rinishda."

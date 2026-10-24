@@ -1,3 +1,8 @@
+# Verification — 0.7.2, 2026-10-24
+
+- 74 Node tests and 17 Electron UI tests pass locally on Windows. New UI coverage: "---" and "* * *" lines in an answer become an hr as wide as the answer text in both chats, "---" inside a code block stays text, and read-aloud skips it.
+- Checked by hand in the phone app (375×812, QA mode) in dark and light: a Gemini-style answer with two "---" lines shows two thin full-width lines.
+
 # Verification — 0.7.1, 2026-10-24
 
 - 74 Node tests and 17 Electron UI tests pass locally on Windows. New coverage: LaTeX math in answers turns into plain text (fractions, powers, roots, degrees, Greek letters, \(…\), $$…$$, aligned lines), while money ("10$ va 20$", "$5 dan $10 gacha"), code blocks, inline code and file paths stay as written; AI quizzes and cards get the same cleanup; both chat windows show "$\frac{1}{2}$" as "1/2".
