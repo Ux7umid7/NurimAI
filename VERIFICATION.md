@@ -2,7 +2,8 @@
 
 - 67 Node tests and 13 Electron UI tests pass locally on Windows. New coverage: quiz/flashcard JSON parsing and validation, prompts, Leitner review, streak, quiz results and mistake cards, reminders (once/daily, late start, practice reminder), practice data persistence; Gemini TTS request shape and errors, raw PCM → WAV, voice recordings as Gemini-only inline audio, server audio validation, `/speak` validation and its separate budget; app messages for an old server and the speech limit. UI: the Ustoz panel end to end (quiz, mistakes → cards, review, streak, teacher style), reminders, a voice question with transcript and read-aloud, and the talk/listen pet moods.
 - All nine mascot clips were rendered and checked frame by frame on dark and white backgrounds (no haze box or floor line); the mouth layer changes per mood.
-- Not verified yet: the live Gemini TTS and voice-question path (needs `wrangler deploy` of the updated worker), the microphone on a real Mac, and Windows/Mac CI builds of 0.6.1.
+- Live, after the worker was deployed (2026-10-24): `/speak` returned a 4.9 s, 24 kHz mono WAV in 4.7 s; that same audio sent back to `/chat` as a voice question came back as “Savolingiz: Kasr nima?” followed by an Uzbek answer. GitHub Actions passed on Windows and macOS for the 0.6.1 branch.
+- Not verified yet: the microphone and the Accessibility/microphone prompts on a real Mac.
 
 # Verification — 0.6.0, 2026-10-23
 
