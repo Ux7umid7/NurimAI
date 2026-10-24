@@ -1,7 +1,9 @@
 // Oflayn qobiq: ilova fayllari keshda turadi (internetsiz ham ochiladi). Server so'rovlari hech qachon keshlanmaydi.
 const CACHE = 'nurimai-app-0.7.2';
 const SHELL = ['./', 'index.html', 'app.css', 'app.js', 'start.js', 'config.js', 'manifest.webmanifest', 'lib/math-text.js', 'lib/practice-core.js', 'lib/office-core.js', 'lib/voice.js', 'lib/ustoz.js',
-  'lib/cap/capacitor.js', 'lib/cap/app.js', 'lib/cap/local-notifications.js', 'nur/avatar.png', 'nur/still/idle.png', 'icons/icon-192.png'];
+  'lib/cap/capacitor.js', 'lib/cap/app.js', 'lib/cap/local-notifications.js', 'icons/icon-192.png', 'fonts.css',
+  'fonts/commissioner-latin.woff2', 'fonts/commissioner-latin-ext.woff2', 'fonts/onest-latin.woff2', 'fonts/onest-latin-ext.woff2',
+  'pufak/pufak.webp', 'pufak/think.webp', 'pufak/happy.webp', 'pufak/wave.webp', 'brand/horizontal-reverse.svg', 'brand/horizontal.svg'];
 self.addEventListener('install', event => { event.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', event => { event.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith('nurimai-app-') && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener('fetch', event => {

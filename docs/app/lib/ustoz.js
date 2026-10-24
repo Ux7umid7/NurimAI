@@ -10,10 +10,11 @@ function renderPractice(){
   const p=practiceView;
   $('streak-count').textContent=p.streak?`${p.streak} kun ketma-ket`:'Bugun boshlaymiz';
   $('streak-text').textContent=p.today.reviewed||p.today.quizzes?`Bugun: ${p.today.reviewed} ta kartochka, ${p.today.quizzes} ta test`:'Har kuni ozgina mashq qilsangiz, seriya o‘sadi.';
-  $('ustoz-sub').textContent=p.streak?`🔥 ${p.streak} kun · ${p.due} ta takrorlash`:`${p.due} ta takrorlash`;
+  $('ustoz-sub').textContent=p.streak?`${p.streak} kun ketma-ket · ${p.due} ta takrorlash`:`${p.due} ta takrorlash`;
+  if($('streak-week'))$('streak-week').replaceChildren(...streakWeek(p));
   $('due-text').textContent=p.due?`${p.due} ta kartochka sizni kutmoqda.`:p.decks.length?'Bugungi takrorlash tugagan. Barakalla!':'Kartochkalar hali yo‘q. “Kartochkalar” bo‘limida mavzu yozing.';
   $('review-all').disabled=!p.due;$('teacher').checked=p.teacher;
-  $('results').replaceChildren(...(p.quizzes.length?[el('p',{className:'eyebrow',textContent:'SO‘NGGI TESTLAR'}),el('ul',{className:'results'},...p.quizzes.map(q=>el('li',{},el('span',{textContent:q.title}),el('b',{textContent:`${q.score}/${q.total}`}))))]:[]));
+  $('results').replaceChildren(...(p.quizzes.length?[el('p',{className:'eyebrow',textContent:'So‘nggi testlar'}),el('ul',{className:'results'},...p.quizzes.map(q=>el('li',{},el('span',{textContent:q.title}),el('b',{textContent:`${q.score}/${q.total}`}))))]:[]));
   $('decks').replaceChildren(...p.decks.map(d=>el('li',{},
     el('div',{className:'deck-info'},el('strong',{textContent:d.title}),el('small',{textContent:`${d.count} ta · ${d.learned} tasi o‘zlashtirildi${d.due?` · ${d.due} ta takrorlashga`:''}`})),
     el('button',{type:'button',className:d.due?'primary':'',textContent:d.due?'Takrorlash':'✓',disabled:!d.due,title:d.due?'':'Bugun takrorlanadigani qolmadi',onclick:()=>startStudy(d.id)}),
@@ -22,6 +23,15 @@ function renderPractice(){
   $('practice-on').checked=p.practiceReminder.on;$('practice-time').value=p.practiceReminder.time;
   $('reminders').replaceChildren(...p.reminders.map(r=>el('li',{},el('div',{className:'deck-info'},el('strong',{textContent:r.text}),el('small',{textContent:`${r.time} · ${r.repeat==='daily'?'har kuni':dayLabel(r.date)}`})),
     el('button',{type:'button',className:'history-delete',textContent:'×',title:'O‘chirish',ariaLabel:`“${r.text}” eslatmasini o‘chirish`,onclick:async()=>refreshPractice(await call(window.nurim.reminderDelete(r.id)))}))));
+}
+// Shu hafta (Du–Ya): seriya kunlari oltin doira, bugun nurli halqa. Seriya bugun yoki kecha tugaydi.
+const WEEK_DAYS=['Du','Se','Ch','Pa','Ju','Sh','Ya'];
+function streakWeek(p){
+  const now=new Date(),today=new Date(now.getFullYear(),now.getMonth(),now.getDate()),monday=new Date(today);monday.setDate(today.getDate()-(today.getDay()+6)%7);
+  const end=new Date(today);if(!(p.today.reviewed||p.today.quizzes))end.setDate(end.getDate()-1);const start=new Date(end);start.setDate(end.getDate()-p.streak+1);
+  return WEEK_DAYS.map((label,i)=>{const day=new Date(monday);day.setDate(monday.getDate()+i);const done=p.streak>0&&day>=start&&day<=end,isToday=+day===+today;
+    const mark=el('span');if(done){const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'),path=document.createElementNS('http://www.w3.org/2000/svg','path');svg.setAttribute('viewBox','0 0 24 24');svg.setAttribute('aria-hidden','true');path.setAttribute('d','M5 12.5l4.2 4.2L19 7');svg.append(path);mark.append(svg);}
+    const li=el('li',{className:[done?'done':'',isToday?'today':''].filter(Boolean).join(' ')},mark,label);if(isToday)li.setAttribute('aria-current','date');li.setAttribute('aria-label',`${label}${done?': mashq qilindi':''}`);return li;});
 }
 async function openUstoz(tab='today'){try{await refreshPractice();if(!quiz)resetQuiz();if(!study)resetStudy();showTab(tab);if(!$('ustoz-dialog').open)$('ustoz-dialog').showModal();}catch(e){notice(e.message);}}
 $('ustoz').onclick=()=>openUstoz();$('streak-chip').onclick=()=>openUstoz();$('close-ustoz').onclick=()=>$('ustoz-dialog').close();

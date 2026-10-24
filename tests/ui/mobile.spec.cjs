@@ -10,8 +10,11 @@ function docx(text){const raw=Buffer.from(`<w:document><w:body><w:p><w:r><w:t>${
 const PNG=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFklEQVR4nGP8z8Dwn4GBgYGJgYGBAQAWBgICcNjU9wAAAABJRU5ErkJggg==','base64');
 test('phone app: greeting, a typed question, answer actions and the chat in the menu',async()=>{
  await expect(page.locator('#greet')).toHaveText(/Xayrli|Tun/);await expect(page.locator('.suggest button')).toHaveCount(5);
+ await expect(page.locator('#tabbar')).toBeVisible();await expect(page.locator('#streak-chip')).toContainText('Kunlik mashq');await expect(page.locator('#hero-still')).toHaveAttribute('src',/pufak\/pufak\.webp/);
+ await page.evaluate(()=>{showRecording(true);showClock('0:07');});await expect(page.locator('#voice')).toBeVisible();await page.screenshot({path:'test-results/mobile-voice.png'});await page.locator('#voice-cancel').click();await expect(page.locator('#voice')).toBeHidden(); // the listening view (no recorder: cancel just closes it)
  await page.locator('#question').fill('Kasr nima?');await expect(page.locator('#send')).toBeVisible();await expect(page.locator('#mic')).toBeHidden();await page.locator('#send').click();
  const answer=page.locator('.bubble.assistant').last();await expect(answer).toContainText('Jonli AI emas');await expect(answer.locator('.speak')).toBeVisible();await expect(page.locator('.bubble.user p')).toHaveText('Kasr nima?');
+ await expect(page.locator('#tabbar')).toBeHidden();await expect(answer.locator('img')).toHaveAttribute('src',/pufak\/avatar\.webp/); // the menu bar is only on the home screen
  expect(await page.evaluate(()=>{const el=bubble('assistant','Masalan: $\\frac{1}{2}$ va $\\sqrt{9} = 3$');const text=el.querySelector('.rich').textContent;el.remove();return text;})).toBe('Masalan: 1/2 va √9 = 3');
  expect(await page.evaluate(()=>{const el=bubble('assistant','Formulasi:\n\n---\n\nQadamlar'),body=el.querySelector('.rich'),hr=body.querySelector('hr');const out={text:body.textContent,full:Math.round(hr.getBoundingClientRect().width)===Math.round(body.getBoundingClientRect().width)};el.remove();return out;})).toEqual({text:'Formulasi:Qadamlar',full:true});
  await page.locator('#menu').click();await expect(page.locator('#drawer')).toBeVisible();await expect(page.locator('#history-list li strong')).toHaveText('Kasr nima?');
@@ -37,7 +40,7 @@ test('phone app: voice question, read-aloud and the Ustoz quiz',async()=>{
  for(let i=0;i<2;i++){await page.locator('#quiz-run button.primary').click();await page.locator('#quiz-run .option').nth(0).click();}
  await page.locator('#quiz-run button.primary').click();await expect(page.locator('#quiz-run .result strong')).toHaveText('1/3');
  await page.locator('[data-tab=today]').click();await expect(page.locator('#streak-count')).toHaveText('1 kun ketma-ket');await page.locator('#close-ustoz').click();
- await expect(page.locator('#streak-chip')).toContainText('🔥 1 kun');
+ await expect(page.locator('#streak-chip')).toContainText('1 kun ketma-ket');
 });
 test('phone app: settings, and history survives a reload',async()=>{
  await page.locator('#menu').click();await page.locator('#settings').click();await expect(page.locator('#settings-dialog')).toBeVisible();await expect(page.locator('#version')).toContainText(require('../../package.json').version);

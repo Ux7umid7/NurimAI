@@ -5,7 +5,8 @@ let recorder=null,recStart=0,recTimer=null,recChunks=[],speaking=null;
 const REC_TYPE=['audio/webm;codecs=opus','audio/mp4','audio/aac'].find(t=>globalThis.MediaRecorder?.isTypeSupported?.(t))||'';
 const MAX_RECORD=60;
 const clock=seconds=>`${Math.floor(seconds/60)}:${String(Math.floor(seconds%60)).padStart(2,'0')}`;
-function showRecording(on){$('rec').hidden=!on;$('enter-hint').hidden=on;$('mic').classList.toggle('recording',on);$('mic').setAttribute('aria-label',on?'Yozishni tugatib yuborish':'Ovozli savol');$('mic').title=on?'Tugatib yuborish':'Ovozli savol: bosing, gapiring, yana bosing';}
+function showRecording(on){$('rec').hidden=!on;$('enter-hint').hidden=on;$('mic').classList.toggle('recording',on);$('mic').setAttribute('aria-label',on?'Yozishni tugatib yuborish':'Ovozli savol');$('mic').title=on?'Tugatib yuborish':'Ovozli savol: bosing, gapiring, yana bosing';
+  const screen=$('voice');if(screen){screen.hidden=!on;if(on)$('voice-send').focus();}} // to'liq ekranli "Tinglayapman…" oynasi (bo'lsa)
 async function startRecording(){
   if(busy||recorder)return;notice('');if(speaking)speaking.stop();
   let stream;
@@ -15,8 +16,8 @@ async function startRecording(){
   }catch(e){notice(['NotAllowedError','SecurityError'].includes(e.name)?'Mikrofonga ruxsat yo‘q. Windows: Sozlamalar → Maxfiylik → Mikrofon; Mac: System Settings → Privacy & Security → Microphone’da NurimAI’ni yoqing.':e.name==='NotFoundError'?'Mikrofon topilmadi. Mikrofon ulanganini tekshiring.':'Mikrofonni yoqib bo‘lmadi.');return;}
   recChunks=[];recorder=new MediaRecorder(stream,REC_TYPE?{mimeType:REC_TYPE}:undefined);
   recorder.ondataavailable=e=>{if(e.data.size)recChunks.push(e.data);};recorder.onstop=()=>stream.getTracks().forEach(t=>t.stop());
-  recorder.start(250);recStart=Date.now();$('rec-time').textContent='0:00';showRecording(true);window.nurim.petMood('listen');
-  recTimer=setInterval(()=>{const s=(Date.now()-recStart)/1000;$('rec-time').textContent=clock(s);if(s>=MAX_RECORD)stopRecording(true);},250);
+  recorder.start(250);recStart=Date.now();showClock('0:00');showRecording(true);window.nurim.petMood('listen');
+  recTimer=setInterval(()=>{const s=(Date.now()-recStart)/1000;showClock(clock(s));if(s>=MAX_RECORD)stopRecording(true);},250);
 }
 async function stopRecording(send){
   if(!recorder)return;const r=recorder;recorder=null;clearInterval(recTimer);showRecording(false);
@@ -44,8 +45,10 @@ async function askVoice(wav,seconds){
   catch(e){notice(e.message);bubble('assistant','Javob olinmadi. Savolni qayta yuborishingiz mumkin.');window.nurim.petMood('idle');}
   finally{setBusy(false);}
 }
+function showClock(text){$('rec-time').textContent=text;if($('voice-time'))$('voice-time').textContent=text;}
 $('mic').onclick=()=>recorder?stopRecording(true):startRecording();
 $('rec-cancel').onclick=()=>stopRecording(false);
+if($('voice')){$('voice-send').onclick=()=>recorder?stopRecording(true):showRecording(false);$('voice-cancel').onclick=()=>recorder?stopRecording(false):showRecording(false);}
 
 // O'qish uchun matn: kod bloklari va belgilash olib tashlanadi; birinchi bo'lak qisqa (tez boshlanadi), keyingilari kattaroq.
 function speechText(text){return text.replace(/```[\s\S]*?```/g,' (kod) ').replace(/^\s*([-*_])(?:\s*\1){2,}\s*$/gm,'').replace(/`([^`]+)`/g,'$1').replace(/\*\*([^*]+)\*\*/g,'$1').replace(/^\s*#{1,4}\s+/gm,'').replace(/^\s*(?:[-*•]|\d+[.)])\s+/gm,'').replace(/\n{2,}/g,'\n').trim();}

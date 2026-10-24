@@ -7,7 +7,6 @@ const $ = id => document.getElementById(id);
 const Cap = window.capacitorExports?.Capacitor;
 const NATIVE = Boolean(Cap?.isNativePlatform?.());
 const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-const STILLS = IOS; // iPhone Safari shaffof WebM'ni ko'rsatmaydi: harakat o'rniga holat rasmlari
 const saved = {
   get(key, fallback) { try { const v = localStorage.getItem('nurim.' + key); return v == null ? fallback : JSON.parse(v); } catch { return fallback; } },
   set(key, value) { try { localStorage.setItem('nurim.' + key, JSON.stringify(value)); return true; } catch { return false; } }
@@ -56,7 +55,7 @@ function bubble(role, text, attached = []) {
     if (attached.length) { const row = document.createElement('div'); row.className = 'bubble-files'; row.append(...attached.map(f => chip(f, false))); el.append(row); }
     const p = document.createElement('p'); p.textContent = text; el.append(p);
   } else {
-    const avatar = document.createElement('img'); avatar.src = 'nur/avatar.png'; avatar.alt = '';
+    const avatar = document.createElement('img'); avatar.src = 'pufak/avatar.webp'; avatar.alt = '';
     const body = document.createElement('div'); body.className = 'rich'; rich(body, text); el.append(avatar, body);
     if (text.startsWith('Javob olinmadi')) el.classList.add('error');
     else {
@@ -227,30 +226,25 @@ async function addFiles(list) {
   renderFiles(); notice(errors.join('\n')); if (added) mood('catch'); else if (errors.length) mood('sad');
 }
 
-// --- Qahramon: bo'sh ekranda katta, suhbatda pastdagi kichik "dock"da. iPhone'da holat rasmlari. ---
+// --- Qahramon: 2D Pufak (Ustozim Nurim brendi). Bo'sh ekranda katta, suhbatda pastdagi kichik "dock"da; har holatga o'z rasmi. ---
 const ONCE = new Set(['happy', 'wave', 'sad', 'catch']);
 const DOCK_TEXT = { think: 'O‘ylayapman…', talk: 'Gapiryapman…', listen: 'Tinglayapman…', happy: 'Tayyor!', sad: 'Afsus…', catch: 'Oldim!', wave: 'Salom!' };
-let moodBase = 'idle', moodTicket = 0, talkTimer = null, heroRest = null;
-const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
-function play(video, still, name, loop, onDone) {
-  clearInterval(talkTimer); const ticket = ++moodTicket;
-  if (STILLS || calm) { video.hidden = true; still.hidden = false; still.src = `nur/still/${name}.png`;
-    if (name === 'talk' && !calm) { let open = false; talkTimer = setInterval(() => { open = !open; still.src = `nur/still/${open ? 'talk2' : 'talk'}.png`; }, 180); }
-    if (onDone) setTimeout(() => { if (ticket === moodTicket) onDone(); }, 1600); return; }
-  still.hidden = true; video.hidden = false; video.loop = loop; video.src = `nur/${name}.webm`; video.onended = onDone ? () => { if (ticket === moodTicket) onDone(); } : null;
-  video.play().catch(() => { video.hidden = true; still.hidden = false; still.src = `nur/still/${name}.png`; });
+const ART = { idle: 'pufak', listen: 'pufak', wave: 'pufak', think: 'think', talk: 'talk', happy: 'happy', sad: 'sad', catch: 'catch', sleep: 'sleep' }; // asosiy rasmda Pufak qo'l silkitib turibdi
+let moodBase = 'idle', moodTicket = 0;
+function show(img, name, onDone) {
+  const ticket = ++moodTicket; img.src = `pufak/${ART[name] || 'pufak'}.webp`; img.dataset.mood = name;
+  img.classList.remove('pop'); void img.offsetWidth; if (name !== 'idle') img.classList.add('pop'); // bir martalik sakrash
+  if (onDone) setTimeout(() => { if (ticket === moodTicket) onDone(); }, 1600);
 }
 function mood(name) {
   if (['think', 'talk', 'listen'].includes(name)) moodBase = name; else if (['idle', 'happy', 'sad'].includes(name)) moodBase = 'idle'; // javob yoki xato o'ylashni tugatadi
-  const hero = !$('welcome').hidden; // bo'sh suhbatda katta qahramon javob beradi
-  if (hero) { clearTimeout(heroRest); $('dock').hidden = true; play($('hero-nur'), $('hero-still'), name === 'idle' ? 'idle' : name, moodBase !== 'idle' && !ONCE.has(name), ONCE.has(name) || name === 'idle' ? () => moodBase === 'idle' ? heroIdle() : mood(moodBase) : null); return; }
-  if (name === 'idle' && !busy) { $('dock').hidden = true; $('dock-video').pause(); clearInterval(talkTimer); return; }
-  $('dock').hidden = false; $('dock-text').textContent = DOCK_TEXT[name] || '';
-  play($('dock-video'), $('dock-still'), name, !ONCE.has(name), ONCE.has(name) ? () => moodBase === 'idle' ? mood('idle') : mood(moodBase) : null);
+  const back = ONCE.has(name) ? () => mood(moodBase) : null;
+  if (!$('welcome').hidden) { $('dock').hidden = true; show($('hero-still'), name, back); return; } // bo'sh suhbatda katta qahramon javob beradi
+  if (name === 'idle' && !busy) { $('dock').hidden = true; return; }
+  $('dock').hidden = false; $('dock-text').textContent = DOCK_TEXT[name] || ''; show($('dock-still'), name, back);
 }
-// Bo'sh ekrandagi qahramon bir marta "nafas oladi", keyin bir necha soniya dam oladi (video to'xtab tursa batareya yemaydi).
-function heroIdle() { clearTimeout(heroRest); if ($('welcome').hidden || document.hidden) return; play($('hero-nur'), $('hero-still'), 'idle', false, () => { heroRest = setTimeout(heroIdle, 6000 + Math.random() * 6000); }); }
-function heroStop() { clearTimeout(heroRest); $('hero-nur').pause(); }
+function heroIdle() { if (!$('welcome').hidden) show($('hero-still'), 'idle'); }
+function heroStop() { moodTicket++; }
 
 // --- window.nurim: desktop bilan bir xil API ---
 const ok = fn => async (...args) => { try { return { ok: true, data: await fn(...args) }; } catch (e) { return { ok: false, error: e?.name === 'AbortError' ? 'Javob to‘xtatildi.' : e instanceof UserError ? e.message : 'Amal bajarilmadi. Qayta urinib ko‘ring.' }; } };
@@ -324,9 +318,17 @@ function checkDueReminders() { if (Notify) return; for (const r of practice.dueR
 // --- Ekran: salom, menyu, sahifalar ---
 function greet() {
   const h = new Date().getHours(); $('greet').textContent = h >= 5 && h < 11 ? 'Xayrli tong!' : h < 17 ? 'Xayrli kun!' : h < 22 ? 'Xayrli kech!' : 'Tun bo‘lsa ham, shu yerdaman.';
-  const p = practice.view(); const parts = [p.streak ? `🔥 ${p.streak} kun ketma-ket` : '', p.due ? `${p.due} ta kartochka kutyapti` : ''].filter(Boolean);
-  $('streak-chip').textContent = parts.length ? parts.join(' · ') + ' →' : '🎓 Bugungi mashqni boshlaymizmi? →'; $('streak-chip').hidden = false;
-  $('drawer-streak').textContent = p.streak ? `🔥 ${p.streak} kun ketma-ket` : 'Ustoz va do‘st'; $('due-badge').textContent = String(p.due); $('due-badge').hidden = !p.due;
+  const p = practice.view(); practiceCard($('streak-chip'), p);
+  $('drawer-streak').textContent = p.streak ? `${p.streak} kun ketma-ket` : 'Ustoz va do‘st'; $('due-badge').textContent = String(p.due); $('due-badge').hidden = !p.due;
+}
+// Bosh ekrandagi oltin "Kunlik mashq" kartasi: seriya, kutayotgan kartochkalar va o'q tugmasi.
+function useIcon(id) { const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'), use = document.createElementNS('http://www.w3.org/2000/svg', 'use'); use.setAttribute('href', `#${id}`); svg.setAttribute('aria-hidden', 'true'); svg.append(use); return svg; }
+function practiceCard(card, p) {
+  const span = (className, ...kids) => { const s = document.createElement('span'); s.className = className; s.append(...kids); return s; };
+  const title = document.createElement('strong'); title.textContent = 'Kunlik mashq';
+  card.replaceChildren(span('practice-meta', useIcon('i-streak'), p.streak ? `${p.streak} kun ketma-ket` : 'Bugun boshlaymiz'), title,
+    span('practice-sub', p.due ? `${p.due} ta kartochka takrorlashni kutyapti` : 'Kichik test yoki kartochkalar bilan'), span('practice-go', useIcon('i-arrow')));
+  card.setAttribute('aria-label', `Kunlik mashq. ${p.streak ? `${p.streak} kun ketma-ket.` : ''} ${p.due ? `${p.due} ta kartochka kutyapti.` : ''}`.trim()); card.hidden = false;
 }
 function openDrawer() { renderHistory(); $('drawer').hidden = false; $('scrim').hidden = false; $('menu').setAttribute('aria-expanded', 'true'); $('history-search').blur(); }
 function closeDrawer() { $('drawer').hidden = true; $('scrim').hidden = true; $('menu').setAttribute('aria-expanded', 'false'); }

@@ -37,7 +37,7 @@ test('3D Nur hops when an answer arrives, then plays idle once',async()=>{
  await page.locator('#new').click();await page.locator('#question').fill('Salom');await page.locator('#send').click();
  await expect(pet.locator('#happy.on')).toBeVisible({timeout:5000});await expect(pet.locator('#idle.on')).toBeVisible({timeout:6000});
  const before=await pet.evaluate(()=>document.getElementById('idle').currentTime);await pet.waitForTimeout(500);expect(await pet.evaluate(()=>document.getElementById('idle').currentTime)).toBeGreaterThan(before); // idle replays once after the hop
- await expect(page.locator('.hero video')).toHaveAttribute('src',/nur\/idle\.webm/);
+ await expect(page.locator('#hero-nur')).toHaveAttribute('src',/pufak\/pufak\.webp/); // the chat window shows the 2D brand Pufak
 });
 test('Nur catches files, is sad on errors, sleeps and waves when woken',async()=>{
  const pet=app.windows().find(w=>w.url().endsWith('/pet.html'));await page.locator('#new').click();
@@ -55,6 +55,8 @@ test('selected-text shortcut attaches the selection and asks for an explanation'
 });
 test('history saves, searches, reopens and deletes conversations',async()=>{
  for(const q of ['Fotosintez nima?','Kasr nima?']){await page.locator('#new').click();await page.locator('#question').fill(q);await page.locator('#send').click();await expect(page.locator('.bubble.assistant').last()).toContainText('Jonli AI emas');}
+ await expect(page.locator('#sidebar')).toBeVisible();await expect(page.locator('#side-history li.current span')).toHaveText('Kasr nima?'); // the wide window lists chats in the sidebar too
+ await page.locator('#side-search').fill('foto');await expect(page.locator('#side-history li')).toHaveCount(1);await page.locator('#side-search').fill('');await page.screenshot({path:'test-results/desktop-sidebar.png'});
  await page.locator('#history').click();await expect(page.locator('#history-dialog')).toBeVisible();await expect(page.locator('#history-list li.current strong')).toHaveText('Kasr nima?');
  await page.locator('#history-search').fill('FOTOSINTEZ');await expect(page.locator('#history-list li')).toHaveCount(1);await page.screenshot({path:'test-results/history.png'});
  await page.locator('#history-list .history-open').click();await expect(page.locator('#history-dialog')).not.toBeVisible();await expect(page.locator('.bubble.user').first()).toContainText('Fotosintez nima?');await expect(page.locator('.bubble')).toHaveCount(2);
@@ -74,7 +76,8 @@ test('Ustoz: AI test is solved step by step, mistakes become cards, cards are re
  await expect(page.locator('#study .card-front')).toBeVisible();await expect(page.locator('#study .run-head b')).toHaveText(/1\/[34]/);
  for(let i=0;i<10&&await page.locator('#study .card-front').isVisible();i++){await page.locator('#study button.primary').click();await page.locator('#study .grade.know').click();}
  await expect(page.locator('#ustoz-note')).toContainText('Takrorlash tugadi');await expect(page.locator('#decks li')).toHaveCount(2);
- await page.locator('[data-tab=today]').click();await expect(page.locator('#streak-count')).toHaveText('1 kun ketma-ket');await expect(page.locator('#results li')).toHaveCount(1);await page.screenshot({path:'test-results/ustoz-today.png'});
+ await page.locator('[data-tab=today]').click();await expect(page.locator('#streak-count')).toHaveText('1 kun ketma-ket');
+ await expect(page.locator('#streak-week li')).toHaveCount(7);await expect(page.locator('#streak-week li.today.done')).toHaveCount(1);await expect(page.locator('#streak-chip')).toContainText('1 kun ketma-ket'); // week row and the gold practice cardawait expect(page.locator('#results li')).toHaveCount(1);await page.screenshot({path:'test-results/ustoz-today.png'});
  await page.locator('#teacher').check();await expect(page.locator('#ustoz-note')).toContainText('yoqildi');await page.locator('#teacher').uncheck();await page.locator('#close-ustoz').click();
 });
 test('reminders can be added, fire as a note in chat and open the Ustoz panel',async()=>{
@@ -96,4 +99,6 @@ test('Nur talks while an answer is read and listens while a question is recorded
  for(const mood of ['talk','listen']){await page.evaluate(m=>window.nurim.petMood(m),mood);await expect(pet.locator(`#${mood}.on`)).toBeVisible({timeout:5000});}
  await page.evaluate(()=>window.nurim.petMood('idle'));await expect(pet.locator('#idle.on')).toBeVisible({timeout:5000});
  expect(await page.evaluate(()=>window.nurim.petMood('happy'))).toEqual({ok:true,data:undefined}); // only talk/listen/idle are accepted from the chat window
+ await page.evaluate(()=>{showRecording(true);showClock('0:07');});await expect(page.locator('#voice')).toBeVisible();await expect(page.locator('#voice-time')).toHaveText('0:07');await expect(page.locator('#voice-send')).toBeFocused();
+ await page.screenshot({path:'test-results/desktop-voice.png'});await page.evaluate(()=>showRecording(false));await expect(page.locator('#voice')).toBeHidden(); // the full-screen listening view follows the recorder
 });

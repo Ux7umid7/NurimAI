@@ -6,99 +6,151 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://nurimai-api.ux7umidjon7.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
 <title>NurimAI</title>
 <meta name="description" content="NurimAI — telefoningizdagi o‘zbekcha AI ustoz: savol, rasm, fayl, ovoz, test va kartochkalar.">
-<meta name="theme-color" content="#fcfcf8" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#17181b" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#121317" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F6F1E7" media="(prefers-color-scheme: light)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="NurimAI">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon-192.png">
 <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="stylesheet" href="fonts.css">
 <link rel="stylesheet" href="app.css">
 </head>
 <body>
+<svg class="sprite" aria-hidden="true">
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h11M4 17h16"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20h8"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24"><rect x="8.8" y="3.4" width="6.4" height="10.6" rx="3.2"/><path d="M5.6 11.2a6.4 6.4 0 0 0 12.8 0"/><path d="M12 17.6v3"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="M14.5 5.5 8 12l6.5 6.5"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M4.5 12h15M13.6 6.1l5.9 5.9-5.9 5.9"/></symbol>
+  <symbol id="i-streak" viewBox="0 0 24 24"><path d="M12 3.2c.7 3.2 4.9 5.2 4.9 10a4.9 4.9 0 0 1-9.8 0c0-2 .8-3.4 1.8-4.5.2 1.3.9 2 1.8 2.1C10.4 8.3 11 5.5 12 3.2Z"/></symbol>
+  <symbol id="i-bulb" viewBox="0 0 24 24"><path d="M12 3.2a6.3 6.3 0 0 0-3.8 11.3c.6.5.9 1.1.9 1.8v.7h5.8v-.7c0-.7.3-1.3.9-1.8A6.3 6.3 0 0 0 12 3.2Z"/><path d="M9.6 20h4.8"/><path class="leaf" d="M9.9 12.5A4.2 4.2 0 0 1 14.1 8.3A4.2 4.2 0 0 1 9.9 12.5Z"/></symbol>
+  <symbol id="i-camera" viewBox="0 0 24 24"><path d="M4.5 8.2h3l1.6-2.4h5.8l1.6 2.4h3a1.5 1.5 0 0 1 1.5 1.5v8.3a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18v-8.3a1.5 1.5 0 0 1 1.5-1.5Z"/><circle cx="12" cy="13.4" r="3.4"/></symbol>
+  <symbol id="i-quiz" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.8"/><path d="M9.6 9.6a2.5 2.5 0 1 1 3.9 2.1c-.9.6-1.5 1.1-1.5 2.1"/><circle class="leaf" cx="12" cy="16.9" r="1.15"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="M3.6 12h16.8"/><path d="M12 3.4c2.4 2.5 3.6 5.4 3.6 8.6s-1.2 6.1-3.6 8.6c-2.4-2.5-3.6-5.4-3.6-8.6s1.2-6.1 3.6-8.6Z"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="M5 19.5h14"/><path d="M15.2 4.8a2 2 0 0 1 2.9 2.9L9 16.8l-3.6.8.8-3.6z"/><path class="leaf" d="M14.6 13.6A3 3 0 0 1 17.6 10.6A3 3 0 0 1 14.6 13.6Z"/></symbol>
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3.5 11.2 12 3.8l8.5 7.4"/><path d="M5.8 9.6V19a1.5 1.5 0 0 0 1.5 1.5h9.4a1.5 1.5 0 0 0 1.5-1.5V9.6"/><path class="leaf" d="M9.7 17.7A4.6 4.6 0 0 1 14.3 13.1A4.6 4.6 0 0 1 9.7 17.7Z"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M5.4 4.6h13.2A1.9 1.9 0 0 1 20.5 6.5v8.2a1.9 1.9 0 0 1-1.9 1.9h-6.6l-4.2 3.7v-3.7H5.4a1.9 1.9 0 0 1-1.9-1.9V6.5a1.9 1.9 0 0 1 1.9-1.9Z"/></symbol>
+  <symbol id="i-ustoz" viewBox="0 0 24 24"><path d="M12 4.8 2.8 9.4 12 14l9.2-4.6L12 4.8Z"/><path d="M6.6 11.7v4.4c0 1.4 2.4 2.9 5.4 2.9s5.4-1.5 5.4-2.9v-4.4"/><path d="M21.2 9.4v5"/><path class="leaf" d="M19.7 18.5A3 3 0 0 1 22.7 15.5A3 3 0 0 1 19.7 18.5Z"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M18 7h2M4 17h3M11 17h9"/><circle cx="15.5" cy="7" r="2.3"/><circle cx="8.5" cy="17" r="2.3"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7.4 10.6 12 15.2l4.6-4.6M4.5 19.5h15"/></symbol>
+  <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M20.5 16l-5-5-8 8"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M6.3 3.5h7.6l4.6 4.6v11.4a1.5 1.5 0 0 1-1.5 1.5H6.3a1.5 1.5 0 0 1-1.5-1.5v-14.5a1.5 1.5 0 0 1 1.5-1.5Z"/><path d="M13.9 3.5v4.6h4.6"/><path d="M8 12.4h7.6M8 15.8h4.2"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.2 4.2L19 7"/></symbol>
+</svg>
+
 <div class="app" id="app">
   <header class="top">
-    <button class="icon-btn" id="menu" aria-label="Menyu: suhbatlar, Ustoz, sozlamalar" aria-controls="drawer" aria-expanded="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h11M4 17h16"/></svg></button>
+    <button class="icon-btn" id="menu" aria-label="Menyu: suhbatlar, Ustoz, sozlamalar" aria-controls="drawer" aria-expanded="false"><svg><use href="#i-menu"/></svg></button>
     <div class="title"><strong>NurimAI</strong><small id="status">Yoningizdagi ustoz</small></div>
-    <button class="icon-btn" id="new" aria-label="Yangi suhbat"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h8"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg></button>
+    <button class="icon-btn" id="new" aria-label="Yangi suhbat"><svg><use href="#i-edit"/></svg></button>
   </header>
 
   <main class="chat" id="chat-area" aria-live="polite">
     <section id="welcome" class="welcome">
-      <div class="hero-nur"><video id="hero-nur" src="nur/idle.webm" poster="nur/still/idle.png" muted playsinline aria-label="NurimAI qahramoni"></video><img id="hero-still" src="nur/still/idle.png" alt="NurimAI qahramoni" hidden></div>
-      <h1 id="greet">Salom!</h1>
-      <p class="lede">Savolingizni yozing, rasmga oling yoki ayting.<br>Birga yechimini topamiz.</p>
-      <button type="button" id="streak-chip" class="streak-chip" hidden></button>
+      <div class="hello">
+        <div class="hello-text">
+          <p class="hello-greet" id="greet">Salom!</p>
+          <h1>Bugun nimani oʻrganamiz?</h1>
+          <p class="lede">Yozing, rasmga oling yoki ovoz bilan ayting.</p>
+        </div>
+        <div class="hero-nur"><span class="glow" aria-hidden="true"></span><img id="hero-still" src="pufak/pufak.webp" alt="NurimAI qahramoni Pufak"></div>
+      </div>
+      <button type="button" id="streak-chip" class="practice" hidden></button>
       <section id="whats-new" class="whats-new" hidden><strong id="whats-new-title"></strong><ul id="whats-new-list"></ul><button type="button" id="whats-new-close">Tushunarli</button></section>
+      <p class="section-label">Tezkor boshlash</p>
+      <div class="suggest" id="suggest" role="list">
+        <button type="button" data-prompt="Menga bir mavzuni oddiy misollar bilan tushuntirib ber: " role="listitem"><i><svg><use href="#i-bulb"/></svg></i><b>Mavzuni tushuntir</b><span>oddiy misollar bilan</span></button>
+        <button type="button" data-action="camera" role="listitem"><i><svg><use href="#i-camera"/></svg></i><b>Masalani rasmga ol</b><span>yechish yoʻli bilan</span></button>
+        <button type="button" data-action="quiz" role="listitem"><i><svg><use href="#i-quiz"/></svg></i><b>Test ishlaymiz</b><span>istalgan mavzuda</span></button>
+        <button type="button" data-prompt="Quyidagi matnni o‘zbek tiliga tarjima qil: " role="listitem"><i><svg><use href="#i-globe"/></svg></i><b>Tarjima qil</b><span>istalgan tildan</span></button>
+        <button type="button" data-prompt="Matn yozishga yordam ber: " role="listitem" class="wide"><i><svg><use href="#i-pen"/></svg></i><b>Matn yozish</b><span>xat, insho, post</span></button>
+      </div>
     </section>
     <div id="messages" class="messages"></div>
   </main>
 
-  <div class="suggest" id="suggest" role="list">
-    <button type="button" data-prompt="Menga bir mavzuni oddiy misollar bilan tushuntirib ber: " role="listitem"><b>Mavzuni tushuntir</b><span>oddiy misollar bilan</span></button>
-    <button type="button" data-action="camera" role="listitem"><b>Masalani rasmga ol</b><span>yechimini ko‘rsataman</span></button>
-    <button type="button" data-action="quiz" role="listitem"><b>Test ishlaymiz</b><span>istalgan mavzuda</span></button>
-    <button type="button" data-prompt="Quyidagi matnni o‘zbek tiliga tarjima qil: " role="listitem"><b>Tarjima qil</b><span>istalgan tildan</span></button>
-    <button type="button" data-prompt="Matn yozishga yordam ber: " role="listitem"><b>Matn yozish</b><span>xat, insho, post</span></button>
-  </div>
-
-  <div class="dock" id="dock" hidden><div class="dock-nur"><video id="dock-video" muted playsinline></video><img id="dock-still" alt="" hidden></div><span id="dock-text">O‘ylayapman…</span><button type="button" id="stop" class="dock-stop" hidden>To‘xtatish</button></div>
+  <div class="dock" id="dock" hidden><img id="dock-still" src="pufak/think.webp" alt=""><div class="dock-text"><span id="dock-text">O‘ylayapman…</span><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span></div><button type="button" id="stop" class="dock-stop" hidden>To‘xtatish</button></div>
   <div id="notice" class="notice" role="status" hidden></div>
 
   <footer class="composer" id="composer-wrap">
     <div id="attachments" class="attachments" hidden></div>
     <div id="file-actions" class="file-actions" hidden><button type="button" data-file-prompt="Biriktirilgan faylning qisqacha mazmunini yozib ber.">Qisqacha</button><button type="button" data-file-prompt="Bu yerda nima borligini oddiy tilda tushuntirib ber.">Tushuntir</button><button type="button" data-file-prompt="Masalani qadamma-qadam yechib, tushuntirib ber.">Yechib ber</button><button type="button" data-file-prompt="Matnini o‘zbek tiliga tarjima qil.">Tarjima</button><button type="button" data-file-prompt="Shu material asosida javoblari bilan 5 ta test savoli tuz.">Test tuz</button></div>
     <form id="composer" class="bar">
-      <button type="button" class="icon-btn plus" id="attach" aria-label="Rasm yoki fayl qo‘shish" aria-haspopup="dialog"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+      <button type="button" class="icon-btn plus" id="attach" aria-label="Rasm yoki fayl qo‘shish" aria-haspopup="dialog"><svg><use href="#i-plus"/></svg></button>
       <textarea id="question" rows="1" maxlength="6000" placeholder="NurimAI’ga yozing…" aria-label="Savolingiz" enterkeyhint="send"></textarea>
       <span id="enter-hint" hidden></span>
       <span id="rec" class="rec" hidden><i></i><b id="rec-time">0:00</b><span>Gapiring…</span><button type="button" id="rec-cancel" aria-label="Ovoz yozishni bekor qilish">✕</button></span>
-      <button type="button" class="icon-btn mic" id="mic" aria-label="Ovozli savol"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0"/><path d="M12 17.5V21"/></svg></button>
-      <button type="submit" class="icon-btn send" id="send" aria-label="Yuborish" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M5.5 11.5L12 5l6.5 6.5"/></svg></button>
+      <button type="button" class="icon-btn mic" id="mic" aria-label="Ovozli savol"><svg><use href="#i-mic"/></svg></button>
+      <button type="submit" class="icon-btn send" id="send" aria-label="Yuborish" hidden><svg><use href="#i-send"/></svg></button>
     </form>
     <p class="fineprint">NurimAI xato qilishi mumkin. Muhim narsani tekshirib ko‘ring.</p>
   </footer>
+
+  <nav class="tabbar" id="tabbar" aria-label="Asosiy menyu">
+    <button type="button" class="tab-item on" id="tab-home" aria-current="page"><svg><use href="#i-home"/></svg>Asosiy</button>
+    <button type="button" class="tab-item" id="tab-chats"><svg><use href="#i-chat"/></svg>Suhbatlar</button>
+    <button type="button" class="tab-voice" id="tab-voice" aria-label="Ovozli savol"><svg><use href="#i-mic"/></svg></button>
+    <button type="button" class="tab-item" id="tab-ustoz"><svg><use href="#i-ustoz"/></svg>Ustoz</button>
+    <button type="button" class="tab-item" id="tab-settings"><svg><use href="#i-sliders"/></svg>Sozlamalar</button>
+  </nav>
+</div>
+
+<div class="voice" id="voice" role="dialog" aria-modal="true" aria-labelledby="voice-status" hidden>
+  <p class="voice-title">Ovozli savol</p>
+  <div class="voice-stage" aria-hidden="true"><span class="ring r3"></span><span class="ring r2"></span><span class="ring r1"></span><img src="pufak/pufak.webp" alt=""></div>
+  <p class="voice-time"><i></i><span id="voice-time">0:00</span></p>
+  <h2 id="voice-status">Tinglayapman…</h2>
+  <p class="voice-hint">Savolingizni ayting, keyin “Yuborish”ni bosing.</p>
+  <div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="voice-actions">
+    <button type="button" id="voice-cancel"><span><svg><use href="#i-close"/></svg></span>Bekor qilish</button>
+    <button type="button" id="voice-send" class="voice-send"><span><svg><use href="#i-send"/></svg></span>Yuborish</button>
+  </div>
 </div>
 
 <div class="scrim" id="scrim" hidden></div>
 <aside class="drawer" id="drawer" aria-label="Menyu" hidden>
-  <div class="drawer-head"><img src="nur/avatar.png" alt=""><div><strong>NurimAI</strong><small id="drawer-streak">Ustoz va do‘st</small></div></div>
+  <div class="drawer-head"><img src="brand/horizontal-reverse.svg" alt="Ustozim Nurim" class="brand-logo"><small id="drawer-streak">Ustoz va do‘st</small></div>
   <input type="search" id="history-search" placeholder="Suhbatlardan qidirish…" aria-label="Suhbatlardan qidirish" maxlength="100" autocomplete="off">
-  <button type="button" class="drawer-item" id="drawer-new"><span>✎</span>Yangi suhbat</button>
-  <button type="button" class="drawer-item" id="ustoz"><span>🎓</span>Ustoz: test va kartochkalar<b id="due-badge" hidden></b></button>
-  <button type="button" class="drawer-item" id="install" hidden><span>⤓</span>Ilovani o‘rnatish</button>
+  <button type="button" class="drawer-item new" id="drawer-new"><svg><use href="#i-plus"/></svg>Yangi suhbat</button>
+  <button type="button" class="drawer-item" id="ustoz"><svg><use href="#i-ustoz"/></svg>Ustoz: test va kartochkalar<b id="due-badge" hidden></b></button>
+  <button type="button" class="drawer-item" id="install" hidden><svg><use href="#i-download"/></svg>Ilovani o‘rnatish</button>
   <p class="drawer-label">Suhbatlar</p>
   <ul class="history-list" id="history-list"></ul>
   <p class="history-empty" id="history-empty" hidden>Hali suhbat yo‘q.</p>
-  <button type="button" class="drawer-item settings-item" id="settings"><span>⚙</span>Sozlamalar</button>
+  <button type="button" class="drawer-item settings-item" id="settings"><svg><use href="#i-sliders"/></svg>Sozlamalar</button>
 </aside>
 
 <dialog id="attach-sheet" class="sheet"><div class="sheet-grip"></div><div class="sheet-grid">
-  <button type="button" data-pick="camera"><span>📷</span>Kamera</button><button type="button" data-pick="image"><span>🖼</span>Rasmlar</button><button type="button" data-pick="file"><span>📄</span>Fayl</button>
+  <button type="button" data-pick="camera"><span><svg><use href="#i-camera"/></svg></span>Kamera</button><button type="button" data-pick="image"><span><svg><use href="#i-image"/></svg></span>Rasmlar</button><button type="button" data-pick="file"><span><svg><use href="#i-file"/></svg></span>Fayl</button>
 </div><p class="sheet-note">Rasm, PDF, Word, Excel, PowerPoint yoki matn — 5 tagacha.</p><button type="button" class="sheet-close" id="attach-close">Bekor qilish</button></dialog>
 <input type="file" id="pick-camera" accept="image/*" capture="environment" hidden>
 <input type="file" id="pick-image" accept="image/*" multiple hidden>
 <input type="file" id="pick-file" accept=".pdf,.docx,.xlsx,.pptx,.txt,.md,.csv,.json,image/*,application/pdf" multiple hidden>
 
 <dialog id="settings-dialog" class="page"><form method="dialog" class="page-box">
-  <div class="page-head"><button class="icon-btn" value="close" aria-label="Orqaga">‹</button><h2>Sozlamalar</h2><span></span></div>
+  <div class="page-head"><button class="icon-btn" value="close" aria-label="Orqaga"><svg><use href="#i-back"/></svg></button><h2>Sozlamalar</h2><span></span></div>
   <div class="page-scroll">
     <label class="row-switch"><span>Ovozli savolga javobni ovoz chiqarib o‘qish</span><input type="checkbox" id="auto-speak"></label>
     <label class="row-switch"><span>Suhbatlarni shu telefonda saqlash</span><input type="checkbox" id="save-history"></label>
     <div class="card" id="install-help"><strong>Bosh ekranga qo‘shish</strong><p id="install-text"></p></div>
-    <div class="card"><strong>Maxfiylik</strong><p>Savolingiz, fayllaringiz va suhbatning oxirgi qismi NurimAI serveri orqali Google Gemini yoki Groq’ga yuboriladi, server ularni saqlamaydi. Ovozli savol faqat 🎤 bosilganda yoziladi. Suhbatlar tarixi, kartochkalar va eslatmalar faqat shu telefonda turadi. Parol, pasport, karta raqami yubormang.</p></div>
+    <div class="card"><strong>Maxfiylik</strong><p>Savolingiz, fayllaringiz va suhbatning oxirgi qismi NurimAI serveri orqali Google Gemini yoki Groq’ga yuboriladi, server ularni saqlamaydi. Ovozli savol faqat mikrofon tugmasi bosilganda yoziladi. Suhbatlar tarixi, kartochkalar va eslatmalar faqat shu telefonda turadi. Parol, pasport, karta raqami yubormang.</p></div>
     <button type="button" class="danger" id="clear-data">Barcha ma’lumotlarni o‘chirish</button>
     <p class="muted center" id="version"></p>
   </div>
 </form></dialog>
 
 <dialog id="ustoz-dialog" class="page"><div class="page-box ustoz-box">
-  <div class="page-head"><button type="button" class="icon-btn" id="close-ustoz" aria-label="Orqaga">‹</button><div class="page-title"><h2>Ustoz</h2><small id="ustoz-sub"></small></div><span></span></div>
+  <div class="page-head"><button type="button" class="icon-btn" id="close-ustoz" aria-label="Orqaga"><svg><use href="#i-back"/></svg></button><div class="page-title"><h2>Ustoz rejimi</h2><small id="ustoz-sub"></small></div><span></span></div>
   <nav class="tabs" role="tablist"><button type="button" role="tab" data-tab="today" aria-selected="true">Bugun</button><button type="button" role="tab" data-tab="quiz" aria-selected="false">Test</button><button type="button" role="tab" data-tab="cards" aria-selected="false">Kartochkalar</button><button type="button" role="tab" data-tab="remind" aria-selected="false">Eslatmalar</button></nav>
   <div class="page-scroll ustoz-scroll">
-    <section class="tab" id="tab-today"><div class="streak"><span>🔥</span><div><strong id="streak-count"></strong><small id="streak-text"></small></div></div>
+    <section class="tab" id="tab-today"><div class="streak"><div class="streak-head"><span class="flame"><svg><use href="#i-streak"/></svg></span><div><strong id="streak-count"></strong><small id="streak-text"></small></div></div><ol class="week" id="streak-week" aria-label="Shu hafta"></ol></div>
       <div class="today-grid"><div class="card"><strong>Takrorlash</strong><p id="due-text"></p><button type="button" class="primary" id="review-all">Boshlash</button></div><div class="card"><strong>Kunlik test</strong><p>5 ta savol. Mavzuni o‘zingiz tanlaysiz.</p><button type="button" id="daily-quiz">Test ishlash</button></div></div>
       <label class="check"><input type="checkbox" id="teacher"> <span><b>Ustoz uslubi.</b> Chatda javobni darhol aytib qo‘ymay, qadamma-qadam o‘rgatsin va oxirida tekshiruv savoli bersin.</span></label>
       <div id="results"></div></section>

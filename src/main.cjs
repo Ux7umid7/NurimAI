@@ -23,7 +23,7 @@ function drowse(){if(!sleeping&&!controller&&!chat?.isFocused()&&Date.now()-last
 const explainLabel=()=>process.platform==='darwin'?'⌘ + ⌥ + E':'Ctrl + Alt + E';
 function summary(){return {version:app.getVersion(),platform:process.platform,settings:store.public(),routes:router.diagnostics(store.value),last:router.last,update:updates.state,gatewayConfigured:Boolean(release.gateway),history:visible,busy:Boolean(controller),files:forView(files),sentIds:[...sentIds],whatsNew:previousVersion&&previousVersion!==app.getVersion()?whatsNew[app.getVersion()]||[]:[],explainKey:explainKey?explainLabel():'',historyAvailable:chats.available,historyWarning:chats.warning};}
 function clamp(point,width,height){const area=screen.getDisplayNearestPoint(point).workArea;return {x:Math.max(area.x,Math.min(Math.round(point.x),area.x+area.width-width)),y:Math.max(area.y,Math.min(Math.round(point.y),area.y+area.height-height))};}
-function showChat(){if(!chat || chat.isDestroyed())return;activity();if(!chat.isVisible()){const p=pet.getBounds();const next=clamp({x:p.x-450,y:p.y-540},440,700);chat.setPosition(next.x,next.y);}chat.show();chat.focus();}
+function showChat(){if(!chat || chat.isDestroyed())return;activity();if(!chat.isVisible()){const p=pet.getBounds(),[w,h]=chat.getSize();const next=clamp({x:p.x-w-10,y:p.y+p.height-h},w,h);chat.setPosition(next.x,next.y);}chat.show();chat.focus();} // opens beside Nur, whatever size the window has
 function toggle(){activity();if(chat.isVisible())chat.hide();else showChat();}
 // Attachments: only files the user hands over (picker, drop, paste, screen capture) are read.
 async function imageTool(bytes,mime){
@@ -61,7 +61,7 @@ function lockWindow(window,file){
 }
 function createWindows(){
   const webPreferences={preload:path.join(__dirname,'preload.cjs'),nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true};
-  chat=new BrowserWindow({title:'NurimAI',width:440,height:700,minWidth:370,minHeight:490,show:false,frame:false,transparent:true,hasShadow:true,alwaysOnTop:store.value.topmost,icon:asset('Nuri.ico'),webPreferences});
+  chat=new BrowserWindow({title:'NurimAI',width:1000,height:700,minWidth:380,minHeight:520,show:false,frame:false,transparent:true,hasShadow:true,alwaysOnTop:store.value.topmost,icon:asset('Nuri.ico'),webPreferences});
   pet=new BrowserWindow({title:'NurimAI — kichik yordamchi',width:PET.width,height:PET.height,show:false,frame:false,transparent:true,resizable:false,skipTaskbar:true,alwaysOnTop:store.value.topmost,webPreferences});
   lockWindow(chat,'index.html');lockWindow(pet,'pet.html');
   const area=screen.getPrimaryDisplay().workArea;const position=clamp(store.value.petPosition||{x:area.x+area.width-PET.width-20,y:area.y+area.height-PET.height-20},PET.width,PET.height);pet.setPosition(position.x,position.y);

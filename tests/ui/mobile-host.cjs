@@ -4,7 +4,7 @@ const { app, BrowserWindow, nativeTheme } = require('electron');
 if (process.env.NURIM_THEME) nativeTheme.themeSource = process.env.NURIM_THEME; // screenshots for the site use the light theme
 const http = require('node:http'), fs = require('node:fs'), path = require('node:path');
 const root = path.join(__dirname, '..', '..', 'docs');
-const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.webm': 'video/webm', '.webmanifest': 'application/manifest+json' };
+const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.webm': 'video/webm', '.webmanifest': 'application/manifest+json' };
 app.whenReady().then(() => {
   const server = http.createServer((req, res) => {
     let file = path.normalize(path.join(root, decodeURIComponent(new URL(req.url, 'http://x').pathname)));

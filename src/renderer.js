@@ -1,7 +1,7 @@
 const $=id=>document.getElementById(id);let state;let busy=false;let files=[];const shown=new Set(); // attachments already displayed on a sent message
 async function call(promise){const result=await promise;if(!result.ok)throw new Error(result.error);return result.data;}
 function notice(text){$('notice').textContent=text;$('notice').hidden=!text;}
-function scroll(){const area=$('chat-area');area.scrollTop=area.scrollHeight;}
+function scroll(){const area=$('chat-area');area.scrollTop=$('welcome').hidden?area.scrollHeight:0;} // the welcome screen stays at its top
 
 // Safe formatting for AI answers: builds DOM nodes (never HTML) for paragraphs, lists, **bold**, `code` and ``` blocks.
 function inline(parent,text){let last=0;for(const m of text.matchAll(/\*\*([^*\n]+)\*\*|`([^`\n]+)`/g)){if(m.index>last)parent.append(text.slice(last,m.index));const el=document.createElement(m[1]!==undefined?'strong':'code');el.textContent=m[1]??m[2];parent.append(el);last=m.index+m[0].length;}if(last<text.length)parent.append(text.slice(last));}
@@ -28,7 +28,7 @@ function chip(file,removable){
 function renderFiles(list){files=list;$('attachments').replaceChildren(...files.map(f=>chip(f,true)));$('attachments').hidden=!files.length;$('file-actions').hidden=!files.length||busy;$('question').placeholder=files.length?'Fayl haqida savol yozing yoki tayyor tugmani bosing…':'Istalgan savolingizni yozing…';}
 function bubble(role,text,attached=[]){
   if(role!=='user')text=NurimMath.plainMath(text); // LaTeX math ($\frac{1}{2}$ -> 1/2) is shown, copied and read aloud as plain text
-  $('welcome').hidden=true;$('hero-nur').pause();const el=document.createElement('article');el.className=`bubble ${role}`;const head=document.createElement('div');head.className='bubble-head';const label=document.createElement('span');label.textContent=role==='user'?'SIZ':'NurimAI';head.append(label);
+  $('welcome').hidden=true;const el=document.createElement('article');el.className=`bubble ${role}`;const head=document.createElement('div');head.className='bubble-head';const label=document.createElement('span');label.textContent=role==='user'?'SIZ':'NurimAI';head.append(label);
   if(role!=='user'){const tools=document.createElement('span');tools.className='bubble-tools';const copy=document.createElement('button');copy.className='copy';copy.textContent='Nusxa';copy.onclick=async()=>{await call(window.nurim.copy(text));copy.textContent='Olindi ✓';};
     if(!text.startsWith('Javob olinmadi')){const listen=document.createElement('button');listen.className='speak';listen.textContent='🔊 Tinglash';listen.title='Javobni ovoz chiqarib o‘qish';listen.onclick=()=>speakBubble(el,text);tools.append(listen);}
     tools.append(copy);head.append(tools);}
@@ -37,7 +37,7 @@ function bubble(role,text,attached=[]){
   if(role==='user'){const p=document.createElement('p');p.textContent=text;el.append(p);}else{const body=document.createElement('div');body.className='rich';rich(body,text);el.append(body);}
   $('messages').append(el);scroll();return el;
 }
-function setBusy(value){busy=value;$('waiting').hidden=!value;$('stop').hidden=!value;$('send').hidden=value;$('question').readOnly=value;for(const id of ['new','history','settings','attach','capture','mic'])$(id).disabled=value;$('file-actions').hidden=!files.length||value;$('status').textContent=value?'Javob tayyorlanmoqda…':state?.settings.usePersonalKeys?'Shaxsiy AI · avtomatik':'Yoningizdagi yordamchi';scroll();}
+function setBusy(value){busy=value;$('waiting').hidden=!value;$('stop').hidden=!value;$('send').hidden=value;$('question').readOnly=value;for(const id of ['new','history','settings','attach','capture','mic','side-new'])$(id).disabled=value;for(const b of document.querySelectorAll('.side-open'))b.disabled=value;$('file-actions').hidden=!files.length||value;$('status').textContent=value?'Javob tayyorlanmoqda…':state?.settings.usePersonalKeys?'Shaxsiy AI · avtomatik':'Yoningizdagi yordamchi';scroll();}
 function updateView(value){$('update-status').textContent=value.text;$('install-update').hidden=value.phase!=='ready';$('check-update').disabled=['checking','downloading','ready'].includes(value.phase);}
 async function init(){
   state=await call(window.nurim.init());$('shortcut').textContent=(state.platform==='darwin'?'⌘ + ⌥ + Space · tez ochish':'Ctrl + Alt + Space · tez ochish')+(state.explainKey?`   ·   ${state.explainKey} · tushuntirish`:'');
@@ -46,24 +46,30 @@ async function init(){
   if(state.whatsNew?.length){$('whats-new-title').textContent=`NurimAI ${state.version} versiyasiga yangilandi`;$('whats-new-list').replaceChildren(...state.whatsNew.map(t=>{const li=document.createElement('li');li.textContent=t;return li;}));$('whats-new').hidden=false;}
   if(state.settings.warning)notice(state.settings.warning);setBusy(state.busy);greet();
 }
-// Welcome line: greeting by time of day, plus the practice streak and cards waiting for review.
+// Welcome: greeting by time of day and the gold "Kunlik mashq" card (streak, cards waiting); the sidebar's Ustoz card says the same.
 async function greet(){
-  const h=new Date().getHours();const hello=h>=5&&h<11?'Xayrli tong!':h<17?'Xayrli kun!':h<22?'Xayrli kech!':'Tun ham bo‘lsa, shu yerdaman.';
-  $('greet').textContent='';$('greet').append(hello,document.createElement('br'),'Savolingizni yozing yoki ayting.');
-  try{const p=await call(window.nurim.practice());const parts=[p.streak?`🔥 ${p.streak} kun ketma-ket`:'',p.due?`${p.due} ta kartochka takrorlashni kutyapti`:''].filter(Boolean);$('streak-chip').textContent=parts.length?parts.join(' · ')+' →':'🎓 Bugungi mashqni boshlaymizmi? →';$('streak-chip').hidden=false;}catch{$('streak-chip').hidden=true;}
+  const h=new Date().getHours();$('greet').textContent=h>=5&&h<11?'Xayrli tong!':h<17?'Xayrli kun!':h<22?'Xayrli kech!':'Tun ham bo‘lsa, shu yerdaman.';
+  try{const p=await call(window.nurim.practice());practiceCard($('streak-chip'),p);$('side-streak').textContent=p.streak?`${p.streak} kun ketma-ket`:'Ustoz rejimi';$('side-due').textContent=p.due?`Bugun ${p.due} ta kartochka takrorlash kerak`:'Test, kartochkalar va kunlik mashq';}catch{$('streak-chip').hidden=true;}
+}
+function useIcon(id){const svg=document.createElementNS('http://www.w3.org/2000/svg','svg'),use=document.createElementNS('http://www.w3.org/2000/svg','use');use.setAttribute('href',`#${id}`);svg.setAttribute('aria-hidden','true');svg.append(use);return svg;}
+function practiceCard(card,p){
+  const span=(className,...kids)=>{const s=document.createElement('span');s.className=className;s.append(...kids);return s;};const title=document.createElement('strong');title.textContent='Kunlik mashq';
+  card.replaceChildren(span('practice-meta',useIcon('i-streak'),p.streak?`${p.streak} kun ketma-ket`:'Bugun boshlaymiz'),title,span('practice-sub',p.due?`${p.due} ta kartochka takrorlashni kutyapti`:'Kichik test yoki kartochkalar bilan'),span('practice-go',useIcon('i-arrow')));
+  card.hidden=false;
 }
 async function ask(question){
   if(!question||busy)return;notice('');const fresh=files.filter(f=>!shown.has(f.id));fresh.forEach(f=>shown.add(f.id));bubble('user',question,fresh.map(({name,ext,kind})=>({name,ext,kind})));$('question').value='';setBusy(true);
   try{const reply=await call(window.nurim.send(question));bubble('assistant',reply.text);if(reply.incomplete)notice('Javob uzunligi chegarasiga yetdi. Davomini so‘rashingiz mumkin.');}
   catch(error){notice(error.message);bubble('assistant','Javob olinmadi. Savolni qayta yuborishingiz mumkin.');$('question').value=question;}
-  finally{setBusy(false);$('question').focus();}
+  finally{setBusy(false);$('question').focus();renderSide();}
 }
 $('composer').onsubmit=event=>{event.preventDefault();ask($('question').value.trim());};
 $('question').onkeydown=event=>{if(event.key==='Enter'&&!event.shiftKey&&!event.isComposing){event.preventDefault();$('composer').requestSubmit();}};
 document.addEventListener('keydown',event=>{if(event.key!=='Escape')return;if(recorder){event.preventDefault();stopRecording(false);return;}if(!document.querySelector('dialog[open]'))window.nurim.hide();});
 $('hide').onclick=()=>window.nurim.hide();$('stop').onclick=()=>window.nurim.stop();$('export').onclick=()=>call(window.nurim.exportChat()).catch(e=>notice(e.message));
-function clearChat(){$('messages').replaceChildren();$('welcome').hidden=false;heroPlay();$('question').value='';shown.clear();renderFiles([]);notice('');}
-$('new').onclick=async()=>{try{await call(window.nurim.reset());clearChat();$('question').focus();}catch(e){notice(e.message);}};
+function clearChat(){$('messages').replaceChildren();$('welcome').hidden=false;$('question').value='';shown.clear();renderFiles([]);notice('');}
+$('new').onclick=async()=>{try{await call(window.nurim.reset());clearChat();$('question').focus();renderSide();}catch(e){notice(e.message);}};
+$('side-new').onclick=()=>$('new').click();$('side-settings').onclick=()=>$('settings').click();$('side-ustoz').onclick=()=>openUstoz();
 for(const button of document.querySelectorAll('[data-prompt]'))button.onclick=()=>{$('question').value=button.dataset.prompt;$('question').focus();};
 for(const button of document.querySelectorAll('[data-file-prompt]'))button.onclick=()=>ask(button.dataset.filePrompt);
 $('whats-new-close').onclick=()=>{$('whats-new').hidden=true;};
@@ -96,11 +102,24 @@ function historyItem(item,current){
   const open=document.createElement('button');open.type='button';open.className='history-open';
   const title=document.createElement('strong');title.textContent=item.title;const meta=document.createElement('small');meta.textContent=`${when(item.updated)} · ${item.count} ta xabar${item.id===current?' · hozirgi':''}`;
   const preview=document.createElement('span');preview.textContent=item.preview;open.append(title,meta,preview);
-  open.onclick=async()=>{try{const data=await call(window.nurim.historyOpen(item.id));clearChat();for(const m of data.history)bubble(m.role,m.text,m.files||[]);$('history-dialog').close();$('question').focus();}catch(e){$('history-note').textContent=e.message;}};
+  open.onclick=async()=>{try{await openChat(item.id);$('history-dialog').close();}catch(e){$('history-note').textContent=e.message;}};
   const del=document.createElement('button');del.type='button';del.className='history-delete';del.textContent='×';del.title='O‘chirish';del.setAttribute('aria-label',`“${item.title}” suhbatini o‘chirish`);
-  del.onclick=async()=>{try{await call(window.nurim.historyDelete(item.id));await showHistory();}catch(e){$('history-note').textContent=e.message;}};
+  del.onclick=async()=>{try{await call(window.nurim.historyDelete(item.id));await showHistory();renderSide();}catch(e){$('history-note').textContent=e.message;}};
   li.append(open,del);return li;
 }
+async function openChat(id){const data=await call(window.nurim.historyOpen(id));clearChat();for(const m of data.history)bubble(m.role,m.text,m.files||[]);$('question').focus();renderSide();}
+// Sidebar (wide window): the same saved chats, newest first, with search; the narrow window keeps the Tarix dialog.
+let sideTimer=null;
+async function renderSide(){
+  try{
+    const query=$('side-search').value.trim();const data=await call(window.nurim.historyList(query));
+    $('side-history').replaceChildren(...data.items.map(item=>{const li=document.createElement('li');if(item.id===data.current)li.className='current';
+      const open=document.createElement('button');open.type='button';open.className='side-open';open.disabled=busy;const title=document.createElement('span');title.textContent=item.title;const meta=document.createElement('small');meta.textContent=when(item.updated);open.append(title,meta);
+      open.onclick=()=>openChat(item.id).catch(e=>notice(e.message));li.append(open);return li;}));
+    $('side-empty').textContent=!data.available?'Bu kompyuterda tarix saqlanmaydi.':query?'Hech narsa topilmadi.':data.enabled?'Savol bersangiz, suhbat shu yerda paydo bo‘ladi.':'Tarix saqlash Sozlamalarda o‘chirilgan.';$('side-empty').hidden=data.items.length>0;
+  }catch{}
+}
+$('side-search').oninput=()=>{clearTimeout(sideTimer);sideTimer=setTimeout(renderSide,150);};
 async function showHistory(){
   const query=$('history-search').value.trim();const data=await call(window.nurim.historyList(query));
   $('history-list').replaceChildren(...data.items.map(item=>historyItem(item,data.current)));
@@ -111,7 +130,7 @@ async function showHistory(){
 $('history').onclick=async()=>{$('history-search').value='';try{await showHistory();$('history-dialog').showModal();$('history-search').focus();}catch(e){notice(e.message);}};
 $('history-search').oninput=()=>{clearTimeout(historyTimer);historyTimer=setTimeout(()=>showHistory().catch(e=>$('history-note').textContent=e.message),150);};
 $('close-history').onclick=()=>$('history-dialog').close();
-$('history-clear').onclick=async()=>{if(!confirm('Barcha saqlangan suhbatlar o‘chirilsinmi? Buni qaytarib bo‘lmaydi.'))return;try{await call(window.nurim.historyClear());await showHistory();}catch(e){$('history-note').textContent=e.message;}};
+$('history-clear').onclick=async()=>{if(!confirm('Barcha saqlangan suhbatlar o‘chirilsinmi? Buni qaytarib bo‘lmaydi.'))return;try{await call(window.nurim.historyClear());await showHistory();renderSide();}catch(e){$('history-note').textContent=e.message;}};
 
 $('settings').onclick=async()=>{
  state=await call(window.nurim.settings());const s=state.settings;$('version').textContent=`NurimAI ${state.version}`;$('server-status').textContent=state.gatewayConfigured?'Umumiy AI serveri sozlangan.':'Server manzili hali sozlanmagan.';
@@ -126,15 +145,8 @@ $('settings').onclick=async()=>{
 };
 $('close-settings').onclick=()=>$('settings-dialog').close();$('quit').onclick=()=>window.nurim.quit();
 $('settings-form').onsubmit=async event=>{event.preventDefault();const keys={},clear={},free={};for(const p of ['Gemini','Groq','OpenRouter']){keys[p]=$(`key-${p}`).value;clear[p]=$(`clear-${p}`).checked;if(p!=='OpenRouter')free[p]=$(`free-${p}`).checked;}
- try{const saved=await call(window.nurim.saveSettings({keys,clear,free,topmost:$('topmost').checked,saveHistory:$('save-history').checked,autoSpeak:$('auto-speak').checked,autoUpdate:$('auto-update').checked,usePersonalKeys:$('personal').checked,autoFallback:$('fallback').checked,remember:$('remember').checked}));state.settings=saved;for(const p of Object.keys(keys))$(`key-${p}`).value='';$('settings-dialog').close();setBusy(false);notice('Sozlamalar saqlandi.');}catch(error){$('settings-error').textContent=error.message;}
+ try{const saved=await call(window.nurim.saveSettings({keys,clear,free,topmost:$('topmost').checked,saveHistory:$('save-history').checked,autoSpeak:$('auto-speak').checked,autoUpdate:$('auto-update').checked,usePersonalKeys:$('personal').checked,autoFallback:$('fallback').checked,remember:$('remember').checked}));state.settings=saved;for(const p of Object.keys(keys))$(`key-${p}`).value='';$('settings-dialog').close();setBusy(false);notice('Sozlamalar saqlandi.');renderSide();}catch(error){$('settings-error').textContent=error.message;}
 };
 $('check-update').onclick=async()=>{try{updateView(await call(window.nurim.checkUpdate()));}catch(e){$('settings-error').textContent=e.message;}};
 $('install-update').onclick=()=>call(window.nurim.installUpdate()).catch(e=>$('settings-error').textContent=e.message);$('release-page').onclick=()=>window.nurim.openLink('releases');window.nurim.onUpdate(updateView);
-// Welcome-screen Nur plays once while the chat is actually visible, then rests: a hidden or paused video costs no CPU.
-const calm=matchMedia('(prefers-reduced-motion: reduce)').matches;let heroRest=null;
-function heroPlay(){clearTimeout(heroRest);const hero=$('hero-nur');if(calm||document.visibilityState!=='visible'||$('welcome').hidden)return;hero.currentTime=0;hero.play().catch(()=>{});}
-$('hero-nur').onended=()=>{clearTimeout(heroRest);heroRest=setTimeout(heroPlay,8000+Math.random()*8000);};
-$('hero-nur').onpointerenter=()=>{if($('hero-nur').paused)heroPlay();};
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')heroPlay();else{clearTimeout(heroRest);$('hero-nur').pause();}});
-heroPlay();
-init().catch(e=>notice(e.message));
+init().then(renderSide).catch(e=>notice(e.message));

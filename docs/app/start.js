@@ -26,7 +26,13 @@ for (const button of document.querySelectorAll('[data-pick]')) button.onclick = 
 for (const id of ['pick-camera', 'pick-image', 'pick-file']) $(id).onchange = async event => { const list = [...event.target.files]; event.target.value = ''; if (list.length) await addFiles(list); };
 document.addEventListener('paste', event => { const list = event.clipboardData?.files; if (list?.length && !busy) { event.preventDefault(); addFiles(list); } });
 $('whats-new-close').onclick = () => { $('whats-new').hidden = true; };
-document.addEventListener('visibilitychange', () => { if (document.hidden) { heroStop(); $('dock-video').pause(); } else { heroIdle(); checkDueReminders(); greet(); } });
+document.addEventListener('visibilitychange', () => { if (document.hidden) heroStop(); else { heroIdle(); checkDueReminders(); greet(); } });
+// Bosh ekrandagi pastki menyu: tarix, ovozli savol, Ustoz va sozlamalar bir bosishda.
+$('tab-home').onclick = () => { $('chat-area').scrollTop = 0; };
+$('tab-chats').onclick = openDrawer;
+$('tab-voice').onclick = () => $('mic').click();
+$('tab-ustoz').onclick = () => openUstoz();
+$('tab-settings').onclick = () => $('settings').click();
 
 // O'rnatish: Android Chrome taklif oynasi; iPhone'da Safari orqali "Bosh ekranga qo'shish".
 let installPrompt = null;

@@ -20,3 +20,14 @@ Fayllar:
 ## Ilova belgisi
 
 `icon.svg` — foydalanuvchi bergan `icon-source.jpg` dan vektorga o‘girilgan U+N belgisi (asl rasmdan 0,13% pikselda farq qiladi, faqat chegaralarda). `Nuri.ico`, `icon-mac.png`, `trayTemplate*.png` va sayt belgilari `npm run icons` bilan shundan yasaladi.
+
+## Ustozim Nurim brendi (yangi dizayn)
+
+Foydalanuvchining Ustozim Nurim dizayn tizimidan (claude.ai artefakti, v0.1.0) olingan:
+
+- `pufak/pufak.webp` — 2D Pufak, qo‘l silkitayotgan qomat, shaffof fon (dizayn tizimidagi `cutout.webp`). `pufak/avatar.webp` — undan qirqilgan bosh, 192×192.
+- `pufak/wave.webp`, `talk.webp`, `think.webp`, `catch.webp`, `idea.webp`, `sleep.webp`, `happy.webp`, `sad.webp`, `wink.webp` — Pufak stikerlari (dizayn tizimidagi `sticker-01…12`dan); ilova holatlari (o‘ylash, xursandchilik, xafalik…) shular bilan ko‘rsatiladi.
+- `brand/mark*.svg`, `brand/horizontal*.svg` — Ustozim Nurim belgisi va gorizontal logotipi.
+- `fonts/commissioner-*.woff2`, `fonts/onest-*.woff2` — Commissioner va Onest shriftlari (SIL Open Font License 1.1), dizayn tizimidagi `fonts.css`dan lotin, lotin-kengaytma va kirill qismlari bo‘yicha ajratilgan.
+
+Telefon ilovasi yangi dizaynda 3D kliplar o‘rniga shu 2D rasmlarni ishlatadi; kompyuterdagi ekran chetidagi qahramon (`nur/*.webm`) hozircha 3D.
