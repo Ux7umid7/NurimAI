@@ -1,4 +1,8 @@
 {
+  "0.7.1": [
+    "🧮 Javoblardagi matematika endi oddiy yozuvda ko‘rinadi va o‘qiladi: kasr 1/2, daraja x², ildiz √9 — tushunarsiz kod belgilarisiz.",
+    "Ustoz testlari va kartochkalaridagi formulalar ham, eski suhbatlardagi javoblar ham shunday oddiy ko‘rinishda."
+  ],
   "0.7.0": [
     "📱 NurimAI endi telefonda ham: Android uchun ilova (APK) va iPhone uchun “Bosh ekranga qo‘shish”. Yuklab olish sahifasida “Telefon” bo‘limini oching.",
     "Telefonda ham hammasi bor: chat, masalani kamera bilan rasmga olish, fayllar, 🎤 ovozli savol, 🔊 tinglash, 🎓 Ustoz va suhbatlar tarixi."

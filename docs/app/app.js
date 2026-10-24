@@ -48,6 +48,7 @@ function chip(file, removable) {
 }
 function renderFiles() { $('attachments').replaceChildren(...files.map(f => chip(f, true))); $('attachments').hidden = !files.length; $('file-actions').hidden = !files.length || busy; $('question').placeholder = files.length ? 'Fayl haqida savol yozing yoki tugmani bosing…' : 'NurimAI’ga yozing…'; composerState(); }
 function bubble(role, text, attached = []) {
+  if (role !== 'user') text = NurimMath.plainMath(text); // LaTeX ($\frac{1}{2}$ -> 1/2): ko'rinishi, nusxasi va ovozi oddiy matn
   $('welcome').hidden = true; $('suggest').hidden = true; heroStop();
   const el = document.createElement('article'); el.className = `bubble ${role}`;
   if (role === 'user') {

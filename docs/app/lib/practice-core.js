@@ -1,4 +1,4 @@
-(function (root, factory) { if (typeof module === 'object' && module.exports) module.exports = factory(); else root.NurimPractice = factory(); })(typeof self !== 'undefined' ? self : this, function () {
+(function (root, factory) { if (typeof module === 'object' && module.exports) module.exports = factory(require('./math-text.js')); else root.NurimPractice = factory(root.NurimMath); })(typeof self !== 'undefined' ? self : this, function (math) {
 // Shared by the desktop app (Node, practice.json) and the phone app (browser, localStorage): storage is injected.
 let UserError = class extends Error {}; // the desktop app swaps in its own UserError so messages reach the user
 const configure = ({ ErrorClass }) => { if (ErrorClass) UserError = ErrorClass; };
@@ -12,6 +12,7 @@ const pad = n => String(n).padStart(2, '0');
 const dayOf = (now = new Date()) => `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 const addDays = (day, n) => { const [y, m, d] = day.split('-').map(Number); return dayOf(new Date(y, m - 1, d + n)); };
 const clean = (value, max) => typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, max) : '';
+const fromAI = (value, max) => clean(typeof value === 'string' ? math.plainMath(value) : value, max); // AI matnidagi LaTeX oddiy matnga
 const isDay = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
 const isTime = v => typeof v === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
 
@@ -24,19 +25,19 @@ function extractJson(text) {
 function parseQuiz(text) {
   const data = extractJson(text);
   const questions = (Array.isArray(data?.questions) ? data.questions : []).slice(0, LIMITS.questions).map(q => {
-    const options = Array.isArray(q?.options) ? q.options.map(o => clean(String(o ?? ''), 300)).filter(Boolean) : [];
+    const options = Array.isArray(q?.options) ? q.options.map(o => fromAI(String(o ?? ''), 300)).filter(Boolean) : [];
     const answer = Number(q?.answer);
-    if (!clean(q?.q, LIMITS.text) || options.length < 2 || options.length > 6 || !Number.isInteger(answer) || answer < 0 || answer >= options.length) return null;
-    return { q: clean(q.q, LIMITS.text), options, answer, explain: clean(q.explain, LIMITS.text) };
+    if (!fromAI(q?.q, LIMITS.text) || options.length < 2 || options.length > 6 || !Number.isInteger(answer) || answer < 0 || answer >= options.length) return null;
+    return { q: fromAI(q.q, LIMITS.text), options, answer, explain: fromAI(q.explain, LIMITS.text) };
   }).filter(Boolean);
   if (!questions.length) throw new UserError('AI test savollarini to‘g‘ri tuzmadi. Mavzuni aniqroq yozib, qayta urinib ko‘ring.');
-  return { title: clean(data.title, LIMITS.title) || 'Test', questions };
+  return { title: fromAI(data.title, LIMITS.title) || 'Test', questions };
 }
 function parseCards(text) {
   const data = extractJson(text);
-  const cards = (Array.isArray(data?.cards) ? data.cards : []).slice(0, 40).map(c => ({ front: clean(c?.front, LIMITS.text), back: clean(c?.back, LIMITS.text) })).filter(c => c.front && c.back);
+  const cards = (Array.isArray(data?.cards) ? data.cards : []).slice(0, 40).map(c => ({ front: fromAI(c?.front, LIMITS.text), back: fromAI(c?.back, LIMITS.text) })).filter(c => c.front && c.back);
   if (!cards.length) throw new UserError('AI kartochkalarni to‘g‘ri tuzmadi. Mavzuni aniqroq yozib, qayta urinib ko‘ring.');
-  return { title: clean(data.title, LIMITS.title) || 'Kartochkalar', cards };
+  return { title: fromAI(data.title, LIMITS.title) || 'Kartochkalar', cards };
 }
 const LEVELS = { oson: 'oson (boshlang‘ich)', orta: 'o‘rtacha', qiyin: 'qiyin (chuqur tushunishni tekshiradi)' };
 function quizPrompt({ topic, count, level, fromChat }) {

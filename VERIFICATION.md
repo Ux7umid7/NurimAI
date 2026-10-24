@@ -1,3 +1,10 @@
+# Verification — 0.7.1, 2026-10-24
+
+- 74 Node tests and 17 Electron UI tests pass locally on Windows. New coverage: LaTeX math in answers turns into plain text (fractions, powers, roots, degrees, Greek letters, \(…\), $$…$$, aligned lines), while money ("10$ va 20$", "$5 dan $10 gacha"), code blocks, inline code and file paths stay as written; AI quizzes and cards get the same cleanup; both chat windows show "$\frac{1}{2}$" as "1/2".
+- Checked by hand in the phone app (375×812, QA mode): a Gemini-style answer with fractions, powers, a root and degrees shows as 1/2, 2³, √16, 90°, with no console errors.
+- The instruction asking the AI to avoid LaTeX takes effect only after the worker is deployed again (`npx wrangler deploy` in server/). Until then the apps clean up LaTeX on their own.
+- Not verified: how the TTS voice reads the new symbols (², √) aloud.
+
 # Verification — 0.7.0, 2026-10-24
 
 - 71 Node tests and 17 Electron UI tests pass locally on Windows, including 4 for the phone app (docs/app opened in a 390×844 window in QA mode): a typed question and answer actions, history and search in the menu, a photo plus Word and text files as chips (the Word file is read in the browser with the shared Office parser and DecompressionStream), an old .doc refused, a voice question with transcript and read-aloud, the Ustoz quiz and streak, settings, and history after a reload. Unit tests check that the phone app carries the same shared code as the desktop app and that the versions match.

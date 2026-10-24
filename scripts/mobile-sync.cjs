@@ -5,7 +5,7 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const app = path.join(root, 'docs', 'app');
 const copies = [
-  ['src/shared/practice-core.js', 'lib/practice-core.js'], ['src/shared/office-core.js', 'lib/office-core.js'],
+  ['src/shared/math-text.js', 'lib/math-text.js'], ['src/shared/practice-core.js', 'lib/practice-core.js'], ['src/shared/office-core.js', 'lib/office-core.js'],
   ['src/voice.js', 'lib/voice.js'], ['src/ustoz.js', 'lib/ustoz.js'],
   ...fs.readdirSync(path.join(root, 'assets/nur')).filter(f => f.endsWith('.webm')).map(f => [`assets/nur/${f}`, `nur/${f}`]),
   ...fs.readdirSync(path.join(root, 'assets/mobile/moods')).filter(f => f.endsWith('.png')).map(f => [`assets/mobile/moods/${f}`, `nur/still/${f}`]),

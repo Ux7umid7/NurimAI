@@ -26,6 +26,8 @@ test('dropped files become chips, quick actions send them, and chips can be remo
 test('answers are formatted safely: lists, bold and code stay inert DOM',async()=>{
  const html=await page.evaluate(()=>{const d=document.createElement('div');rich(d,'**Qalin** va `kod`\n- bir\n- ikki\n1. birinchi\n```\n<img src=x onerror="window.pwned=1">\n```');return {strong:d.querySelector('p strong')?.textContent,items:d.querySelectorAll('ul li').length,ol:d.querySelectorAll('ol li').length,code:d.querySelector('pre code')?.textContent,img:d.querySelectorAll('img').length,pwned:window.pwned};});
  expect(html).toEqual({strong:'Qalin',items:2,ol:1,code:'<img src=x onerror="window.pwned=1">',img:0,pwned:undefined});
+ const math=await page.evaluate(()=>{const was=$('welcome').hidden,el=bubble('assistant','Masalan: $\\frac{1}{2}$ va $x^2$, kodda `$\\frac{1}{2}$`');const text=el.querySelector('.rich').textContent;el.remove();$('welcome').hidden=was;return text;});
+ expect(math).toBe('Masalan: 1/2 va x², kodda $\\frac{1}{2}$'); // LaTeX math reads as plain text, code stays as written
 });
 test('3D Nur hops when an answer arrives, then plays idle once',async()=>{
  const pet=app.windows().find(w=>w.url().endsWith('/pet.html'));

@@ -26,6 +26,7 @@ function chip(file,removable){
 }
 function renderFiles(list){files=list;$('attachments').replaceChildren(...files.map(f=>chip(f,true)));$('attachments').hidden=!files.length;$('file-actions').hidden=!files.length||busy;$('question').placeholder=files.length?'Fayl haqida savol yozing yoki tayyor tugmani bosing…':'Istalgan savolingizni yozing…';}
 function bubble(role,text,attached=[]){
+  if(role!=='user')text=NurimMath.plainMath(text); // LaTeX math ($\frac{1}{2}$ -> 1/2) is shown, copied and read aloud as plain text
   $('welcome').hidden=true;$('hero-nur').pause();const el=document.createElement('article');el.className=`bubble ${role}`;const head=document.createElement('div');head.className='bubble-head';const label=document.createElement('span');label.textContent=role==='user'?'SIZ':'NurimAI';head.append(label);
   if(role!=='user'){const tools=document.createElement('span');tools.className='bubble-tools';const copy=document.createElement('button');copy.className='copy';copy.textContent='Nusxa';copy.onclick=async()=>{await call(window.nurim.copy(text));copy.textContent='Olindi ✓';};
     if(!text.startsWith('Javob olinmadi')){const listen=document.createElement('button');listen.className='speak';listen.textContent='🔊 Tinglash';listen.title='Javobni ovoz chiqarib o‘qish';listen.onclick=()=>speakBubble(el,text);tools.append(listen);}

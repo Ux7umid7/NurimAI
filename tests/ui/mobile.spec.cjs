@@ -12,6 +12,7 @@ test('phone app: greeting, a typed question, answer actions and the chat in the 
  await expect(page.locator('#greet')).toHaveText(/Xayrli|Tun/);await expect(page.locator('.suggest button')).toHaveCount(5);
  await page.locator('#question').fill('Kasr nima?');await expect(page.locator('#send')).toBeVisible();await expect(page.locator('#mic')).toBeHidden();await page.locator('#send').click();
  const answer=page.locator('.bubble.assistant').last();await expect(answer).toContainText('Jonli AI emas');await expect(answer.locator('.speak')).toBeVisible();await expect(page.locator('.bubble.user p')).toHaveText('Kasr nima?');
+ expect(await page.evaluate(()=>{const el=bubble('assistant','Masalan: $\\frac{1}{2}$ va $\\sqrt{9} = 3$');const text=el.querySelector('.rich').textContent;el.remove();return text;})).toBe('Masalan: 1/2 va √9 = 3');
  await page.locator('#menu').click();await expect(page.locator('#drawer')).toBeVisible();await expect(page.locator('#history-list li strong')).toHaveText('Kasr nima?');
  await page.locator('#history-search').fill('yoq narsa');await expect(page.locator('#history-empty')).toHaveText('Hech narsa topilmadi.');await page.locator('#history-search').fill('');
  await page.locator('#drawer-new').click();await expect(page.locator('#welcome')).toBeVisible();await page.screenshot({path:'test-results/mobile-welcome.png'});
