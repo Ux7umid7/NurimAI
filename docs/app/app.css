@@ -79,7 +79,7 @@ svg .leaf,.leaf{fill:var(--gold);stroke:none}
 
 .dock{display:flex;align-items:center;gap:12px;padding:0 18px 8px;color:var(--muted);font-size:14px}
 .dock img{width:54px;height:54px;object-fit:contain}
-.dock-text{display:grid;gap:6px}.dots{display:flex;gap:5px}.dots i{width:7px;height:7px;border-radius:50%;background:var(--gold);animation:blink 1.2s infinite}.dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}
+.dock-text{display:grid;gap:6px}.dock:not([data-mood=think]):not([data-mood=talk]):not([data-mood=listen]) .dots{display:none}.dots{display:flex;gap:5px}.dots i{width:7px;height:7px;border-radius:50%;background:var(--gold);animation:blink 1.2s infinite}.dots i:nth-child(2){animation-delay:.2s}.dots i:nth-child(3){animation-delay:.4s}
 @keyframes blink{50%{opacity:.25}}
 .dock-stop{margin-left:auto;font-size:13px;padding:8px 14px;border-radius:999px;background:var(--surface);border:1px solid var(--line)}
 .notice{margin:0 18px 8px;padding:11px 15px;border-radius:16px;background:var(--warm);border:1px solid var(--warm-line);color:var(--warm-ink);font-size:14px;line-height:1.5;white-space:pre-line}

@@ -1,11 +1,13 @@
-NurimAI 0.7.2
+NurimAI 0.8.0
 
 Yuklab olish va o‘rnatish ko‘rsatmasi: https://ux7umid7.github.io/NurimAI/
 
-- ➖ Javob bo‘limlari orasidagi “---” belgisi endi butun kenglikdagi ingichka chiziq bo‘lib ko‘rinadi (kompyuter va telefonda, tun rejimida ham). 🔊 Tinglashda u o‘qilmaydi.
-- 0.7.1 dan: javoblardagi matematika oddiy yozuvda — kasr 1/2, daraja x², ildiz √9, 3 × 4, 90° — kod belgilarisiz; Ustoz testlari va kartochkalarida ham.
-
-0.7.0 dagi telefon versiyasi o‘z joyida: Android uchun NurimAI-Android.apk va iPhone uchun veb-ilova (Safari’da “Bosh ekranga qo‘shish”).
+- ✨ Yangi dizayn — Ustozim Nurim brendi: tungi rang, oltin urg‘u, Commissioner va Onest shriftlari, ingichka ikonkalar va chizilgan (2D) Pufak. Telefon kunduzgi rejimda bo‘lsa, brendning yorug‘ ranglari ishlatiladi.
+- 💻 Kompyuterda: keng oynada chap tomonda suhbatlar ro‘yxati, qidiruv va Ustoz kartasi; bosh sahifada oltin “Kunlik mashq” kartasi va tezkor tugmalar. Oyna toraytirilsa, eski ixcham ko‘rinish qaytadi.
+- 📱 Telefonda: yangi bosh sahifa, pastki menyu (Asosiy, Suhbatlar, ovozli savol, Ustoz, Sozlamalar) va yangilangan menyu, sozlamalar, Ustoz sahifalari.
+- 🎤 Ovozli savol endi alohida “Tinglayapman…” ekranida: taymer, ovoz to‘lqini, “Yuborish” va “Bekor qilish”.
+- 🎓 Ustoz bo‘limida shu haftaning seriyasi (Du–Ya) ko‘rinadi; Pufak test natijasiga qarab quvonadi yoki o‘ylaydi.
+- Telefon ilovasi yengillashdi: 3D videolar o‘rniga kichik rasmlar.
 
 Windows’da yangilanish o‘zi yuklanadi va dasturdan to‘liq chiqqanda o‘rnatiladi. Mac’da yangi DMG’ni sahifadan yuklab, Applications’dagi eski NurimAI’ni almashtiring. Android’da yangi APK’ni yuklab, eski ilova ustidan o‘rnating — suhbatlar va kartochkalar saqlanib qoladi.
 

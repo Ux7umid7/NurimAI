@@ -46,7 +46,7 @@ function chip(file, removable) {
   if (removable) { const x = document.createElement('button'); x.type = 'button'; x.textContent = '×'; x.setAttribute('aria-label', `${file.name} faylini olib tashlash`); x.onclick = () => { files = files.filter(f => f.id !== file.id); renderFiles(); }; el.append(x); }
   return el;
 }
-function renderFiles() { $('attachments').replaceChildren(...files.map(f => chip(f, true))); $('attachments').hidden = !files.length; $('file-actions').hidden = !files.length || busy; $('question').placeholder = files.length ? 'Fayl haqida savol yozing yoki tugmani bosing…' : 'NurimAI’ga yozing…'; composerState(); }
+function renderFiles() { $('attachments').replaceChildren(...files.map(f => chip(f, true))); $('attachments').hidden = !files.length; $('file-actions').hidden = !files.length || busy; $('question').placeholder = files.length ? 'Fayl haqida so‘rang…' : 'NurimAI’ga yozing…'; composerState(); }
 function bubble(role, text, attached = []) {
   if (role !== 'user') text = NurimMath.plainMath(text); // LaTeX ($\frac{1}{2}$ -> 1/2): ko'rinishi, nusxasi va ovozi oddiy matn
   $('welcome').hidden = true; $('suggest').hidden = true; heroStop();
@@ -241,7 +241,7 @@ function mood(name) {
   const back = ONCE.has(name) ? () => mood(moodBase) : null;
   if (!$('welcome').hidden) { $('dock').hidden = true; show($('hero-still'), name, back); return; } // bo'sh suhbatda katta qahramon javob beradi
   if (name === 'idle' && !busy) { $('dock').hidden = true; return; }
-  $('dock').hidden = false; $('dock-text').textContent = DOCK_TEXT[name] || ''; show($('dock-still'), name, back);
+  $('dock').hidden = false; $('dock').dataset.mood = name; $('dock-text').textContent = DOCK_TEXT[name] || ''; show($('dock-still'), name, back);
 }
 function heroIdle() { if (!$('welcome').hidden) show($('hero-still'), 'idle'); }
 function heroStop() { moodTicket++; }

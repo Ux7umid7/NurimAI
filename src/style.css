@@ -190,3 +190,5 @@ pre{white-space:pre-wrap;font:11px/1.6 inherit;color:var(--muted)}
 
 @media (max-width:520px){.column{padding:18px 18px 8px}.hero-nur{width:118px;height:142px}.prompts{grid-template-columns:1fr 1fr}#composer,#notice,.file-actions,footer{width:calc(100% - 32px)}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+#composer textarea:focus-visible{outline:none}#composer:focus-within{border-color:var(--warm-line)}
+@media (max-height:760px){.hero-nur{width:126px;height:152px}.hero{margin-bottom:12px}.eyebrow{margin:14px 2px 8px}.prompts button{min-height:88px;gap:10px}}

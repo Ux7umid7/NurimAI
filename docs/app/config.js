@@ -1,10 +1,10 @@
 // Telefon ilovasi sozlamalari. Server manzili sir emas (desktop ilova ichida ham bor); himoya - serverdagi limitlar va ruxsat etilgan manbalar.
 window.NURIM_CONFIG = Object.freeze({
   gateway: 'https://nurimai-api.ux7umidjon7.workers.dev',
-  version: '0.7.2',
+  version: '0.8.0',
   whatsNew: [
-    'Javob bo‘limlari orasidagi “---” belgisi endi butun kenglikdagi ingichka chiziq bo‘lib ko‘rinadi.',
-    'Javoblardagi matematika endi oddiy yozuvda ko‘rinadi va o‘qiladi: kasr 1/2, daraja x², ildiz √9 — tushunarsiz kod belgilarisiz.',
-    'Ustoz testlari va kartochkalaridagi formulalar ham shunday oddiy ko‘rinishda.'
+    'Yangi dizayn: Ustozim Nurim brendi ranglari, yangi shriftlar va 2D Pufak.',
+    'Bosh sahifada kunlik mashq kartasi, tezkor tugmalar va pastki menyu.',
+    'Ovozli savol uchun alohida “Tinglayapman…” ekrani, Ustoz bo‘limida haftalik seriya.'
   ]
 });

@@ -3,7 +3,7 @@
 <h1 align="center">NurimAI — loyiha haqida</h1>
 
 <p align="center">Windows, Mac, Android va iPhone uchun bepul, o‘zbek tilidagi kichik AI yordamchi.<br>
-<a href="https://ux7umid7.github.io/NurimAI/">Yuklab olish sahifasi</a> · <a href="https://github.com/Ux7umid7/NurimAI/releases/latest">So‘nggi reliz</a> · Joriy versiya: <b>0.7.2</b></p>
+<a href="https://ux7umid7.github.io/NurimAI/">Yuklab olish sahifasi</a> · <a href="https://github.com/Ux7umid7/NurimAI/releases/latest">So‘nggi reliz</a> · Joriy versiya: <b>0.8.0</b></p>
 
 ---
 
@@ -45,7 +45,7 @@ NurimAI — kompyuter ekranining chetida turadigan kichik qahramon. Uni bossangi
 | Platformalar | Windows 10/11 (64-bit), macOS (Apple Silicon va Intel), Android 7+ (APK), iPhone va boshqa telefonlar (veb-ilova) |
 | Til | O‘zbek (lotin), foydalanuvchi boshqa tilda yozsa — o‘sha tilda |
 | Narx | Bepul, umumiy kunlik limit bilan |
-| Joriy versiya | 0.7.2 (2026-yil 24-oktabr) |
+| Joriy versiya | 0.8.0 (2026-yil 24-oktabr) |
 
 ---
 
@@ -263,6 +263,7 @@ Limitlar `server/wrangler.jsonc` dagi `DAILY_TOTAL`, `DAILY_DEVICE`, `DAILY_IP` 
 
 | Versiya | Sana | Asosiy o‘zgarishlar |
 |---|---|---|
+| 0.8.0 | 2026-10-24 | Yangi dizayn (Ustozim Nurim brendi): tungi/oltin ranglar, Commissioner va Onest shriftlari, 2D Pufak va stikerlar; kompyuterda suhbatlar paneli, kunlik mashq kartasi, ovozli savol ekrani, haftalik seriya; telefonda pastki menyu |
 | 0.7.2 | 2026-10-24 | Javoblardagi “---” (shuningdek “* * *”, “___”) butun kenglikdagi ingichka chiziq bo‘lib chiziladi, kod ichida o‘zgarmaydi, tinglashda o‘qilmaydi |
 | 0.7.1 | 2026-10-24 | Javoblardagi LaTeX matematika ($\frac{1}{2}$) oddiy yozuvga aylanadi (1/2, x², √9): chatda, ovozda, nusxada, Ustoz test va kartochkalarida; AI’ga LaTeX’siz yozish ko‘rsatmasi |
 | 0.7.0 | 2026-10-24 | Telefon versiyasi: Android APK va iPhone veb-ilova (chat, kamera, fayllar, ovoz, Ustoz, tarix); server telefon ilovasidan so‘rovlarni qabul qiladi (CORS) |

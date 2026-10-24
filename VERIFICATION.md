@@ -1,3 +1,10 @@
+# Verification — 0.8.0, 2026-10-24
+
+- 74 Node tests and 17 Electron UI tests pass locally on Windows, with new UI coverage: the wide window's chats sidebar (current chat, search), the week streak row and the gold practice card, the full-screen listening view on both apps, the phone's bottom menu (home screen only) and the 2D avatar.
+- Every phone screen was screenshotted in headless Chrome in dark and light (home, drawer, settings, attach sheet, what's new, files, answer + notice, quiz question, quiz result, cards study, reminders) with no page errors; two issues found there were fixed (the "done" dots under "Tayyor!", a two-line placeholder with files).
+- The desktop window was checked wide (1000×700) and narrow (440×700), dark and light, plus settings, history, Ustoz and the listening view from the Electron test run.
+- Not verified yet: the new design on a real Android phone and a real iPhone.
+
 # Verification — 0.7.2, 2026-10-24
 
 - 74 Node tests and 17 Electron UI tests pass locally on Windows. New UI coverage: "---" and "* * *" lines in an answer become an hr as wide as the answer text in both chats, "---" inside a code block stays text, and read-aloud skips it.
