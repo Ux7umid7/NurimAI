@@ -9,10 +9,10 @@ const HEARD = /^\s*\**\s*Savolingiz\s*:?\s*\**\s*[«"]?(.+?)[»"]?\s*\**\s*$/i;
 export const TEXTS = Object.freeze({
   description: 'Salom! Men NurimAI — o‘zbekcha gapiradigan AI ustoz. Savolingizni yozing, masalani rasmga olib yuboring yoki ovozli xabar qoldiring: mavzuni oddiy tilda, qadamma-qadam tushuntirib beraman. Bepul.',
   short: 'O‘zbekcha AI ustoz: savol, rasm va ovozli xabarga javob beradi.',
-  hello: '<b>Salom! Men NurimAI</b> — o‘zbekcha gapiradigan AI ustozingiz.\n\nMenga:\n• savolingizni <b>yozing</b>;\n• masala yoki matnni <b>rasmga olib</b> yuboring;\n• <b>ovozli xabar</b> qoldiring;\n• PDF faylni yuboring.\n\nJavobni oddiy tilda, qadamma-qadam tushuntiraman. /yangi — yangi suhbat, /yordam — yordam.',
-  help: '<b>NurimAI nima qila oladi</b>\n\n• Istalgan mavzuni misollar bilan tushuntiradi.\n• Rasmdagi masalani yechish yo‘lini ko‘rsatadi.\n• Ovozli xabarni tinglab, javob beradi.\n• PDF hujjatni qisqacha tushuntiradi.\n• Suhbat davomini eslab qoladi: /yangi bilan yangisini boshlang.\n\nTest, kartochkalar, kunlik mashq va ovozli javoblar NurimAI ilovasida: ' + SITE,
+  hello: '<b>Salom! Men NurimAI</b> — o‘zbekcha gapiradigan AI ustozingiz.\n\nMenga:\n• savolingizni <b>yozing</b>;\n• masala yoki matnni <b>rasmga olib</b> yuboring;\n• <b>ovozli xabar</b> qoldiring;\n• PDF yoki <b>stiker</b> yuboring.\n\nJavobni oddiy tilda, qadamma-qadam tushuntiraman. /yangiliklar — bugungi yangiliklar, /yangi — yangi suhbat, /yordam — yordam.',
+  help: '<b>NurimAI nima qila oladi</b>\n\n• Istalgan mavzuni misollar bilan tushuntiradi.\n• Rasmdagi masalani yechish yo‘lini ko‘rsatadi.\n• Ovozli xabarni tinglab, javob beradi.\n• PDF hujjatni qisqacha tushuntiradi.\n• Stikeringizni ko‘rib, unga javob qaytaradi.\n• Yangilik, kurs, ob-havo kabi savollarda internetdan (Google) qidiradi va manbalarni ko‘rsatadi. /yangiliklar — bugungi asosiy yangiliklar.\n• Suhbat davomini eslab qoladi: /yangi bilan yangisini boshlang.\n\nTest, kartochkalar, kunlik mashq va ovozli javoblar NurimAI ilovasida: ' + SITE,
   fresh: 'Yangi suhbat boshlandi. Savolingizni yozing 🙂',
-  unsupported: 'Hozircha matn, rasm, PDF va ovozli xabarni tushunaman. Word, Excel va boshqa fayllar uchun NurimAI ilovasidan foydalaning: ' + SITE,
+  unsupported: 'Hozircha matn, rasm, stiker, PDF va ovozli xabarni tushunaman. Word, Excel va boshqa fayllar uchun NurimAI ilovasidan foydalaning: ' + SITE,
   group: 'Men shaxsiy suhbatda ishlayman: menga to‘g‘ridan-to‘g‘ri yozing.',
   limit: 'Bugungi bepul savollar tugadi. Ertaga yana yozing yoki NurimAI ilovasidan foydalaning: ' + SITE,
   slow: 'Juda tez yozyapsiz 🙂 Bir daqiqadan keyin yana yuboring.',
@@ -23,6 +23,7 @@ export const TEXTS = Object.freeze({
   rejected: 'Bu savolga javob bera olmayman. Boshqa savol bilan yordam beraman.'
 });
 export const MAX_FILE = 5 * 1024 * 1024;
+export const NEWS_QUESTION = 'Bugungi eng muhim yangiliklarni internetdan qidirib, qisqacha aytib ber: avval O‘zbekiston, keyin dunyo. Har biri 1–2 gap, sanasi bilan.';
 
 // The webhook's secret is derived from the bot token, so only one secret (TELEGRAM_TOKEN) has to be configured.
 export async function webhookSecret(token) {
@@ -51,7 +52,9 @@ export function parseUpdate(update) {
     if (d.file_size > MAX_FILE) return { ...base, kind: 'too-big' };
     return { ...base, kind: mime === 'application/pdf' ? 'pdf' : 'photo', fileId: d.file_id, mime, name: String(d.file_name || 'fayl').slice(0, 120) };
   }
-  if (m.sticker || m.video || m.video_note || m.animation || m.contact || m.location) return { ...base, kind: 'unsupported' };
+  // A sticker is looked at as a picture: a still one directly, an animated or video one by its thumbnail; the emoji helps either way.
+  if (m.sticker) { const s = m.sticker, still = !s.is_animated && !s.is_video; return { ...base, kind: 'sticker', emoji: String(s.emoji || '').slice(0, 8), fileId: still ? s.file_id : s.thumbnail?.file_id || '', mime: still ? 'image/webp' : 'image/jpeg' }; }
+  if (m.video || m.video_note || m.animation || m.contact || m.location) return { ...base, kind: 'unsupported' };
   return null;
 }
 
@@ -59,6 +62,8 @@ export function parseUpdate(update) {
 export function questionFor(item) {
   if (item.kind === 'text') return { question: item.text, remember: item.text };
   if (item.kind === 'voice') return { question: VOICE_QUESTION, remember: '🎤 Ovozli savol' };
+  if (item.kind === 'news') return { question: NEWS_QUESTION, remember: '📰 Bugungi yangiliklar' };
+  if (item.kind === 'sticker') return { question: `Foydalanuvchi ${item.emoji ? `${item.emoji} emojili ` : ''}stiker yubordi${item.fileId ? '' : ' (rasmi yo‘q, faqat emoji)'}. Stikerdagi tasvir va kayfiyatni tushun, so‘ng unga qisqa (1–2 gap), iliq va o‘rinli javob qaytar; suhbat davom etayotgan bo‘lsa, shunga mos javob ber.`, remember: `🎭 Stiker ${item.emoji}`.trim() };
   if (item.kind === 'photo') return { question: item.caption || 'Rasmdagi masala yoki matnni qadamma-qadam tushuntirib ber.', remember: `🖼 Rasm${item.caption ? `: ${item.caption}` : ''}` };
   return { question: item.caption || 'Shu hujjatning qisqacha mazmunini yozib, asosiy fikrlarini tushuntirib ber.', remember: `📄 ${item.name || 'PDF'}${item.caption ? `: ${item.caption}` : ''}` };
 }
@@ -98,6 +103,9 @@ export function splitAnswer(text, max = 3500) {
   return parts;
 }
 export const KEYBOARD = { inline_keyboard: [[{ text: '🆕 Yangi suhbat', callback_data: 'new' }, { text: '📱 NurimAI ilovasi', url: SITE }]] };
+// Answers found with Google Search end with their sources as links, and a button opens the same search on Google.
+export function sourcesHtml(reply) { return reply.sources?.length ? `\n\n<b>🔎 Manbalar:</b> ${reply.sources.map(s => `<a href="${escape(s.uri).replace(/"/g, '&quot;')}">${escape(s.title)}</a>`).join(' · ')}` : ''; }
+export function keyboardFor(reply) { const query = reply.sources?.length && reply.queries?.[0]; return query ? { inline_keyboard: [[{ text: `🔎 Google: ${query.slice(0, 40)}`, url: `https://www.google.com/search?q=${encodeURIComponent(query)}` }], ...KEYBOARD.inline_keyboard] } : KEYBOARD; }
 
 // Thin Bot API client (fetcher = the worker's logged fetch). Errors throw with Telegram's description.
 export class TelegramBot {
@@ -109,13 +117,13 @@ export class TelegramBot {
     return data.result;
   }
   async download(fileId) {
-    const file = await this.call('getFile', { file_id: fileId });
+    const file = await this.call('getFile', { file_id: fileId }); const ext = String(file?.file_path || '').split('.').pop().toLowerCase();
     if (!file?.file_path || file.file_size > MAX_FILE) throw Object.assign(new Error('file too big'), { code: 'big' });
     const response = await this.fetcher(`https://api.telegram.org/file/bot${this.token}/${file.file_path}`, { signal: AbortSignal.timeout(20000) });
     if (!response.ok) throw new Error(`telegram file ${response.status}`);
     const bytes = new Uint8Array(await response.arrayBuffer()); if (bytes.length > MAX_FILE) throw Object.assign(new Error('file too big'), { code: 'big' });
     let binary = ''; for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
-    return btoa(binary);
+    return { data: btoa(binary), mime: { webp: 'image/webp', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', oga: 'audio/ogg', ogg: 'audio/ogg', mp3: 'audio/mpeg', m4a: 'audio/mp4', pdf: 'application/pdf' }[ext] || '' };
   }
   // HTML first; if Telegram cannot parse it, the same answer goes as plain text.
   async send(chatId, html, extra = {}) {

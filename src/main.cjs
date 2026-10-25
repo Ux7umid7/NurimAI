@@ -1,6 +1,6 @@
 const {app,BrowserWindow,ipcMain,screen,Menu,Tray,nativeImage,globalShortcut,safeStorage,dialog,clipboard,ClipboardItem,shell,desktopCapturer,systemPreferences,Notification} = require('electron');
 const fs = require('node:fs');const path = require('node:path');const {pathToFileURL} = require('node:url');
-const {Router,UserError,ORDER,speak} = require('./router.cjs');const {Store} = require('./store.cjs');const {askGateway,speakGateway} = require('./gateway.cjs');
+const {Router,UserError,ORDER,speak,withSources} = require('./router.cjs');const {Store} = require('./store.cjs');const {askGateway,speakGateway} = require('./gateway.cjs');
 const {UpdateController} = require('./updater.cjs');const release = require('./release-config.json');
 const {prepare,checkFits,forRequest,forView,LIMITS,PICKER_EXTENSIONS} = require('./attachments.cjs');const whatsNew = require('./whats-new.json');
 const {Chats} = require('./chats.cjs');const {grabSelection} = require('./selection.cjs');const practiceModule = require('./practice.cjs');const {Practice} = practiceModule;
@@ -98,7 +98,7 @@ const HEARD=/^\s*\**\s*Savolingiz\s*:?\s*\**\s*[«"]?(.+?)[»"]?\s*\**\s*$/i;
 async function ask(question,extraFiles=[],signal,voice=false){
   const sent=[...forRequest(files),...extraFiles];
   if(qa){if(question.endsWith('/qa-xato'))throw new UserError('Sinov xatosi.');return {text:`${voice?'Savolingiz: Kasr nima?\n':''}Bu avtomatik UI sinovi uchun tayyor javob. Jonli AI emas.${sent.length-extraFiles.length?` Biriktirilgan fayllar: ${sent.length-extraFiles.length}.`:''}`,incomplete:false};}
-  return store.value.usePersonalKeys?router.ask(store.value,history,question,signal,sent):askGateway({url:release.gateway,deviceId:store.value.deviceId,history,question,files:sent,signal,voice});
+  return store.value.usePersonalKeys?router.ask(store.value,history,question,signal,sent).then(r=>({...r,text:withSources(r)})):askGateway({url:release.gateway,deviceId:store.value.deviceId,history,question,files:sent,signal,voice});
 }
 // display: what the chat shows; voice: the reply's first line is the transcript; teacher style adds a hidden instruction for the AI only.
 async function converse(question,{display=question,voice=false,extra=[]}){
@@ -126,7 +126,7 @@ async function generate(options){
   activity();generating=new AbortController();mood('think');
   try{
     const sent=fromChat?forRequest(files):[];const signal=generating.signal;
-    const reply=qa?{text:practiceModule.sample(kind,kind==='quiz'?Math.min(count,3):3)}:store.value.usePersonalKeys?await router.ask(store.value,fromChat?history:[],prompt,signal,sent):await askGateway({url:release.gateway,deviceId:store.value.deviceId,history:fromChat?history:[],question:prompt,files:sent,signal});
+    const reply=qa?{text:practiceModule.sample(kind,kind==='quiz'?Math.min(count,3):3)}:store.value.usePersonalKeys?await router.ask(store.value,fromChat?history:[],prompt,signal,sent,{search:false}):await askGateway({url:release.gateway,deviceId:store.value.deviceId,history:fromChat?history:[],question:prompt,files:sent,signal});
     if(kind==='quiz'){const quiz=practiceModule.parseQuiz(reply.text);mood('catch');return {quiz:{...quiz,topic:topic||quiz.title}};}
     const cards=practiceModule.parseCards(reply.text);const deck=practice.addDeck(cards.title,cards.cards);mood('catch');return {deck:deck.id,view:practice.view()};
   }catch(e){mood(e?.name==='AbortError'?'idle':'sad');throw e;}finally{generating=null;lastActive=Date.now();}

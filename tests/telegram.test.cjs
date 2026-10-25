@@ -1,13 +1,13 @@
 const test=require('node:test');const assert=require('node:assert/strict');
 // Fake Durable Object storage and a fake network (Telegram Bot API + Gemini) for NurimAI's Telegram bot.
 function fakeState(){const map=new Map();const storage={get:async k=>structuredClone(map.get(k)),put:async(k,v)=>{map.set(k,structuredClone(v));},delete:async k=>{map.delete(k);},transaction:async fn=>fn(storage)};return {storage,map};}
-function fakeNet(answer='Javob: **12**'){
+function fakeNet(answer='Javob: **12**',grounding=null){
  const calls=[];
  const fetch=async(url,options={})=>{const body=options.body?JSON.parse(options.body):null;calls.push({url:String(url),body});
-  if(String(url).includes('generativelanguage'))return Response.json({candidates:[{content:{parts:[{text:typeof answer==='function'?answer(body):answer}]},finishReason:'STOP'}]});
+  if(String(url).includes('generativelanguage'))return Response.json({candidates:[{content:{parts:[{text:typeof answer==='function'?answer(body):answer}]},finishReason:'STOP',...(grounding&&body.tools?{groundingMetadata:grounding}:{})}]});
   if(String(url).includes('/file/bot'))return new Response(new Uint8Array([79,103,103,83,1,2,3]));
   const method=String(url).split('/').pop();
-  if(method==='getFile')return Response.json({ok:true,result:{file_path:'voice/file_1.oga',file_size:7}});
+  if(method==='getFile')return Response.json({ok:true,result:{file_path:String(body?.file_id).startsWith('st')?'stickers/file_2.webp':'voice/file_1.oga',file_size:7}});
   return Response.json({ok:true,result:method==='getMe'?{username:'NurimAI_test_bot'}:{message_id:1}});};
  return {calls,fetch,sent:()=>calls.filter(c=>/sendMessage|sendPhoto/.test(c.url)).map(c=>c.body),gemini:()=>calls.filter(c=>c.url.includes('generativelanguage')).map(c=>c.body)};
 }
@@ -92,8 +92,40 @@ test('each Telegram user has a daily limit; groups and unsupported files get a s
   await ask(msg(30,'1'));await ask(msg(31,'2'));await ask(msg(32,'3'));
   assert.equal(net.gemini().length,2);assert.match(net.sent().at(-1).text,/bepul savollar tugadi/);
   await ask({update_id:33,message:{chat:{id:99,type:'group'},from:{id:8},text:'Salom'}});assert.equal(net.gemini().length,2);
-  await ask(msg(34,undefined,{text:undefined,sticker:{file_id:'s'}}));assert.match(net.sent().at(-1).text,/matn, rasm, PDF va ovozli xabarni/);
+  await ask(msg(34,undefined,{text:undefined,video:{file_id:'v'}}));assert.match(net.sent().at(-1).text,/matn, rasm, stiker, PDF va ovozli xabarni/);
   net.calls.length=0;const failing=new AiGateway({storage:fakeState().storage},env);globalThis.fetch=async(url,o)=>String(url).includes('generativelanguage')?Response.json({error:{message:'boom'}},{status:500}):net.fetch(url,o);
   const item=parseUpdate(msg(35,'Savol'));await failing.firstDelivery(item);await failing.telegram(item);assert.match(net.sent().at(-1).text,/javob bera olmadim/);
+ }finally{globalThis.fetch=real;}
+});
+test('a sticker is read as a picture: still ones directly, animated and video ones by their thumbnail',async()=>{
+ const {parseUpdate}=await import('../server/telegram.mjs');const st=extra=>parseUpdate(msg(40,undefined,{text:undefined,sticker:{file_id:'still',emoji:'😂',...extra}}));
+ assert.deepEqual((({kind,fileId,mime,emoji})=>({kind,fileId,mime,emoji}))(st()),{kind:'sticker',fileId:'still',mime:'image/webp',emoji:'😂'});
+ assert.deepEqual([st({is_animated:true,thumbnail:{file_id:'th'}}).fileId,st({is_video:true,thumbnail:{file_id:'th'}}).mime],['th','image/jpeg']);
+ assert.equal(st({is_animated:true}).fileId,'');
+});
+test('the bot looks at a sticker, answers it briefly and remembers it',async()=>{
+ const {AiGateway}=await import('../server/worker.mjs');const {parseUpdate}=await import('../server/telegram.mjs');
+ const net=fakeNet('Hazilingiz zo‘r! 😄');const real=globalThis.fetch;globalThis.fetch=net.fetch;const {storage,map}=fakeState();
+ try{
+  const gw=new AiGateway({storage},env);const item=parseUpdate(msg(41,undefined,{text:undefined,sticker:{file_id:'st1',emoji:'😂'}}));await gw.firstDelivery(item);await gw.telegram(item);
+  const sent=net.gemini()[0];const parts=sent.contents[0].parts;assert.equal(parts[0].inlineData.mimeType,'image/webp');assert.match(parts[1].text,/😂 emojili stiker/);assert.equal('tools' in sent,false);
+  assert.equal(net.sent().at(-1).text,'Hazilingiz zo‘r! 😄');assert.equal(map.get('tg:chat:42').history[0].text,'🎭 Stiker 😂');
+  const bare=parseUpdate(msg(42,undefined,{text:undefined,sticker:{file_id:'x',is_animated:true,emoji:'👍'}}));await gw.firstDelivery(bare);await gw.telegram(bare);
+  assert.equal(net.gemini()[1].contents.at(-1).parts.length,1);assert.match(net.gemini()[1].contents.at(-1).parts[0].text,/faqat emoji/);
+ }finally{globalThis.fetch=real;}
+});
+test('/yangiliklar and news questions search Google; the answer links its sources and a button opens the search',async()=>{
+ const {AiGateway}=await import('../server/worker.mjs');const {parseUpdate,NEWS_QUESTION}=await import('../server/telegram.mjs');
+ const grounding={groundingChunks:[{web:{uri:'https://kun.uz/news/1?a=1&b="2"',title:'kun.uz'}},{web:{uri:'https://gazeta.uz/x',title:'<gazeta>'}}],webSearchQueries:['O‘zbekiston yangiliklari bugun']};
+ const net=fakeNet('**Yangiliklar:** bugun …',grounding);const real=globalThis.fetch;globalThis.fetch=net.fetch;const {storage,map}=fakeState();
+ try{
+  const gw=new AiGateway({storage},env);const ask=async u=>{const item=parseUpdate(u);if(await gw.firstDelivery(item))await gw.telegram(item);};
+  await ask(msg(50,'/yangiliklar'));const sent=net.gemini()[0];assert.deepEqual(sent.tools,[{google_search:{}}]);assert.equal(sent.contents.at(-1).parts.at(-1).text,NEWS_QUESTION);
+  const answer=net.sent().at(-1);assert.equal(answer.text,'<b>Yangiliklar:</b> bugun …\n\n<b>🔎 Manbalar:</b> <a href="https://kun.uz/news/1?a=1&amp;b=&quot;2&quot;">kun.uz</a> · <a href="https://gazeta.uz/x">&lt;gazeta&gt;</a>');
+  assert.equal(answer.reply_markup.inline_keyboard[0][0].url,'https://www.google.com/search?q='+encodeURIComponent('O‘zbekiston yangiliklari bugun'));assert.equal(answer.reply_markup.inline_keyboard[1][0].callback_data,'new');
+  assert.equal(map.get('tg:chat:42').history[0].text,'📰 Bugungi yangiliklar');
+  await ask(msg(51,'Dollar kursi qancha?'));assert.ok(net.gemini()[1].tools);
+  net.calls.length=0;await ask(msg(52,'Kasr nima?'));assert.equal('tools' in net.gemini()[0],false);assert.equal(net.sent().at(-1).reply_markup.inline_keyboard.length,1);
+  await ask(msg(53,undefined,{text:undefined,caption:'Bugungi yangiliklar',photo:[{file_id:'p',width:800,height:600}]}));assert.equal('tools' in net.gemini()[1],false);
  }finally{globalThis.fetch=real;}
 });

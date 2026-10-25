@@ -1,6 +1,6 @@
 import routerModule from '../src/router.cjs';
-import { TelegramBot, webhookSecret, parseUpdate, questionFor, splitHeard, toTelegramHtml, splitAnswer, escape, KEYBOARD, TEXTS, SITE } from './telegram.mjs';
-const { Router, UserError, speak, SPEECH } = routerModule;
+import { TelegramBot, webhookSecret, parseUpdate, questionFor, splitHeard, toTelegramHtml, splitAnswer, escape, sourcesHtml, keyboardFor, TEXTS, SITE } from './telegram.mjs';
+const { Router, UserError, speak, SPEECH, withSources } = routerModule;
 const json = (data,status=200,extra={})=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...extra}});
 const MEDIA = { image: new Set(['image/png', 'image/jpeg', 'image/webp', 'image/heic', 'image/heif']), pdf: new Set(['application/pdf']), audio: new Set(['audio/wav']) };
 // Optional attachments (absent in 0.3.0 clients): extracted document text, or base64 images/PDFs/voice recordings (0.6.1+) for Gemini.
@@ -95,7 +95,7 @@ async function setupBot(env,url,secret){
   try{
     const me=await bot.call('getMe');const hook=`${url.origin}/telegram`;
     await bot.call('setWebhook',{url:hook,secret_token:secret,allowed_updates:['message','callback_query'],max_connections:10});
-    await bot.call('setMyCommands',{commands:[{command:'start',description:'Boshlash'},{command:'yangi',description:'Yangi suhbat'},{command:'yordam',description:'Nima qila olaman'}]});
+    await bot.call('setMyCommands',{commands:[{command:'start',description:'Boshlash'},{command:'yangiliklar',description:'Bugungi yangiliklar'},{command:'yangi',description:'Yangi suhbat'},{command:'yordam',description:'Nima qila olaman'}]});
     await bot.call('setMyDescription',{description:TEXTS.description});await bot.call('setMyShortDescription',{short_description:TEXTS.short});
     return json({ok:true,bot:`@${me.username}`,webhook:hook});
   }catch(error){console.log(`telegram setup failed: ${error?.message||'Error'}`);return json({ok:false,error:'Telegram rejected the setup: check the TELEGRAM_TOKEN secret.'},502);}
@@ -118,7 +118,7 @@ export class AiGateway {
     this.active++;
     try{
       const reply=await this.router.ask(settings,data.history,data.question,AbortSignal.timeout(85000),data.files);
-      return json({text:reply.text,incomplete:reply.incomplete});
+      return json({text:withSources(reply),incomplete:reply.incomplete}); // news answers carry their sources
     }catch(error){console.log(`chat failed: ${error instanceof UserError?error.message:error?.name||'Error'}; routes: ${this.router.diagnostics(settings).map(r=>`${r.provider}=${r.status}`).join(', ')}`);const rejected=error instanceof UserError&&error.code==='input';return json({error:rejected?'Input rejected':error instanceof UserError?'AI temporarily unavailable':'Service unavailable'},rejected?422:503);}finally{this.active--;}
   }
   settings(){return {keys:{Gemini:this.env.GEMINI_API_KEY||'',Groq:this.env.GROQ_API_KEY||'',OpenRouter:''},free:{Gemini:this.env.GEMINI_FREE_TIER==='true',Groq:this.env.GROQ_FREE_TIER==='true'},autoFallback:true};}
@@ -127,6 +127,7 @@ export class AiGateway {
   // One Telegram message -> one answer in the chat. The bot has its own daily budget (per Telegram user and in total) and
   // remembers the last few turns of each chat for three days; nothing else about the user is stored.
   async telegram(item){
+    if(item.kind==='command'&&item.command==='yangiliklar')item={...item,kind:'news'}; // answered by the AI with Google Search
     const bot=new TelegramBot(this.env.TELEGRAM_TOKEN,upstream),store=this.state.storage,chatKey=`tg:chat:${item.chatId}`;
     try{
       if(item.kind==='callback'){await bot.call('answerCallbackQuery',{callback_query_id:item.id}).catch(()=>{});if(item.data==='new'){await store.delete(chatKey);await bot.send(item.chatId,TEXTS.fresh);}return;}
@@ -145,13 +146,13 @@ export class AiGateway {
       if(this.active>=4){await bot.send(item.chatId,TEXTS.busy);return;}
       await bot.call('sendChatAction',{chat_id:item.chatId,action:'typing'}).catch(()=>{});
       const {question,remember}=questionFor(item);
-      const files=item.fileId?[{kind:item.kind==='voice'?'audio':item.kind==='pdf'?'pdf':'image',name:item.kind==='voice'?'Ovozli xabar':item.name||'rasm.jpg',mime:item.mime,data:await bot.download(item.fileId)}]:[];
+      const files=[];if(item.fileId){const file=await bot.download(item.fileId);files.push({kind:item.kind==='voice'?'audio':item.kind==='pdf'?'pdf':'image',name:item.kind==='voice'?'Ovozli xabar':item.kind==='sticker'?'stiker':item.name||'rasm.jpg',mime:file.mime&&file.mime.split('/')[0]===item.mime.split('/')[0]?file.mime:item.mime,data:file.data});}
       const saved=await store.get(chatKey);const history=saved&&Date.now()-saved.updated<3*86400000?saved.history:[];
-      let reply;this.active++;try{reply=await this.router.ask(this.settings(),history,question,AbortSignal.timeout(85000),files);}finally{this.active--;}
+      let reply;this.active++;try{reply=await this.router.ask(this.settings(),history,question,AbortSignal.timeout(85000),files,{search:item.kind==='news'?true:item.kind==='text'?undefined:false});}finally{this.active--;}
       const {heard,text}=item.kind==='voice'?splitHeard(reply.text):{heard:'',text:reply.text};
       await store.put(chatKey,{updated:Date.now(),history:[...history,{role:'user',text:(heard?`🎤 ${heard}`:remember).slice(0,1000)},{role:'assistant',text:text.slice(0,2000)}].slice(-8)});
       const parts=splitAnswer(text);
-      for(const [i,part] of parts.entries())await bot.send(item.chatId,(i===0&&heard?`<i>🎤 ${escape(heard)}</i>\n\n`:'')+toTelegramHtml(part),i===parts.length-1?{reply_markup:KEYBOARD}:{});
+      for(const [i,part] of parts.entries()){const last=i===parts.length-1;await bot.send(item.chatId,(i===0&&heard?`<i>🎤 ${escape(heard)}</i>\n\n`:'')+toTelegramHtml(part)+(last?sourcesHtml(reply):''),last?{reply_markup:keyboardFor(reply)}:{});}
     }catch(error){
       console.log(`telegram failed: ${error?.code==='big'?'file too big':error instanceof UserError?error.message:error?.name||'Error'}`);
       await bot.send(item.chatId,error?.code==='big'?TEXTS.big:error instanceof UserError&&error.code==='input'?TEXTS.rejected:TEXTS.failed).catch(()=>{});
