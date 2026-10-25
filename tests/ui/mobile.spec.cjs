@@ -45,8 +45,15 @@ test('phone app: voice question, read-aloud and the Ustoz quiz',async()=>{
  await page.locator('[data-tab=today]').click();await expect(page.locator('#streak-count')).toHaveText('1 kun ketma-ket');await page.locator('#close-ustoz').click();
  await expect(page.locator('#streak-chip')).toContainText('1 kun ketma-ket');
 });
-test('phone app: settings, and history survives a reload',async()=>{
+test('phone app: settings, a hand-picked theme, and history survives a reload',async()=>{
+ const look=()=>page.evaluate(()=>({theme:document.documentElement.dataset.theme,bg:getComputedStyle(document.documentElement).getPropertyValue('--bg').trim(),bar:document.querySelector('meta[name=theme-color]').content}));
+ await page.emulateMedia({colorScheme:'dark'});
  await page.locator('#menu').click();await page.locator('#settings').click();await expect(page.locator('#settings-dialog')).toBeVisible();await expect(page.locator('#version')).toContainText(require('../../package.json').version);
+ await expect(page.locator('#theme-choice input[value=system]')).toBeChecked();expect(await look()).toEqual({theme:'dark',bg:'#121317',bar:'#121317'});
+ await page.locator('#theme-choice label',{hasText:'Yorug‘'}).click();expect(await look()).toEqual({theme:'light',bg:'#F6F1E7',bar:'#F6F1E7'});await page.waitForTimeout(400);await page.screenshot({path:'test-results/mobile-settings-light.png'});
+ await page.emulateMedia({colorScheme:'light'});await page.locator('#theme-choice label',{hasText:'Qorong‘i'}).click();expect((await look()).theme).toBe('dark'); // the choice wins over the phone's mode
+ await page.waitForTimeout(400);await page.screenshot({path:'test-results/mobile-settings-dark.png'});await page.locator('#theme-choice label',{hasText:'Yorug‘'}).click();
  await page.locator('#save-history').uncheck();await page.locator('#save-history').check();await page.locator('#settings-dialog .icon-btn').click();
- await page.reload();await page.locator('#question').waitFor();await page.locator('#menu').click();await expect(page.locator('#history-list li')).toHaveCount(3);
+ await page.emulateMedia({colorScheme:'dark'});await page.reload();await page.locator('#question').waitFor();expect((await look()).theme).toBe('light'); // remembered, and set before the first paint
+ await page.locator('#menu').click();await expect(page.locator('#history-list li')).toHaveCount(3);
 });

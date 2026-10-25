@@ -5,7 +5,7 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const app = path.join(root, 'docs', 'app');
 const copies = [
-  ['src/shared/math-text.js', 'lib/math-text.js'], ['src/shared/practice-core.js', 'lib/practice-core.js'], ['src/shared/office-core.js', 'lib/office-core.js'],
+  ['src/shared/theme.js', 'lib/theme.js'], ['src/shared/math-text.js', 'lib/math-text.js'],['src/shared/practice-core.js', 'lib/practice-core.js'], ['src/shared/office-core.js', 'lib/office-core.js'],
   ['src/voice.js', 'lib/voice.js'], ['src/ustoz.js', 'lib/ustoz.js'],
   // Ustozim Nurim brand: 2D Pufak for every mood, the brand fonts and logos.
   ...['pufak', 'fonts', 'brand'].flatMap(dir => fs.readdirSync(path.join(root, 'assets', dir)).filter(f => /\.(webp|woff2|svg)$/.test(f)).map(f => [`assets/${dir}/${f}`, `${dir}/${f}`])),

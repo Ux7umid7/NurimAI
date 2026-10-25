@@ -1,15 +1,15 @@
 /* NurimAI telefon ilovasi — Ustozim Nurim brendi: tungi #121317, oltin #D6AC55, krem #F6F1E7; Commissioner (sarlavha) + Onest (matn).
-   Tun rejimi asosiy; telefon kunduzgi rejimda bo'lsa brendning yorug' ranglari. Qahramon — 2D Pufak. */
+   Tun rejimi asosiy; yorug' ranglar <html data-theme="light"> da (lib/theme.js: Sozlamalardagi tanlov yoki telefon rejimi). Qahramon — 2D Pufak. */
 :root{--bg:#121317;--surface:#1A1B20;--sunken:#0D0E11;--soft:#23242A;--ink:#F6F1E7;--muted:#B9BBC2;--faint:#8A8C94;--line:#2C2D34;
   --gold:#D6AC55;--gold-hi:#F2D68F;--on-gold:#121317;--glow:#FFE7A8;--accent-text:#FFE7A8;--warm:#2B2516;--warm-line:rgba(214,172,85,.38);--warm-ink:#E5C993;
   --good:rgba(92,199,150,.13);--good-line:#5CC796;--good-ink:#7FDBB0;--bad:rgba(242,123,114,.13);--bad-line:#F27B72;--bad-ink:#F6A39C;
   --shadow:0 14px 34px rgba(0,0,0,.45);--halo:rgba(214,172,85,.22);
   --safe-top:env(safe-area-inset-top,0px);--safe-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark;
   font-family:Onest,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:16px;-webkit-text-size-adjust:100%}
-@media (prefers-color-scheme:light){:root{--bg:#F6F1E7;--surface:#FFFDF8;--sunken:#EDE6D6;--soft:#EDE6D6;--ink:#27282D;--muted:#5A5C64;--faint:#6E6A60;--line:#E0D8C6;
+:root[data-theme=light]{--bg:#F6F1E7;--surface:#FFFDF8;--sunken:#EDE6D6;--soft:#EDE6D6;--ink:#27282D;--muted:#5A5C64;--faint:#6E6A60;--line:#E0D8C6;
   --gold:#D6AC55;--gold-hi:#F2D68F;--on-gold:#121317;--glow:#C99A3E;--accent-text:#7A4F0E;--warm:#F6EBD4;--warm-line:rgba(173,137,65,.45);--warm-ink:#7A4F0E;
   --good:#E3F2EA;--good-line:#1B7A52;--good-ink:#1B7A52;--bad:#F8E1DE;--bad-line:#B3261E;--bad-ink:#B3261E;--shadow:0 14px 34px rgba(39,40,45,.14);--halo:rgba(214,172,85,.30);color-scheme:light}
-  .brand-logo{content:url(brand/horizontal.svg)}}
+[data-theme=light] .brand-logo{content:url(brand/horizontal.svg)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);overscroll-behavior:none}
 button,input,textarea,select{font:inherit;color:inherit}
@@ -159,6 +159,11 @@ dialog::backdrop{background:rgba(8,9,11,.55)}
 .page-head{display:flex;align-items:center;gap:10px;padding:calc(10px + var(--safe-top)) 16px 8px}.page-head h2{margin:0;font-size:20px;font-weight:800;letter-spacing:-.4px}.page-head>span{width:44px}
 .page-title{flex:1;display:grid;text-align:center}.page-title small{font-size:12px;color:var(--warm-ink)}.page-head>h2{flex:1;text-align:center}
 .page-scroll{flex:1;overflow-y:auto;padding:12px 18px calc(24px + var(--safe-bottom))}
+.theme-row{display:flex;align-items:center;justify-content:space-between;gap:10px 12px;flex-wrap:wrap;padding:14px 4px;border-bottom:1px solid var(--line);font-size:15px}
+.seg{display:inline-flex;padding:3px;border-radius:999px;background:var(--soft);border:1px solid var(--line)}
+.seg label{position:relative;padding:8px 13px;border-radius:999px;font-size:14px;color:var(--muted);cursor:pointer;white-space:nowrap;transition:background .15s,color .15s}
+.seg input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.seg label:has(input:checked){background:var(--gold);color:var(--on-gold);font-weight:600}.seg label:has(input:focus-visible){outline:2px solid var(--gold);outline-offset:2px}
 .row-switch{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:16px 4px;border-bottom:1px solid var(--line);font-size:15px}
 .row-switch input,.check input{appearance:none;width:46px;height:28px;flex:none;border-radius:999px;background:var(--soft);border:1px solid var(--line);position:relative;cursor:pointer;transition:background .15s;margin:0}
 .row-switch input::after,.check input::after{content:'';position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:var(--faint);transition:transform .15s,background .15s}

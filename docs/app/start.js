@@ -9,7 +9,7 @@ $('new').onclick = newChat; $('drawer-new').onclick = () => { closeDrawer(); new
 $('menu').onclick = openDrawer; $('scrim').onclick = closeDrawer;
 $('history-search').oninput = renderHistory;
 $('ustoz').addEventListener('click', closeDrawer); // ustoz.js o'zi Ustoz sahifasini ochadi
-$('settings').onclick = () => { closeDrawer(); $('auto-speak').checked = state.settings.autoSpeak !== false; $('save-history').checked = state.settings.saveHistory !== false; $('version').textContent = `NurimAI ${state.version} · ${NATIVE ? 'Android ilova' : 'veb-ilova'}`; $('settings-dialog').showModal(); };
+$('settings').onclick = () => { closeDrawer(); $('auto-speak').checked = state.settings.autoSpeak !== false; $('save-history').checked = state.settings.saveHistory !== false; $('version').textContent = `NurimAI ${state.version} · ${NATIVE ? 'Android ilova' : 'veb-ilova'}`; NurimTheme.bind($('theme-choice')); $('settings-dialog').showModal(); };
 for (const id of ['auto-speak', 'save-history']) $(id).onchange = () => { state.settings = { ...state.settings, autoSpeak: $('auto-speak').checked, saveHistory: $('save-history').checked }; saved.set('settings', state.settings); renderHistory(); };
 $('clear-data').onclick = () => {
   if (!confirm('Suhbatlar tarixi, kartochkalar, natijalar va eslatmalar shu telefondan o‘chirilsinmi? Buni qaytarib bo‘lmaydi.')) return;

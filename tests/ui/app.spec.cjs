@@ -12,6 +12,15 @@ test('renderer has no Node access and AI markup remains inert text',async()=>{
 test('settings masks keys and shows honest update status',async()=>{
  await page.locator('#settings').click();await page.locator('summary').click();await expect(page.locator('#key-Gemini')).toHaveAttribute('type','password');await expect(page.locator('#key-Groq')).toHaveAttribute('type','password');await page.locator('#check-update').click();await expect(page.locator('#update-status')).toContainText('Dasturchi rejimi');await page.screenshot({path:'test-results/settings.png'});await page.locator('#close-settings').click();
 });
+test('the theme is chosen by hand (light, dark or the system’s) and remembered',async()=>{
+ const look=()=>page.evaluate(()=>({theme:document.documentElement.dataset.theme,bg:getComputedStyle(document.documentElement).getPropertyValue('--bg').trim(),saved:localStorage.getItem('nurim.theme')}));
+ await page.emulateMedia({colorScheme:'dark'});await page.locator('#settings').click();await expect(page.locator('#theme-choice input[value=system]')).toBeChecked();expect(await look()).toEqual({theme:'dark',bg:'#121317',saved:null});
+ await page.locator('#theme-choice label',{hasText:'Yorug‘'}).click();expect(await look()).toEqual({theme:'light',bg:'#F6F1E7',saved:'light'});await page.waitForTimeout(400);await page.screenshot({path:'test-results/settings-light.png'});
+ await page.emulateMedia({colorScheme:'light'});await page.locator('#theme-choice label',{hasText:'Qorong‘i'}).click();expect(await look()).toEqual({theme:'dark',bg:'#121317',saved:'dark'}); // the choice wins over the system
+ await page.locator('#close-settings').click();await page.locator('#settings').click();await expect(page.locator('#theme-choice input[value=dark]')).toBeChecked();
+ await page.locator('#theme-choice label',{hasText:'Tizim'}).click();expect((await look()).theme).toBe('light');await page.emulateMedia({colorScheme:'dark'});await expect.poll(async()=>(await look()).theme).toBe('dark'); // "Tizim" follows a change of the system
+ await page.locator('#close-settings').click();
+});
 test('dropped files become chips, quick actions send them, and chips can be removed',async()=>{
  await page.locator('#new').click();
  await page.evaluate(()=>{const dt=new DataTransfer();dt.items.add(new File(['Uy vazifasi: 2+2 nechaga teng?'],'vazifa.txt',{type:'text/plain'}));document.dispatchEvent(new DragEvent('drop',{dataTransfer:dt,bubbles:true,cancelable:true}));});

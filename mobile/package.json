@@ -1,6 +1,6 @@
 {
   "name": "nurimai-mobile",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "private": true,
   "description": "NurimAI Android ilovasi (Capacitor): docs/app dagi telefon veb-ilovasini o'raydi",
   "scripts": {

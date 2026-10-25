@@ -8,6 +8,7 @@
 <meta name="description" content="NurimAI — telefoningizdagi o‘zbekcha AI ustoz: savol, rasm, fayl, ovoz, test va kartochkalar.">
 <meta name="theme-color" content="#121317" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#F6F1E7" media="(prefers-color-scheme: light)">
+<script src="lib/theme.js"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -137,10 +138,11 @@
 <dialog id="settings-dialog" class="page"><form method="dialog" class="page-box">
   <div class="page-head"><button class="icon-btn" value="close" aria-label="Orqaga"><svg><use href="#i-back"/></svg></button><h2>Sozlamalar</h2><span></span></div>
   <div class="page-scroll">
+    <div class="theme-row" id="theme-choice"><span>Mavzu</span><div class="seg" role="radiogroup" aria-label="Mavzu"><label><input type="radio" name="theme" value="system">Tizim</label><label><input type="radio" name="theme" value="light">Yorug‘</label><label><input type="radio" name="theme" value="dark">Qorong‘i</label></div></div>
     <label class="row-switch"><span>Ovozli savolga javobni ovoz chiqarib o‘qish</span><input type="checkbox" id="auto-speak"></label>
     <label class="row-switch"><span>Suhbatlarni shu telefonda saqlash</span><input type="checkbox" id="save-history"></label>
     <div class="card" id="install-help"><strong>Bosh ekranga qo‘shish</strong><p id="install-text"></p></div>
-    <div class="card"><strong>Maxfiylik</strong><p>Savolingiz, fayllaringiz va suhbatning oxirgi qismi NurimAI serveri orqali Google Gemini yoki Groq’ga yuboriladi, server ularni saqlamaydi. Ovozli savol faqat mikrofon tugmasi bosilganda yoziladi. Suhbatlar tarixi, kartochkalar va eslatmalar faqat shu telefonda turadi. Parol, pasport, karta raqami yubormang.</p></div>
+    <div class="card"><strong>Maxfiylik</strong><p>Savolingiz, fayllaringiz va suhbatning oxirgi qismi NurimAI serveri orqali Google Gemini, Groq yoki (ular band bo‘lsa) Cloudflare Workers AI’ga yuboriladi, server ularni saqlamaydi. Ovozli savol faqat mikrofon tugmasi bosilganda yoziladi. Suhbatlar tarixi, kartochkalar va eslatmalar faqat shu telefonda turadi. Parol, pasport, karta raqami yubormang.</p></div>
     <button type="button" class="danger" id="clear-data">Barcha ma’lumotlarni o‘chirish</button>
     <p class="muted center" id="version"></p>
   </div>

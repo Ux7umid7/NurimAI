@@ -4,10 +4,11 @@
   --gold:#D6AC55;--gold-hi:#F2D68F;--on-gold:#121317;--glow:#FFE7A8;--accent-text:#FFE7A8;--warm:#2B2516;--warm-line:rgba(214,172,85,.38);--warm-ink:#E5C993;
   --good:rgba(92,199,150,.13);--good-line:#5CC796;--good-ink:#7FDBB0;--bad:rgba(242,123,114,.13);--bad-line:#F27B72;--bad-ink:#F6A39C;--shadow:0 16px 40px rgba(0,0,0,.42);--halo:rgba(214,172,85,.18);
   font-family:Onest,"Segoe UI",system-ui,sans-serif;color:var(--ink);font-size:14px;color-scheme:dark}
-@media (prefers-color-scheme:light){:root{--bg:#F6F1E7;--surface:#FFFDF8;--sunken:#EDE6D6;--soft:#EDE6D6;--ink:#27282D;--muted:#5A5C64;--faint:#6E6A60;--line:#E0D8C6;
+/* Light colours when <html data-theme="light"> (shared/theme.js: the choice in Settings, or the system's). */
+:root[data-theme=light]{--bg:#F6F1E7;--surface:#FFFDF8;--sunken:#EDE6D6;--soft:#EDE6D6;--ink:#27282D;--muted:#5A5C64;--faint:#6E6A60;--line:#E0D8C6;
   --gold:#D6AC55;--gold-hi:#F2D68F;--on-gold:#121317;--glow:#C99A3E;--accent-text:#7A4F0E;--warm:#F6EBD4;--warm-line:rgba(173,137,65,.45);--warm-ink:#7A4F0E;
   --good:#E3F2EA;--good-line:#1B7A52;--good-ink:#1B7A52;--bad:#F8E1DE;--bad-line:#B3261E;--bad-ink:#B3261E;--shadow:0 16px 40px rgba(39,40,45,.14);--halo:rgba(214,172,85,.26);color-scheme:light}
-  .side-logo{content:url(../assets/brand/horizontal.svg)}.titlebar img{content:url(../assets/brand/mark.svg)}}
+[data-theme=light] .side-logo{content:url(../assets/brand/horizontal.svg)}[data-theme=light] .titlebar img{content:url(../assets/brand/mark.svg)}
 *{box-sizing:border-box}body{margin:0;background:transparent}
 button,input,textarea,select{font:inherit;color:inherit}
 button{cursor:pointer;border:0;border-radius:12px;background:var(--soft);color:var(--ink);padding:9px 13px;transition:background .15s,border-color .15s}
@@ -137,6 +138,11 @@ dialog::backdrop{background:rgba(8,9,11,.6)}
 .check input{appearance:none;width:42px;height:24px;flex:none;border-radius:999px;background:var(--soft);border:1px solid var(--line);position:relative;cursor:pointer;margin:0;transition:background .15s}
 .check input::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:var(--faint);transition:transform .15s,background .15s}
 .check input:checked{background:var(--gold);border-color:var(--gold)}.check input:checked::after{transform:translateX(18px);background:#121317}
+.theme-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:4px 0 6px;font-size:13px}
+.seg{display:inline-flex;padding:3px;border-radius:999px;background:var(--soft);border:1px solid var(--line)}
+.seg label{position:relative;padding:6px 13px;border-radius:999px;font-size:12.5px;color:var(--muted);cursor:pointer;white-space:nowrap;transition:background .15s,color .15s}
+.seg input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.seg label:has(input:checked){background:var(--gold);color:var(--on-gold);font-weight:600}.seg label:has(input:focus-visible){outline:2px solid var(--gold);outline-offset:2px}
 .row{display:flex;gap:6px;flex-wrap:wrap}.row button{font-size:12px;border-radius:999px}
 details{border-top:1px solid var(--line);padding-top:14px;margin-top:16px}summary{cursor:pointer;color:var(--warm-ink);font-size:13px;font-weight:700}
 .provider{margin:10px 0;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}.provider-head{display:flex;align-items:center;justify-content:space-between}.provider-head button{font-size:11px;padding:5px 10px;border-radius:999px}

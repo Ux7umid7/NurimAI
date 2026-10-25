@@ -1,4 +1,9 @@
 {
+  "0.8.2": [
+    "🌓 Sozlamalarda mavzu tanlovi: Tizim, Yorug‘ yoki Qorong‘i — Windows rejimidan qat’i nazar.",
+    "📰 Yangilik, valyuta kursi, ob-havo va sport savollarida NurimAI internetdan ma’lumot olib, manbalarini ko‘rsatadi.",
+    "Bepul limit tugaganda ham javob: Gemini va Groq band bo‘lsa, zaxira AI javob beradi."
+  ],
   "0.8.1": [
     "Telefonda javobdan keyin pastdagi “Tayyor!” Pufak paneli endi o‘zi yopiladi."
   ],

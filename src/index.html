@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="uz"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; media-src 'self' blob:; connect-src 'none'; base-uri 'none'; form-action 'none'"><title>NurimAI</title><link rel="stylesheet" href="fonts.css"><link rel="stylesheet" href="style.css"></head>
+<html lang="uz"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data:; media-src 'self' blob:; connect-src 'none'; base-uri 'none'; form-action 'none'"><title>NurimAI</title><script src="shared/theme.js"></script><link rel="stylesheet" href="fonts.css"><link rel="stylesheet" href="style.css"></head>
 <body>
 <svg class="sprite" aria-hidden="true">
 <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
@@ -55,6 +55,7 @@
 </main>
 <dialog id="settings-dialog"><form id="settings-form"><div class="dialog-title"><div><h2>Sozlamalar</h2><small id="version"></small></div><button type="button" id="close-settings" aria-label="Yopish"><svg><use href="#i-close"/></svg></button></div><div class="settings-scroll">
 <div class="card"><strong>NurimAI</strong><p>Ilovani oching va savol bering. API kaliti kiritish shart emas.</p><p id="server-status"></p></div>
+<div class="theme-row" id="theme-choice"><span>Mavzu</span><div class="seg" role="radiogroup" aria-label="Mavzu"><label><input type="radio" name="theme" value="system">Tizim</label><label><input type="radio" name="theme" value="light">Yorug‘</label><label><input type="radio" name="theme" value="dark">Qorong‘i</label></div></div>
 <label class="check"><input type="checkbox" id="topmost"> Boshqa oynalar ustida tursin</label><label class="check"><input type="checkbox" id="save-history"> Suhbatlarni shu kompyuterda shifrlab saqlash (Tarix)</label><label class="check"><input type="checkbox" id="auto-speak"> Ovozli savolga javobni ovoz chiqarib o‘qish</label>
 <div class="card"><strong>Yangilanishlar</strong><label class="check"><input type="checkbox" id="auto-update"> Avtomatik yuklash va chiqishda o‘rnatish</label><p id="update-status"></p><div class="row"><button type="button" id="check-update">Tekshirish</button><button type="button" id="install-update" hidden>Yangilash va qayta ochish</button><button type="button" id="release-page">Yuklab olish ↗</button></div><small>Ochiq suhbat avtomatik yopilmaydi. Yangilashdan oldin kerakli matnni saqlang.</small></div>
 <details><summary>Shaxsiy API kalitlari · ixtiyoriy</summary><label class="check"><input type="checkbox" id="personal"> O‘z API kalitlarim bilan ishlash</label><p class="muted">Umumiy bepul limit tugaganda o‘z hisobingizdan foydalanishingiz mumkin.</p>
