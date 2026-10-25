@@ -1,5 +1,5 @@
 const test=require('node:test');const assert=require('node:assert/strict');
-const {fresh,feedItems,clean,normalize,rateLine,weatherLine}=require('../src/web.cjs');const {Router,body,withSources}=require('../src/router.cjs');const {defaults}=require('../src/store.cjs');
+const {fresh,feedItems,clean,normalize,rateLine,marketLine,weatherLine}=require('../src/web.cjs');const {Router,body,withSources}=require('../src/router.cjs');const {defaults}=require('../src/store.cjs');
 // A fake internet: two news sites, a sport site, the Central Bank and Open-Meteo; everything else is down.
 const rss=items=>`<?xml version="1.0"?><rss><channel><title>Feed</title>${items.map(([title,link,description,date])=>`<item><title>${title}</title><link>${link}</link><description>${description}</description><pubDate>${date}</pubDate></item>`).join('')}</channel></rss>`;
 const SITES={
@@ -9,6 +9,7 @@ const SITES={
  'cbu.uz':JSON.stringify([{Ccy:'USD',CcyNm_UZ:'AQSH dollari',Nominal:'1',Rate:'11838.92',Diff:'-64.23',Date:'24.10.2026'},{Ccy:'EUR',CcyNm_UZ:'EVRO',Nominal:'1',Rate:'13248.94',Diff:'-80.21',Date:'24.10.2026'},{Ccy:'JPY',Nominal:'1',Rate:'80.1',Date:'24.10.2026'}]),
  'api.open-meteo.com':JSON.stringify({current:{time:'2026-10-25T10:45',temperature_2m:17.2,apparent_temperature:14.4,weather_code:0,wind_speed_10m:4.1},daily:{time:['2026-10-25','2026-10-26','2026-10-27'],weather_code:[3,61,0],temperature_2m_max:[21,18,20],temperature_2m_min:[7,9,8],precipitation_probability_max:[0,70,5]}}),
 };
+const MARKET=JSON.stringify({result:'success',time_last_update_unix:Date.parse('2026-10-25T00:02:31Z')/1000,rates:{USD:1,UZS:11871.207242,EUR:0.892628,RUB:81.140284}});
 function internet(){const calls=[];const fetcher=async(url,options={})=>{calls.push(String(url));const host=new URL(url).hostname;
  if(host==='generativelanguage.googleapis.com')return Response.json({candidates:[{content:{parts:[{text:'Javob'}]},finishReason:'STOP'}]});
  return SITES[host]?new Response(SITES[host],{status:200}):new Response('down',{status:503});};
@@ -24,7 +25,15 @@ test('feeds are read safely: CDATA, entities and tags become plain text, only ht
 test('bank rates and the forecast become one readable line each',()=>{
  assert.equal(rateLine(JSON.parse(SITES['cbu.uz'])),'Markaziy bankning rasmiy kursi (24.10.2026 dan): 1 USD (AQSH dollari) = 11838.92 so‘m, o‘zgarish -64.23; 1 EUR (EVRO) = 13248.94 so‘m, o‘zgarish -80.21.');
  assert.equal(rateLine([]),null);assert.equal(weatherLine({},'Toshkent'),null);
- assert.match(weatherLine(JSON.parse(SITES['api.open-meteo.com']),'Samarqand'),/^Ob-havo, Samarqand \(Open-Meteo, 2026-10-25 10:45\): hozir 17°C \(his qilinishi 14°C\), ochiq osmon, shamol 4 km\/soat\. bugun \(2026-10-25\): 7…21°C, bulutli, yog‘ingarchilik ehtimoli 0%; ertaga \(2026-10-26\): 9…18°C, yomg‘ir, yog‘ingarchilik ehtimoli 70%/);
+ assert.match(weatherLine(JSON.parse(SITES['api.open-meteo.com']),'Samarqand'),/^Ob-havo, Samarqand \(Open-Meteo, 25\.10\.2026 10:45\): hozir 17°C \(his qilinishi 14°C\), ochiq osmon, shamol 4 km\/soat\. bugun \(25\.10\.2026\): 7…21°C, bulutli, yog‘ingarchilik ehtimoli 0%; ertaga \(26\.10\.2026\): 9…18°C, yomg‘ir, yog‘ingarchilik ehtimoli 70%/);
+ assert.equal(marketLine(JSON.parse(MARKET)),'Markaziy bank sayti hozir ochilmadi. Xalqaro bozor kursi (ExchangeRate-API, 25.10.2026 holati; rasmiy kurs emas, biroz farq qilishi mumkin): 1 USD ≈ 11871.21 so‘m; 1 EUR ≈ 13299.17 so‘m; 1 RUB ≈ 146.30 so‘m.');
+ assert.equal(marketLine({result:'error'}),null);
+});
+test('when the Central Bank cannot be reached, the market rate stands in and says it is not official',async()=>{
+ const net=internet();const fetcher=async(url,o)=>String(url).includes('cbu.uz')?Promise.reject(Object.assign(new Error('timed out'),{name:'TimeoutError'})):String(url).includes('er-api')?new Response(MARKET):net.fetcher(url,o);
+ const web=await fresh('Dollar kursi qancha?',{fetcher,now:()=>NOW});
+ assert.match(web.file.text,/^Markaziy bank sayti hozir ochilmadi\. Xalqaro bozor kursi/);assert.deepEqual(web.sources,[{title:'ExchangeRate-API',uri:'https://www.exchangerate-api.com'}]);
+ assert.equal(await fresh('Dollar kursi qancha?',{fetcher:async()=>new Response('down',{status:503}),now:()=>NOW}),null);
 });
 test('general news: the newest from each site, dated in Tashkent time, with the sites as sources',async()=>{
  const net=internet();const web=await fresh('Bugungi yangiliklar qanday?',{fetcher:net.fetcher,now:()=>NOW});

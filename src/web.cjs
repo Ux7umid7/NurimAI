@@ -11,6 +11,8 @@ const FEEDS = Object.freeze([
   { name: 'BBC Sport', url: 'https://feeds.bbci.co.uk/sport/rss.xml', home: 'https://www.bbc.com/sport', sport: true },
 ]);
 const RATES = Object.freeze({ name: 'Markaziy bank', url: 'https://cbu.uz/uz/arkhiv-kursov-valyut/json/', home: 'https://cbu.uz/uz/arkhiv-kursov-valyut/' });
+// cbu.uz does not always answer requests from abroad (the gateway runs on Cloudflare), so a market rate stands in, said to be unofficial.
+const MARKET = Object.freeze({ name: 'ExchangeRate-API', url: 'https://open.er-api.com/v6/latest/USD', home: 'https://www.exchangerate-api.com' });
 const WEATHER = Object.freeze({ name: 'Open-Meteo', home: 'https://open-meteo.com/' });
 const AGENT = 'NurimAI/0.8 (+https://ux7umid7.github.io/NurimAI/)';
 const MINUTE = 60000;
@@ -66,12 +68,19 @@ function rateLine(list) {
   if (!rows.length) return null;
   return `Markaziy bankning rasmiy kursi (${String(rows[0].Date).slice(0, 10)} dan): ${rows.map(r => `${r.Nominal || 1} ${r.Ccy} (${String(r.CcyNm_UZ || '').slice(0, 30)}) = ${r.Rate} so‘m${r.Diff ? `, o‘zgarish ${r.Diff}` : ''}`).join('; ')}.`;
 }
+function marketLine(data) {
+  const r = data?.rates; if (data?.result !== 'success' || !(r?.UZS > 0)) return null;
+  const rows = PICK.filter(c => c === 'USD' || r[c] > 0).map(c => `1 ${c} ≈ ${(r.UZS / (c === 'USD' ? 1 : r[c])).toFixed(2)} so‘m`);
+  const date = Number.isFinite(data.time_last_update_unix) ? stamp(data.time_last_update_unix * 1000).slice(0, 10) : 'sana yo‘q';
+  return `Markaziy bank sayti hozir ochilmadi. Xalqaro bozor kursi (ExchangeRate-API, ${date} holati; rasmiy kurs emas, biroz farq qilishi mumkin): ${rows.join('; ')}.`;
+}
+const dmy = s => /^\d{4}-\d{2}-\d{2}/.test(s) ? `${s.slice(8, 10)}.${s.slice(5, 7)}.${s.slice(0, 4)}${s.slice(10).replace('T', ' ')}` : s;
 function sky(code) { const c = Number(code); return c === 0 ? 'ochiq osmon' : c <= 2 ? 'qisman bulutli' : c === 3 ? 'bulutli' : c <= 48 ? 'tuman' : c <= 57 ? 'mayda yomg‘ir' : c <= 67 ? 'yomg‘ir' : c <= 77 ? 'qor' : c <= 82 ? 'jala' : c <= 86 ? 'qor yog‘ishi' : 'momaqaldiroq'; }
 function weatherLine(data, city) {
   const now = data?.current, day = data?.daily;
   if (!now || !Array.isArray(day?.time)) return null;
-  const days = day.time.slice(0, 3).map((date, i) => `${['bugun', 'ertaga', 'indinga'][i]} (${date}): ${Math.round(day.temperature_2m_min[i])}…${Math.round(day.temperature_2m_max[i])}°C, ${sky(day.weather_code[i])}${day.precipitation_probability_max?.[i] != null ? `, yog‘ingarchilik ehtimoli ${day.precipitation_probability_max[i]}%` : ''}`);
-  return `Ob-havo, ${city} (Open-Meteo, ${String(now.time).replace('T', ' ')}): hozir ${Math.round(now.temperature_2m)}°C (his qilinishi ${Math.round(now.apparent_temperature)}°C), ${sky(now.weather_code)}, shamol ${Math.round(now.wind_speed_10m)} km/soat. ${days.join('; ')}.`;
+  const days = day.time.slice(0, 3).map((date, i) => `${['bugun', 'ertaga', 'indinga'][i]} (${dmy(String(date))}): ${Math.round(day.temperature_2m_min[i])}…${Math.round(day.temperature_2m_max[i])}°C, ${sky(day.weather_code[i])}${day.precipitation_probability_max?.[i] != null ? `, yog‘ingarchilik ehtimoli ${day.precipitation_probability_max[i]}%` : ''}`);
+  return `Ob-havo, ${city} (Open-Meteo, ${dmy(String(now.time))}): hozir ${Math.round(now.temperature_2m)}°C (his qilinishi ${Math.round(now.apparent_temperature)}°C), ${sky(now.weather_code)}, shamol ${Math.round(now.wind_speed_10m)} km/soat. ${days.join('; ')}.`;
 }
 
 // A source that failed is left alone for two minutes, so a site that is down does not slow every answer.
@@ -82,7 +91,11 @@ async function load(url, read, ttl, { fetcher, signal, now, cache }) {
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const value = read((await response.text()).slice(0, 1500000)) || null;
     cache.set(url, { at: now(), value }); return value;
-  } catch (error) { if (!signal.aborted) cache.set(url, { at: now(), value: null }); throw error; }
+  } catch (error) {
+    if (signal.aborted) throw error;
+    cache.set(url, { at: now(), value: null }); console.log(`web ${new URL(url).host} ${error.name === 'TimeoutError' ? 'timeout' : String(error.message).slice(0, 120)}`); // seen in `wrangler tail`
+    throw error;
+  }
 }
 // Returns null when nothing could be read; otherwise a text file for the question's last turn, plus sources to show under the answer.
 async function fresh(question, { fetcher = (...args) => fetch(...args), signal = new AbortController().signal, now = Date.now, cache = new Map() } = {}) {
@@ -91,13 +104,13 @@ async function fresh(question, { fetcher = (...args) => fetch(...args), signal =
   const get = (url, read, ttl) => load(url, read, ttl, { fetcher, signal, now, cache }).catch(() => null);
   const json = text => { try { return JSON.parse(text); } catch { return null; } };
   const [rateText, weatherText, feeds] = await Promise.all([
-    rates ? get(RATES.url, text => rateLine(json(text)), 30 * MINUTE) : null,
+    rates ? get(RATES.url, text => rateLine(json(text)), 30 * MINUTE).then(line => line ? { line, source: RATES } : get(MARKET.url, text => marketLine(json(text)), 60 * MINUTE).then(line => line && { line, source: MARKET })) : null,
     weather ? get(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FTashkent&forecast_days=3`, text => weatherLine(json(text), city), 15 * MINUTE) : null,
     news ? Promise.all(FEEDS.map(feed => get(feed.url, xml => feedItems(xml, feed), 10 * MINUTE))) : [],
   ]);
   signal.throwIfAborted();
   const lines = [], sources = [], queries = [];
-  if (rateText) { lines.push(rateText); sources.push({ title: RATES.name, uri: RATES.home }); }
+  if (rateText) { lines.push(rateText.line); sources.push({ title: rateText.source.name, uri: rateText.source.home }); }
   if (weatherText) { lines.push(weatherText); sources.push({ title: WEATHER.name, uri: WEATHER.home }); }
   const read = feeds.filter(list => list?.length);
   if (read.length) {
@@ -120,4 +133,4 @@ async function fresh(question, { fetcher = (...args) => fetch(...args), signal =
   return { file: { kind: 'text', name: `Internetdan olingan ma’lumot (${stamp(now())}, Toshkent vaqti)`, text: lines.join('\n') }, sources, queries };
 }
 
-module.exports = { fresh, feedItems, clean, normalize, rateLine, weatherLine, FEEDS, RATES, CITIES };
+module.exports = { fresh, feedItems, clean, normalize, rateLine, marketLine, weatherLine, FEEDS, RATES, MARKET, CITIES };
