@@ -1,15 +1,18 @@
 const test=require('node:test');const assert=require('node:assert/strict');
 // Fake Durable Object storage and a fake network (Telegram Bot API + Gemini) for NurimAI's Telegram bot.
 function fakeState(){const map=new Map();const storage={get:async k=>structuredClone(map.get(k)),put:async(k,v)=>{map.set(k,structuredClone(v));},delete:async k=>{map.delete(k);},transaction:async fn=>fn(storage)};return {storage,map};}
-function fakeNet(answer='Javob: **12**',grounding=null){
+// News sites: Gazeta.uz has one story, the rest are down.
+const GAZETA='<rss><channel><item><title>Toshkentdagi Elbek bog‘i yangilanadi</title><link>https://www.gazeta.uz/oz/park/?a=1&amp;b="2"</link><description>Bog‘ to‘liq yangilanadi</description><pubDate>Sun, 25 Oct 2026 04:41:00 GMT</pubDate></item></channel></rss>';
+function fakeNet(answer='Javob: **12**'){
  const calls=[];
  const fetch=async(url,options={})=>{const body=options.body?JSON.parse(options.body):null;calls.push({url:String(url),body});
-  if(String(url).includes('generativelanguage'))return Response.json({candidates:[{content:{parts:[{text:typeof answer==='function'?answer(body):answer}]},finishReason:'STOP',...(grounding&&body.tools?{groundingMetadata:grounding}:{})}]});
+  if(String(url).includes('generativelanguage'))return Response.json({candidates:[{content:{parts:[{text:typeof answer==='function'?answer(body):answer}]},finishReason:'STOP'}]});
+  if(!String(url).includes('api.telegram.org'))return String(url).includes('gazeta.uz')?new Response(GAZETA):new Response('down',{status:503});
   if(String(url).includes('/file/bot'))return new Response(new Uint8Array([79,103,103,83,1,2,3]));
   const method=String(url).split('/').pop();
   if(method==='getFile')return Response.json({ok:true,result:{file_path:String(body?.file_id).startsWith('st')?'stickers/file_2.webp':'voice/file_1.oga',file_size:7}});
   return Response.json({ok:true,result:method==='getMe'?{username:'NurimAI_test_bot'}:{message_id:1}});};
- return {calls,fetch,sent:()=>calls.filter(c=>/sendMessage|sendPhoto/.test(c.url)).map(c=>c.body),gemini:()=>calls.filter(c=>c.url.includes('generativelanguage')).map(c=>c.body)};
+ return {calls,fetch,sites:()=>calls.filter(c=>!/api\.telegram\.org|generativelanguage/.test(c.url)).map(c=>c.url),sent:()=>calls.filter(c=>/sendMessage|sendPhoto/.test(c.url)).map(c=>c.body),gemini:()=>calls.filter(c=>c.url.includes('generativelanguage')).map(c=>c.body)};
 }
 const env={TELEGRAM_TOKEN:'123:TEST',RATE_SALT:'salt',GEMINI_API_KEY:'g',GEMINI_FREE_TIER:'true'};
 const msg=(id,text,extra={})=>({update_id:id,message:{message_id:id,chat:{id:42,type:'private'},from:{id:7,is_bot:false},text,...extra}});
@@ -114,18 +117,19 @@ test('the bot looks at a sticker, answers it briefly and remembers it',async()=>
   assert.equal(net.gemini()[1].contents.at(-1).parts.length,1);assert.match(net.gemini()[1].contents.at(-1).parts[0].text,/faqat emoji/);
  }finally{globalThis.fetch=real;}
 });
-test('/yangiliklar and news questions search Google; the answer links its sources and a button opens the search',async()=>{
+test('/yangiliklar and news questions read the news sites; the answer links its sources',async()=>{
  const {AiGateway}=await import('../server/worker.mjs');const {parseUpdate,NEWS_QUESTION}=await import('../server/telegram.mjs');
- const grounding={groundingChunks:[{web:{uri:'https://kun.uz/news/1?a=1&b="2"',title:'kun.uz'}},{web:{uri:'https://gazeta.uz/x',title:'<gazeta>'}}],webSearchQueries:['O‘zbekiston yangiliklari bugun']};
- const net=fakeNet('**Yangiliklar:** bugun …',grounding);const real=globalThis.fetch;globalThis.fetch=net.fetch;const {storage,map}=fakeState();
+ const net=fakeNet('**Yangiliklar:** bugun …');const real=globalThis.fetch;globalThis.fetch=net.fetch;const {storage,map}=fakeState();
  try{
   const gw=new AiGateway({storage},env);const ask=async u=>{const item=parseUpdate(u);if(await gw.firstDelivery(item))await gw.telegram(item);};
-  await ask(msg(50,'/yangiliklar'));const sent=net.gemini()[0];assert.deepEqual(sent.tools,[{google_search:{}}]);assert.equal(sent.contents.at(-1).parts.at(-1).text,NEWS_QUESTION);
-  const answer=net.sent().at(-1);assert.equal(answer.text,'<b>Yangiliklar:</b> bugun …\n\n<b>🔎 Manbalar:</b> <a href="https://kun.uz/news/1?a=1&amp;b=&quot;2&quot;">kun.uz</a> · <a href="https://gazeta.uz/x">&lt;gazeta&gt;</a>');
-  assert.equal(answer.reply_markup.inline_keyboard[0][0].url,'https://www.google.com/search?q='+encodeURIComponent('O‘zbekiston yangiliklari bugun'));assert.equal(answer.reply_markup.inline_keyboard[1][0].callback_data,'new');
-  assert.equal(map.get('tg:chat:42').history[0].text,'📰 Bugungi yangiliklar');
-  await ask(msg(51,'Dollar kursi qancha?'));assert.ok(net.gemini()[1].tools);
-  net.calls.length=0;await ask(msg(52,'Kasr nima?'));assert.equal('tools' in net.gemini()[0],false);assert.equal(net.sent().at(-1).reply_markup.inline_keyboard.length,1);
-  await ask(msg(53,undefined,{text:undefined,caption:'Bugungi yangiliklar',photo:[{file_id:'p',width:800,height:600}]}));assert.equal('tools' in net.gemini()[1],false);
+  await ask(msg(50,'/yangiliklar'));const prompt=net.gemini()[0].contents.at(-1).parts.at(-1).text;
+  assert.match(prompt,/^Biriktirilgan fayl: Internetdan olingan ma’lumot \(.+, Toshkent vaqti\)\n"""\nYangiliklar \(Gazeta\.uz\):\n- \[Gazeta\.uz, 25\.10 09:41\] Toshkentdagi Elbek bog‘i yangilanadi/);assert.ok(prompt.endsWith(NEWS_QUESTION));
+  const answer=net.sent().at(-1);assert.equal(answer.text,'<b>Yangiliklar:</b> bugun …\n\n<b>🔎 Manbalar:</b> <a href="https://www.gazeta.uz/oz/">Gazeta.uz</a>');assert.equal(answer.reply_markup.inline_keyboard.length,1);
+  assert.deepEqual(map.get('tg:chat:42').history.map(m=>m.text),['📰 Bugungi yangiliklar','**Yangiliklar:** bugun …']);
+  await ask(msg(51,'Elbek bog‘i haqida yangilik bormi?'));const topic=net.sent().at(-1);
+  assert.ok(topic.text.endsWith('<a href="https://www.gazeta.uz/oz/park/?a=1&amp;b=&quot;2&quot;">Gazeta.uz: Toshkentdagi Elbek bog‘i yangilanadi</a>'));
+  assert.equal(topic.reply_markup.inline_keyboard[0][0].url,'https://www.google.com/search?q=elbek%20bogi');assert.equal(topic.reply_markup.inline_keyboard[1][0].callback_data,'new');
+  net.calls.length=0;await ask(msg(52,'Kasr nima?'));assert.deepEqual(net.sites(),[]);assert.equal(net.sent().at(-1).reply_markup.inline_keyboard.length,1);
+  await ask(msg(53,undefined,{text:undefined,caption:'Bugungi yangiliklar',photo:[{file_id:'p',width:800,height:600}]}));assert.deepEqual(net.sites(),[]);
  }finally{globalThis.fetch=real;}
 });

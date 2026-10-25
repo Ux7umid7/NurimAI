@@ -10,7 +10,7 @@ export const TEXTS = Object.freeze({
   description: 'Salom! Men NurimAI — o‘zbekcha gapiradigan AI ustoz. Savolingizni yozing, masalani rasmga olib yuboring yoki ovozli xabar qoldiring: mavzuni oddiy tilda, qadamma-qadam tushuntirib beraman. Bepul.',
   short: 'O‘zbekcha AI ustoz: savol, rasm va ovozli xabarga javob beradi.',
   hello: '<b>Salom! Men NurimAI</b> — o‘zbekcha gapiradigan AI ustozingiz.\n\nMenga:\n• savolingizni <b>yozing</b>;\n• masala yoki matnni <b>rasmga olib</b> yuboring;\n• <b>ovozli xabar</b> qoldiring;\n• PDF yoki <b>stiker</b> yuboring.\n\nJavobni oddiy tilda, qadamma-qadam tushuntiraman. /yangiliklar — bugungi yangiliklar, /yangi — yangi suhbat, /yordam — yordam.',
-  help: '<b>NurimAI nima qila oladi</b>\n\n• Istalgan mavzuni misollar bilan tushuntiradi.\n• Rasmdagi masalani yechish yo‘lini ko‘rsatadi.\n• Ovozli xabarni tinglab, javob beradi.\n• PDF hujjatni qisqacha tushuntiradi.\n• Stikeringizni ko‘rib, unga javob qaytaradi.\n• Yangilik, kurs, ob-havo kabi savollarda internetdan (Google) qidiradi va manbalarni ko‘rsatadi. /yangiliklar — bugungi asosiy yangiliklar.\n• Suhbat davomini eslab qoladi: /yangi bilan yangisini boshlang.\n\nTest, kartochkalar, kunlik mashq va ovozli javoblar NurimAI ilovasida: ' + SITE,
+  help: '<b>NurimAI nima qila oladi</b>\n\n• Istalgan mavzuni misollar bilan tushuntiradi.\n• Rasmdagi masalani yechish yo‘lini ko‘rsatadi.\n• Ovozli xabarni tinglab, javob beradi.\n• PDF hujjatni qisqacha tushuntiradi.\n• Stikeringizni ko‘rib, unga javob qaytaradi.\n• Yangilik, valyuta kursi, ob-havo va sport savollarida internetdan (Kun.uz, Gazeta.uz, Daryo.uz, BBC, Markaziy bank, Open-Meteo) ma’lumot olib, manbalarini ko‘rsatadi. /yangiliklar — bugungi asosiy yangiliklar.\n• Suhbat davomini eslab qoladi: /yangi bilan yangisini boshlang.\n\nTest, kartochkalar, kunlik mashq va ovozli javoblar NurimAI ilovasida: ' + SITE,
   fresh: 'Yangi suhbat boshlandi. Savolingizni yozing 🙂',
   unsupported: 'Hozircha matn, rasm, stiker, PDF va ovozli xabarni tushunaman. Word, Excel va boshqa fayllar uchun NurimAI ilovasidan foydalaning: ' + SITE,
   group: 'Men shaxsiy suhbatda ishlayman: menga to‘g‘ridan-to‘g‘ri yozing.',
@@ -103,7 +103,7 @@ export function splitAnswer(text, max = 3500) {
   return parts;
 }
 export const KEYBOARD = { inline_keyboard: [[{ text: '🆕 Yangi suhbat', callback_data: 'new' }, { text: '📱 NurimAI ilovasi', url: SITE }]] };
-// Answers found with Google Search end with their sources as links, and a button opens the same search on Google.
+// Answers built from the internet end with their sources as links; when the question had a topic, a button opens it on Google too.
 export function sourcesHtml(reply) { return reply.sources?.length ? `\n\n<b>🔎 Manbalar:</b> ${reply.sources.map(s => `<a href="${escape(s.uri).replace(/"/g, '&quot;')}">${escape(s.title)}</a>`).join(' · ')}` : ''; }
 export function keyboardFor(reply) { const query = reply.sources?.length && reply.queries?.[0]; return query ? { inline_keyboard: [[{ text: `🔎 Google: ${query.slice(0, 40)}`, url: `https://www.google.com/search?q=${encodeURIComponent(query)}` }], ...KEYBOARD.inline_keyboard] } : KEYBOARD; }
 
