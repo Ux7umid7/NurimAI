@@ -42,6 +42,16 @@ Ikonkalar assets/icon.svg’dan yaratiladi (asli: assets/icon-source.jpg): npm r
 
 Yangilanish boshlanishdan 30 soniya keyin va har 6 soatda tekshiriladi. Windows Setup versiyasi fonda yuklaydi va dasturdan to‘liq chiqishda o‘rnatadi. Ochiq suhbat majburan uzilmaydi. Sozlamalarda avtomatik yangilanishni o‘chirish, qo‘lda tekshirish va tayyor yangilanishni o‘rnatish mumkin. Oddiy oynani yig‘ishtirish dasturdan chiqish emas.
 
+## Telegram bot
+
+NurimAI’ning o‘z Telegram boti xuddi shu serverda (server/telegram.mjs) ishlaydi: matn, masala rasmi, PDF va ovozli xabarga ilovadagi kabi javob beradi, har bir suhbatning oxirgi 4 ta savol-javobini 3 kun eslab qoladi. Telegram foydalanuvchisiga kunlik limit — TG_DAILY_USER (20), umumiy — TG_DAILY_TOTAL (300), ilova limitlaridan alohida.
+
+1. BotFather’da bot oching (/newbot) va tokenni saqlang. Profil rasmi: /setuserpic.
+2. Tokenni serverga maxfiy kalit qilib qo‘ying: `server` papkasida `npx wrangler secret put TELEGRAM_TOKEN` (yoki Cloudflare → Workers → nurimai-api → Settings → Variables and Secrets).
+3. `npx wrangler deploy`, keyin brauzerda https://nurimai-api.ux7umidjon7.workers.dev/telegram/setup ni oching: webhook, buyruqlar va tavsif o‘rnatiladi, javobda bot nomi chiqadi.
+
+Webhook maxfiy kaliti tokendan hosil qilinadi, alohida sozlanmaydi. /start dagi rasm: docs/bot/hello.jpg.
+
 ## Mahalliy ishlab chiqish
 
 Node.js 24 talab qilinadi.

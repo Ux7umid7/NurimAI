@@ -1,4 +1,5 @@
 import routerModule from '../src/router.cjs';
+import { TelegramBot, webhookSecret, parseUpdate, questionFor, splitHeard, toTelegramHtml, splitAnswer, escape, KEYBOARD, TEXTS, SITE } from './telegram.mjs';
 const { Router, UserError, speak, SPEECH } = routerModule;
 const json = (data,status=200,extra={})=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...extra}});
 const MEDIA = { image: new Set(['image/png', 'image/jpeg', 'image/webp', 'image/heic', 'image/heif']), pdf: new Set(['application/pdf']), audio: new Set(['audio/wav']) };
@@ -53,18 +54,19 @@ async function readBounded(request,limit){const reader=request.body?.getReader()
 const WEB_ORIGINS=['https://ux7umid7.github.io','https://localhost','capacitor://localhost'];
 export function allowedOrigin(origin,env={}){const extra=String(env.WEB_ORIGINS||'').split(',').map(o=>o.trim()).filter(Boolean);return Boolean(origin)&&[...WEB_ORIGINS,...extra].includes(origin);}
 function cors(origin){return {'Access-Control-Allow-Origin':origin,'Access-Control-Allow-Methods':'GET, POST, OPTIONS','Access-Control-Allow-Headers':'Content-Type','Access-Control-Expose-Headers':'Retry-After','Access-Control-Max-Age':'86400','Vary':'Origin'};}
-export default {async fetch(request,env){
+export default {async fetch(request,env,ctx){
   const origin=request.headers.get('Origin');
   if(origin&&!allowedOrigin(origin,env))return json({error:'Desktop API only'},403);
   if(request.method==='OPTIONS')return origin?new Response(null,{status:204,headers:cors(origin)}):json({error:'Not found'},404);
-  const response=await handle(request,env);
+  const response=await handle(request,env,ctx);
   if(!origin)return response;
   const headers=new Headers(response.headers);for(const [k,v] of Object.entries(cors(origin)))headers.set(k,v);
   return new Response(response.body,{status:response.status,headers});
 }};
-async function handle(request,env){
+async function handle(request,env,ctx){
   const url=new URL(request.url);
-  if(request.method==='GET'&&url.pathname==='/health')return json({service:'NurimAI',ready:Boolean(env.RATE_SALT&&((env.GEMINI_API_KEY&&env.GEMINI_FREE_TIER==='true')||(env.GROQ_API_KEY&&env.GROQ_FREE_TIER==='true')))});
+  if(request.method==='GET'&&url.pathname==='/health')return json({service:'NurimAI',ready:Boolean(env.RATE_SALT&&((env.GEMINI_API_KEY&&env.GEMINI_FREE_TIER==='true')||(env.GROQ_API_KEY&&env.GROQ_FREE_TIER==='true'))),telegram:Boolean(env.TELEGRAM_TOKEN)});
+  if(url.pathname==='/telegram'||url.pathname==='/telegram/setup')return telegramRoute(request,env,ctx,url);
   if(request.method!=='POST'||!['/chat','/speak'].includes(url.pathname))return json({error:'Not found'},404);
   if(!request.headers.get('content-type')?.startsWith('application/json'))return json({error:'JSON required'},415);
   if(!env.RATE_SALT||!env.BUDGET)return json({error:'Service not configured'},503);
@@ -75,9 +77,37 @@ async function handle(request,env){
   const identities={ip:await hash(`${env.RATE_SALT}:${day}:${ip}`),device:await hash(`${env.RATE_SALT}:${day}:${data.deviceId}`)};
   try{return await env.BUDGET.get(env.BUDGET.idFromName('global')).fetch(new Request(speech?'https://internal/speak':'https://internal/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data,identities})}));}catch{return json({error:'Service unavailable'},503);}
 }
+// Telegram bot: GET /telegram/setup points the bot (TELEGRAM_TOKEN secret) at this worker; POST /telegram receives its updates.
+// The webhook answers Telegram at once; the Durable Object replies in the chat when the answer is ready.
+async function telegramRoute(request,env,ctx,url){
+  if(!env.TELEGRAM_TOKEN||!env.BUDGET||!env.RATE_SALT)return json({error:'Bot not configured'},503);
+  const secret=await webhookSecret(env.TELEGRAM_TOKEN);
+  if(url.pathname==='/telegram/setup')return request.method==='GET'?setupBot(env,url,secret):json({error:'Not found'},404);
+  if(request.method!=='POST')return json({error:'Not found'},404);
+  if(request.headers.get('X-Telegram-Bot-Api-Secret-Token')!==secret)return json({error:'Forbidden'},403);
+  let update;try{update=await readBounded(request,256*1024);}catch{return json({ok:true});} // a malformed update is dropped, not retried
+  const work=env.BUDGET.get(env.BUDGET.idFromName('global')).fetch(new Request('https://internal/telegram',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({update})})).catch(error=>console.log(`telegram hand-off failed: ${error?.name||'Error'}`));
+  if(ctx?.waitUntil)ctx.waitUntil(work);else await work;
+  return json({ok:true});
+}
+async function setupBot(env,url,secret){
+  const bot=new TelegramBot(env.TELEGRAM_TOKEN,upstream);
+  try{
+    const me=await bot.call('getMe');const hook=`${url.origin}/telegram`;
+    await bot.call('setWebhook',{url:hook,secret_token:secret,allowed_updates:['message','callback_query'],max_connections:10});
+    await bot.call('setMyCommands',{commands:[{command:'start',description:'Boshlash'},{command:'yangi',description:'Yangi suhbat'},{command:'yordam',description:'Nima qila olaman'}]});
+    await bot.call('setMyDescription',{description:TEXTS.description});await bot.call('setMyShortDescription',{short_description:TEXTS.short});
+    return json({ok:true,bot:`@${me.username}`,webhook:hook});
+  }catch(error){console.log(`telegram setup failed: ${error?.message||'Error'}`);return json({ok:false,error:'Telegram rejected the setup: check the TELEGRAM_TOKEN secret.'},502);}
+}
 export class AiGateway {
   constructor(state,env){this.state=state;this.env=env;this.router=new Router({fetcher:upstream});this.active=0;}
   async fetch(request){
+    if(new URL(request.url).pathname==='/telegram'){
+      const {update}=await request.json();const item=parseUpdate(update);
+      if(item&&this.env.TELEGRAM_TOKEN&&await this.firstDelivery(item)){const work=this.telegram(item);this.state.waitUntil?.(work);} // the reply goes on after this returns
+      return json({ok:true});
+    }
     if(this.active>=4)return json({error:'Busy'},429,{'Retry-After':'20'});
     const {data,identities}=await request.json();
     if(new URL(request.url).pathname==='/speak')return this.speech(data,identities);
@@ -90,6 +120,42 @@ export class AiGateway {
       const reply=await this.router.ask(settings,data.history,data.question,AbortSignal.timeout(85000),data.files);
       return json({text:reply.text,incomplete:reply.incomplete});
     }catch(error){console.log(`chat failed: ${error instanceof UserError?error.message:error?.name||'Error'}; routes: ${this.router.diagnostics(settings).map(r=>`${r.provider}=${r.status}`).join(', ')}`);const rejected=error instanceof UserError&&error.code==='input';return json({error:rejected?'Input rejected':error instanceof UserError?'AI temporarily unavailable':'Service unavailable'},rejected?422:503);}finally{this.active--;}
+  }
+  settings(){return {keys:{Gemini:this.env.GEMINI_API_KEY||'',Groq:this.env.GROQ_API_KEY||'',OpenRouter:''},free:{Gemini:this.env.GEMINI_FREE_TIER==='true',Groq:this.env.GROQ_FREE_TIER==='true'},autoFallback:true};}
+  // Telegram resends an update it thinks failed: each one is answered once (per chat, update ids only grow).
+  async firstDelivery(item){return this.state.storage.transaction(async tx=>{const key=`tg:seen:${item.chatId}`;if((await tx.get(key)||0)>=item.updateId)return false;await tx.put(key,item.updateId);return true;});}
+  // One Telegram message -> one answer in the chat. The bot has its own daily budget (per Telegram user and in total) and
+  // remembers the last few turns of each chat for three days; nothing else about the user is stored.
+  async telegram(item){
+    const bot=new TelegramBot(this.env.TELEGRAM_TOKEN,upstream),store=this.state.storage,chatKey=`tg:chat:${item.chatId}`;
+    try{
+      if(item.kind==='callback'){await bot.call('answerCallbackQuery',{callback_query_id:item.id}).catch(()=>{});if(item.data==='new'){await store.delete(chatKey);await bot.send(item.chatId,TEXTS.fresh);}return;}
+      if(!item.private){if(item.kind==='command')await bot.send(item.chatId,TEXTS.group);return;}
+      if(item.kind==='command'){
+        if(item.command==='start'){await store.delete(chatKey);await bot.call('sendPhoto',{chat_id:item.chatId,photo:`${SITE}bot/hello.jpg`,caption:TEXTS.hello,parse_mode:'HTML'}).catch(()=>bot.send(item.chatId,TEXTS.hello));}
+        else if(item.command==='yangi'){await store.delete(chatKey);await bot.send(item.chatId,TEXTS.fresh);}
+        else await bot.send(item.chatId,TEXTS.help);
+        return;
+      }
+      if(['unsupported','too-big','too-long'].includes(item.kind)){await bot.send(item.chatId,item.kind==='too-big'?TEXTS.big:item.kind==='too-long'?TEXTS.long:TEXTS.unsupported);return;}
+      const day=Math.floor(Date.now()/86400000),who=await hash(`${this.env.RATE_SALT}:${day}:tg:${item.userId}`);
+      const user=Math.min(200,Math.max(1,Number(this.env.TG_DAILY_USER)||20)),limits={total:Math.min(3000,Math.max(1,Number(this.env.TG_DAILY_TOTAL)||300)),ip:user,device:user,minute:4};
+      const allowed=await store.transaction(async tx=>{const next=budget(await tx.get('telegram'),Date.now(),who,who,limits);if(next.allowed)await tx.put('telegram',next.data);return next;});
+      if(!allowed.allowed){await bot.send(item.chatId,allowed.retry===60?TEXTS.slow:TEXTS.limit);return;}
+      if(this.active>=4){await bot.send(item.chatId,TEXTS.busy);return;}
+      await bot.call('sendChatAction',{chat_id:item.chatId,action:'typing'}).catch(()=>{});
+      const {question,remember}=questionFor(item);
+      const files=item.fileId?[{kind:item.kind==='voice'?'audio':item.kind==='pdf'?'pdf':'image',name:item.kind==='voice'?'Ovozli xabar':item.name||'rasm.jpg',mime:item.mime,data:await bot.download(item.fileId)}]:[];
+      const saved=await store.get(chatKey);const history=saved&&Date.now()-saved.updated<3*86400000?saved.history:[];
+      let reply;this.active++;try{reply=await this.router.ask(this.settings(),history,question,AbortSignal.timeout(85000),files);}finally{this.active--;}
+      const {heard,text}=item.kind==='voice'?splitHeard(reply.text):{heard:'',text:reply.text};
+      await store.put(chatKey,{updated:Date.now(),history:[...history,{role:'user',text:(heard?`🎤 ${heard}`:remember).slice(0,1000)},{role:'assistant',text:text.slice(0,2000)}].slice(-8)});
+      const parts=splitAnswer(text);
+      for(const [i,part] of parts.entries())await bot.send(item.chatId,(i===0&&heard?`<i>🎤 ${escape(heard)}</i>\n\n`:'')+toTelegramHtml(part),i===parts.length-1?{reply_markup:KEYBOARD}:{});
+    }catch(error){
+      console.log(`telegram failed: ${error?.code==='big'?'file too big':error instanceof UserError?error.message:error?.name||'Error'}`);
+      await bot.send(item.chatId,error?.code==='big'?TEXTS.big:error instanceof UserError&&error.code==='input'?TEXTS.rejected:TEXTS.failed).catch(()=>{});
+    }
   }
   // Voice answers have their own daily budget, so listening never eats the chat limit.
   async speech(data,identities){
