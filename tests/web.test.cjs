@@ -57,11 +57,12 @@ test('rates and weather read only their own source; the city is taken from the q
  assert.match(sky.file.text,/^Ob-havo, Samarqand/);assert.equal(net.sites().length,1);assert.match(net.sites()[0],/latitude=39\.6542&longitude=66\.9597/);
  net.calls.length=0;await fresh('Ob-havo qanday?',{fetcher:net.fetcher,now:()=>NOW});assert.match(net.sites()[0],/latitude=41\.3111/);
 });
-test('sources are kept for ten minutes (a failed one for two), and a dead internet gives nothing instead of an error',async()=>{
+test('sources are kept for ten minutes (a failed one is skipped for an hour), and a dead internet gives nothing instead of an error',async()=>{
  const net=internet();const cache=new Map();let now=NOW;
  await fresh('Bugungi yangiliklar',{fetcher:net.fetcher,now:()=>now,cache});const first=net.calls.length;assert.equal(first,7);
- await fresh('Bugungi yangiliklar',{fetcher:net.fetcher,now:()=>now,cache});assert.equal(net.calls.length,first,'a failed site waits two minutes');
- now+=11*60000;await fresh('Bugungi yangiliklar',{fetcher:net.fetcher,now:()=>now,cache});assert.equal(net.calls.length,first+7);
+ await fresh('Bugungi yangiliklar',{fetcher:net.fetcher,now:()=>now,cache});assert.equal(net.calls.length,first,'nothing is asked again at once');
+ now+=11*60000;await fresh('Bugungi yangiliklar',{fetcher:net.fetcher,now:()=>now,cache});assert.equal(net.calls.length,first+3,'after ten minutes only the working sites are read again');
+ now+=50*60000;await fresh('Bugungi yangiliklar',{fetcher:net.fetcher,now:()=>now,cache});assert.equal(net.calls.length,first+10,'after an hour the failed ones are tried again');
  assert.equal(await fresh('Bugungi yangiliklar',{fetcher:async()=>{throw new Error('offline');},now:()=>NOW}),null);
  const stop=new AbortController();stop.abort();await assert.rejects(fresh('Bugungi yangiliklar',{fetcher:net.fetcher,signal:stop.signal}),{name:'AbortError'});
 });

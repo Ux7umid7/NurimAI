@@ -83,9 +83,9 @@ function weatherLine(data, city) {
   return `Ob-havo, ${city} (Open-Meteo, ${dmy(String(now.time))}): hozir ${Math.round(now.temperature_2m)}°C (his qilinishi ${Math.round(now.apparent_temperature)}°C), ${sky(now.weather_code)}, shamol ${Math.round(now.wind_speed_10m)} km/soat. ${days.join('; ')}.`;
 }
 
-// A source that failed is left alone for two minutes, so a site that is down does not slow every answer.
+// A source that failed is left alone for an hour: cbu.uz never answers the gateway, and each try would cost a 7-second wait.
 async function load(url, read, ttl, { fetcher, signal, now, cache }) {
-  const hit = cache.get(url); if (hit && now() - hit.at < (hit.value ? ttl : 2 * MINUTE)) return hit.value;
+  const hit = cache.get(url); if (hit && now() - hit.at < (hit.value ? ttl : 60 * MINUTE)) return hit.value;
   try {
     const response = await fetcher(url, { headers: { 'User-Agent': AGENT }, signal: AbortSignal.any([signal, AbortSignal.timeout(7000)]) });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
