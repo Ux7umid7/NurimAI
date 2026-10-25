@@ -1,7 +1,10 @@
 const { fresh } = require('./web.cjs');
-const MODELS = Object.freeze({ Gemini: 'gemini-3.5-flash-lite', Groq: 'qwen/qwen3.8-27b', OpenRouter: 'openrouter/free' });
-const URLS = Object.freeze({ Gemini: `https://generativelanguage.googleapis.com/v1beta/models/${MODELS.Gemini}:generateContent`, Groq: 'https://api.groq.com/openai/v1/chat/completions', OpenRouter: 'https://openrouter.ai/api/v1/chat/completions' });
-const ORDER = Object.keys(MODELS);
+const MODELS = Object.freeze({ Gemini: 'gemini-3.5-flash-lite', Groq: 'qwen/qwen3.8-27b', OpenRouter: 'openrouter/free', Cloudflare: '@cf/google/gemma-4-26b-a4b-it' });
+// Cloudflare Workers AI has no URL or key: the gateway answers this address through its AI binding (server/worker.mjs).
+const URLS = Object.freeze({ Gemini: `https://generativelanguage.googleapis.com/v1beta/models/${MODELS.Gemini}:generateContent`, Groq: 'https://api.groq.com/openai/v1/chat/completions', OpenRouter: 'https://openrouter.ai/api/v1/chat/completions', Cloudflare: 'https://workers-ai.binding/run' });
+// ORDER is what the apps' settings show; the gateway also falls back to Workers AI when the others are used up.
+const ORDER = ['Gemini', 'Groq', 'OpenRouter'];
+const ROUTES = [...ORDER, 'Cloudflare'];
 const INSTRUCTION = "Sen NurimAI — ekran chetida yashaydigan momiq qahramon, foydalanuvchining mehribon ustozi va do‘sti. Foydalanuvchi tilida, odatda o‘zbek lotin yozuvida qisqa va tushunarli javob ber. Savollar, o‘qish, yozish, tarjima va rejalashda yordam ber. Faqat javob berib qo‘ymay, tushunishga yordam ber: kerak bo‘lsa misollar bilan tushuntir, murakkab mavzuda keyingi qadamni taklif qil. Iliq, samimiy ohangda yoz, lekin ortiqcha maqtov va uzun kirish so‘zlarisiz. Oddiy matn, qisqa ro‘yxat, kerak bo‘lsa **qalin** so‘z va kod bloki ishlat. Matematikani LaTeX’siz, oddiy belgilar bilan yoz: 1/2, x², √9, 3 × 4, 90°; $ belgisi va LaTeX buyruqlarini ishlatma. Bilmagan narsangni ayt, manbalarni to‘qima. Foydalanuvchi o‘zi biriktirgan rasm, skrinshot, fayl, stiker va ovozli xabarlarni ko‘ra va eshita olasan: ularni diqqat bilan o‘qib, javobni shularga tayanib ber. Savolga «Internetdan olingan ma’lumot» biriktirilgan bo‘lsa, uni NurimAI hozirgina yangilik saytlari, Markaziy bank va ob-havo xizmatidan olgan: yangilik, kurs yoki ob-havo haqida shunga tayan, eng muhimini qisqa ayt, manba nomi va sanasini ko‘rsat, unda yo‘q narsani to‘qima; savolga aloqasi bo‘lmasa, e’tibor berma. Bunday ma’lumot berilmagan bo‘lsa, eng so‘nggi yangilik va kurslarni bilmasligingni ochiq ayt. Boshqa fayllar, ekran yoki kompyuterga o‘zing kira olmaysan; kirayotganingni aytma.";
 // Questions about fresh facts (news, rates, weather, results) get what NurimAI reads from the internet (web.cjs); homework does not.
 const FRESH = /yangilik|news|новост|ob-?havo|havo (qanday|necha|issiq|sovuq)|weather|погод|valyuta|(dollar|evro|yevro|rubl) kursi|(dollar|evro|yevro|rubl) (qancha|necha)|kurs(i)? (qancha|necha|qanday)|курс (доллар|валют|рубл|евро)|bugun(gi)? nima (gap|bo)|hozir(gi)? (nima gap|vaziyat|holat)|dunyoda nima|so['‘’`]?nggi (yangilik|voqea|xabar|natija)|oxirgi (yangilik|voqea|xabar|natija)|kim yutdi|hisob(i)? qanday|internet(dan|da)|qidirib (ber|top)|today|latest|this week|current news|сегодня|последн(ие|яя) (новост|событ)/i;
@@ -28,6 +31,7 @@ function body(provider, history, question, files = []) {
   const common = { model: MODELS[provider], messages: [{ role: 'system', content: INSTRUCTION }, ...turns.map(t => ({ role: t.role, content: t.text }))], stream: false };
   if (provider === 'Groq') return { ...common, max_completion_tokens: 2400, reasoning_effort: 'none', reasoning_format: 'hidden' };
   if (provider === 'OpenRouter') return { ...common, max_tokens: 3200, provider: { max_price: { prompt: 0, completion: 0, request: 0 } } };
+  if (provider === 'Cloudflare') return { ...common, max_completion_tokens: 2400, chat_template_kwargs: { enable_thinking: false } }; // thinking made answers slow and long
   throw new Error('Unknown provider');
 }
 function parse(provider, data) {
@@ -64,7 +68,7 @@ class Router {
   diagnostics(settings) { return ORDER.map(provider => ({ provider, model: MODELS[provider], ready: ready(settings, provider), status: !ready(settings, provider) ? 'Ulanmagan' : (this.states[provider]?.status || 'Hali sinalmagan'), retrySeconds: Math.max(0, Math.ceil(((this.states[provider]?.retryAt || 0) - this.now()) / 1000)) })); }
   async ask(settings, history, question, signal = new AbortController().signal, files = [], options = {}) {
     signal.throwIfAborted();
-    let routes = ORDER.filter(p => ready(settings,p));
+    let routes = ROUTES.filter(p => ready(settings,p));
     if (!routes.length) throw new UserError('Sozlamalarda kamida bitta bepul AI xizmatini ulang.');
     // Fresh facts go with the question as a text attachment, so every provider (not only Gemini) can use them.
     // options.search: true/false overrides the guess; a string is what to look up when the question itself is an instruction.

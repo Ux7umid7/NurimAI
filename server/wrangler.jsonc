@@ -5,7 +5,9 @@
   "compatibility_date": "2026-10-01",
   "workers_dev": true,
   "observability": { "enabled": false },
-  "vars": { "GEMINI_FREE_TIER": "true", "GROQ_FREE_TIER": "true", "DAILY_TOTAL": "200", "DAILY_DEVICE": "30", "DAILY_IP": "60", "SPEAK_TOTAL": "400", "SPEAK_DEVICE": "40", "SPEAK_IP": "80", "TG_DAILY_TOTAL": "300", "TG_DAILY_USER": "20" },
+  "vars": { "GEMINI_FREE_TIER": "true", "GROQ_FREE_TIER": "true", "WORKERS_AI_FREE": "true", "DAILY_TOTAL": "200", "DAILY_DEVICE": "30", "DAILY_IP": "60", "SPEAK_TOTAL": "400", "SPEAK_DEVICE": "40", "SPEAK_IP": "80", "TG_DAILY_TOTAL": "300", "TG_DAILY_USER": "20" },
+  // Workers AI (Gemma 4) answers when Gemini and Groq are used up; Workers Free gives 10,000 neurons a day, no key needed.
+  "ai": { "binding": "AI" },
   "durable_objects": { "bindings": [{ "name": "BUDGET", "class_name": "AiGateway" }] },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["AiGateway"] }]
 }

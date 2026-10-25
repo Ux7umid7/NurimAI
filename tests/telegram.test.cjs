@@ -133,3 +133,17 @@ test('/yangiliklar and news questions read the news sites; the answer links its 
   await ask(msg(53,undefined,{text:undefined,caption:'Bugungi yangiliklar',photo:[{file_id:'p',width:800,height:600}]}));assert.deepEqual(net.sites(),[]);
  }finally{globalThis.fetch=real;}
 });
+test('when Gemini and Groq are used up, Workers AI answers through the binding; its own limit ends in the usual note',async()=>{
+ const {AiGateway}=await import('../server/worker.mjs');const {parseUpdate}=await import('../server/telegram.mjs');
+ const net=fakeNet();const real=globalThis.fetch;const runs=[];
+ globalThis.fetch=async(url,o)=>/generativelanguage|groq\.com/.test(String(url))?Response.json({error:{message:'quota'}},{status:429}):net.fetch(url,o);
+ const ai={run:async(model,input)=>{runs.push({model,input});if(runs.length===2)return {response:'Eski **javob** shakli'};if(runs.length===3)throw new Error('4006: you have used up your daily free allocation of 10,000 neurons');return {model,choices:[{message:{content:'Zaxira **javob**'},finish_reason:'stop'}]};}};
+ try{
+  const gw=new AiGateway({storage:fakeState().storage},{...env,GROQ_API_KEY:'q',GROQ_FREE_TIER:'true',AI:ai,WORKERS_AI_FREE:'true'});const ask=async u=>{const item=parseUpdate(u);if(await gw.firstDelivery(item))await gw.telegram(item);};
+  await ask(msg(60,'Kasr nima?'));assert.equal(net.sent().at(-1).text,'Zaxira <b>javob</b>');
+  assert.equal(runs[0].model,'@cf/google/gemma-4-26b-a4b-it');assert.equal('model' in runs[0].input||'stream' in runs[0].input,false);assert.deepEqual(runs[0].input.messages.at(-1),{role:'user',content:'Kasr nima?'});assert.equal(runs[0].input.messages[0].role,'system');
+  gw.router.reset('Gemini');gw.router.reset('Groq');await ask(msg(61,'Yana'));assert.equal(net.sent().at(-1).text,'Eski <b>javob</b> shakli');
+  gw.router.reset('Gemini');gw.router.reset('Groq');await ask(msg(62,'Yana bir'));assert.match(net.sent().at(-1).text,/javob bera olmadim/);
+  const without=new AiGateway({storage:fakeState().storage},{...env,AI:ai});runs.length=0;const item=parseUpdate(msg(63,'Salom'));await without.firstDelivery(item);await without.telegram(item);assert.equal(runs.length,0,'not offered unless WORKERS_AI_FREE is set');
+ }finally{globalThis.fetch=real;}
+});

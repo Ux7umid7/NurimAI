@@ -1,6 +1,6 @@
 import routerModule from '../src/router.cjs';
 import { TelegramBot, webhookSecret, parseUpdate, questionFor, splitHeard, toTelegramHtml, splitAnswer, escape, sourcesHtml, keyboardFor, TEXTS, SITE } from './telegram.mjs';
-const { Router, UserError, speak, SPEECH, withSources } = routerModule;
+const { Router, UserError, speak, SPEECH, withSources, URLS } = routerModule;
 const json = (data,status=200,extra={})=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...extra}});
 const MEDIA = { image: new Set(['image/png', 'image/jpeg', 'image/webp', 'image/heic', 'image/heif']), pdf: new Set(['application/pdf']), audio: new Set(['audio/wav']) };
 // Optional attachments (absent in 0.3.0 clients): extracted document text, or base64 images/PDFs/voice recordings (0.6.1+) for Gemini.
@@ -47,6 +47,20 @@ async function upstream(url,options){
     return response;
   }catch(error){console.log(`upstream ${host} failed: ${error?.name||'Error'} ${String(error?.message||'').slice(0,200)}`);throw error;}
 }
+// Cloudflare Workers AI through the AI binding: no key, and Workers Free gives 10,000 neurons a day (a few hundred answers).
+// The answer is wrapped as an API response, so the router treats it like any other route (429 when the day's allowance is used).
+async function workersAi(env,options){
+  const {model,stream,...input}=JSON.parse(options.body);
+  try{
+    options.signal?.throwIfAborted();
+    const out=await Promise.race([env.AI.run(model,input),new Promise((_,reject)=>options.signal?.addEventListener('abort',()=>reject(options.signal.reason),{once:true}))]);
+    return json(out?.choices?out:{model,choices:[{message:{content:String(out?.response??'')},finish_reason:'stop'}]});
+  }catch(error){
+    if(options.signal?.aborted)throw error;
+    const message=String(error?.message||error).slice(0,200);console.log(`upstream workers-ai failed: ${message}`);
+    return json({error:{message}},/neuron|allocation|limit|quota|4006|429/i.test(message)?429:503);
+  }
+}
 async function hash(text){const digest=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text));return Array.from(new Uint8Array(digest),x=>x.toString(16).padStart(2,'0')).join('');}
 class TooLarge extends Error {}
 async function readBounded(request,limit){const reader=request.body?.getReader();if(!reader)throw new Error();const parts=[];let size=0;while(true){const {value,done}=await reader.read();if(done)break;size+=value.length;if(size>limit){await reader.cancel();throw new TooLarge();}parts.push(value);}const bytes=new Uint8Array(size);let pos=0;for(const p of parts){bytes.set(p,pos);pos+=p.length;}return JSON.parse(new TextDecoder().decode(bytes));}
@@ -65,7 +79,7 @@ export default {async fetch(request,env,ctx){
 }};
 async function handle(request,env,ctx){
   const url=new URL(request.url);
-  if(request.method==='GET'&&url.pathname==='/health')return json({service:'NurimAI',ready:Boolean(env.RATE_SALT&&((env.GEMINI_API_KEY&&env.GEMINI_FREE_TIER==='true')||(env.GROQ_API_KEY&&env.GROQ_FREE_TIER==='true'))),telegram:Boolean(env.TELEGRAM_TOKEN)});
+  if(request.method==='GET'&&url.pathname==='/health'){const fallback=Boolean(env.AI&&env.WORKERS_AI_FREE==='true');return json({service:'NurimAI',ready:Boolean(env.RATE_SALT&&((env.GEMINI_API_KEY&&env.GEMINI_FREE_TIER==='true')||(env.GROQ_API_KEY&&env.GROQ_FREE_TIER==='true')||fallback)),telegram:Boolean(env.TELEGRAM_TOKEN),fallback});}
   if(url.pathname==='/telegram'||url.pathname==='/telegram/setup')return telegramRoute(request,env,ctx,url);
   if(request.method!=='POST'||!['/chat','/speak'].includes(url.pathname))return json({error:'Not found'},404);
   if(!request.headers.get('content-type')?.startsWith('application/json'))return json({error:'JSON required'},415);
@@ -101,7 +115,7 @@ async function setupBot(env,url,secret){
   }catch(error){console.log(`telegram setup failed: ${error?.message||'Error'}`);return json({ok:false,error:'Telegram rejected the setup: check the TELEGRAM_TOKEN secret.'},502);}
 }
 export class AiGateway {
-  constructor(state,env){this.state=state;this.env=env;this.router=new Router({fetcher:upstream});this.active=0;}
+  constructor(state,env){this.state=state;this.env=env;this.router=new Router({fetcher:(url,options)=>url===URLS.Cloudflare?workersAi(env,options):upstream(url,options)});this.active=0;}
   async fetch(request){
     if(new URL(request.url).pathname==='/telegram'){
       const {update}=await request.json();const item=parseUpdate(update);
@@ -121,7 +135,8 @@ export class AiGateway {
       return json({text:withSources(reply),incomplete:reply.incomplete}); // news answers carry their sources
     }catch(error){console.log(`chat failed: ${error instanceof UserError?error.message:error?.name||'Error'}; routes: ${this.router.diagnostics(settings).map(r=>`${r.provider}=${r.status}`).join(', ')}`);const rejected=error instanceof UserError&&error.code==='input';return json({error:rejected?'Input rejected':error instanceof UserError?'AI temporarily unavailable':'Service unavailable'},rejected?422:503);}finally{this.active--;}
   }
-  settings(){return {keys:{Gemini:this.env.GEMINI_API_KEY||'',Groq:this.env.GROQ_API_KEY||'',OpenRouter:''},free:{Gemini:this.env.GEMINI_FREE_TIER==='true',Groq:this.env.GROQ_FREE_TIER==='true'},autoFallback:true};}
+  // Gemini, then Groq, then OpenRouter's free models (if its key is set), then Workers AI.
+  settings(){return {keys:{Gemini:this.env.GEMINI_API_KEY||'',Groq:this.env.GROQ_API_KEY||'',OpenRouter:this.env.OPENROUTER_API_KEY||'',Cloudflare:this.env.AI?'binding':''},free:{Gemini:this.env.GEMINI_FREE_TIER==='true',Groq:this.env.GROQ_FREE_TIER==='true',Cloudflare:this.env.WORKERS_AI_FREE==='true'},autoFallback:true};}
   // Telegram resends an update it thinks failed: each one is answered once (per chat, update ids only grow).
   async firstDelivery(item){return this.state.storage.transaction(async tx=>{const key=`tg:seen:${item.chatId}`;if((await tx.get(key)||0)>=item.updateId)return false;await tx.put(key,item.updateId);return true;});}
   // One Telegram message -> one answer in the chat. The bot has its own daily budget (per Telegram user and in total) and
