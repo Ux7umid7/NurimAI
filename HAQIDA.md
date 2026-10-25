@@ -3,7 +3,7 @@
 <h1 align="center">NurimAI — loyiha haqida</h1>
 
 <p align="center">Windows, Mac, Android va iPhone uchun bepul, o‘zbek tilidagi kichik AI yordamchi.<br>
-<a href="https://ux7umid7.github.io/NurimAI/">Yuklab olish sahifasi</a> · <a href="https://github.com/Ux7umid7/NurimAI/releases/latest">So‘nggi reliz</a> · Joriy versiya: <b>0.8.1</b></p>
+<a href="https://ux7umid7.github.io/NurimAI/">Yuklab olish sahifasi</a> · <a href="https://github.com/Ux7umid7/NurimAI/releases/latest">So‘nggi reliz</a> · Joriy versiya: <b>0.8.2</b></p>
 
 ---
 
@@ -35,6 +35,9 @@ NurimAI — kompyuter ekranining chetida turadigan kichik qahramon. Uni bossangi
 - 🎤 **Ovozli savol va javob** — mikrofon tugmasi bilan savol beriladi, NurimAI eshitganini yozib javob beradi; javobni 🔊 bilan o‘zbekcha ovozda tinglash mumkin (Gemini TTS).
 - 🎓 **Ustoz rejimi** — mavzu yoki suhbat bo‘yicha test (har javobga izoh), yodlash kartochkalari (Leitner takrorlash jadvali), kunlik mashq seriyasi 🔥, eslatmalar; xato javoblar o‘zi kartochkaga aylanadi. “Ustoz uslubi” yoqilsa, javob qadamma-qadam o‘rgatiladi.
 - 📱 **Telefon versiyasi** — Android ilova (APK) va iPhone uchun veb-ilova (“Bosh ekranga qo‘shish”): chat, kamera, fayllar, ovoz, Ustoz va tarix telefonda ham.
+- 📰 **Internetdan so‘nggi ma’lumot** — yangilik, valyuta kursi, ob-havo va sport savollarida NurimAI Kun.uz, Gazeta.uz, Daryo.uz, BBC, Sports.uz, Markaziy bank va Open-Meteo’dan ma’lumot olib, manbalarini ko‘rsatadi.
+- 🤖 **Telegram bot** — @NurimAI_bot: matn, rasm, stiker, PDF, ovozli savol va /yangiliklar.
+- 🌓 **Mavzu** — Sozlamalarda Tizim, Yorug‘ yoki Qorong‘i ko‘rinishni tanlash mumkin.
 - 🕘 **Suhbatlar tarixi** — eski suhbatlarni qidirish, ochib davom ettirish va o‘chirish; faqat shu kompyuterda, shifrlangan holda.
 - 📌 **Har doim yonida** — qahramonni ekranning istalgan chetiga sudrab qo‘yish mumkin, `Ctrl+Alt+Space` (Mac’da `⌘+⌥+Space`) chatni istalgan dasturdan ochadi.
 - 🔄 **O‘zi yangilanadi** — Windows’da yangi versiya fonda yuklanadi va dasturdan chiqqanda o‘rnatiladi.
@@ -45,7 +48,7 @@ NurimAI — kompyuter ekranining chetida turadigan kichik qahramon. Uni bossangi
 | Platformalar | Windows 10/11 (64-bit), macOS (Apple Silicon va Intel), Android 7+ (APK), iPhone va boshqa telefonlar (veb-ilova) |
 | Til | O‘zbek (lotin), foydalanuvchi boshqa tilda yozsa — o‘sha tilda |
 | Narx | Bepul, umumiy kunlik limit bilan |
-| Joriy versiya | 0.8.1 (2026-yil 24-oktabr) |
+| Joriy versiya | 0.8.2 (2026-yil 25-oktabr) |
 
 ---
 
@@ -99,6 +102,9 @@ flowchart LR
     W --> D[("Durable Object AiGateway<br/>kunlik limitlar · SQLite")]
     D -- "asosiy" --> G["Google Gemini<br/>gemini-3.5-flash-lite"]
     D -- "zaxira, faqat matn" --> Q["Groq<br/>qwen/qwen3.8-27b"]
+    D -- "ikkalasi band bo‘lsa" --> C["Cloudflare Workers AI<br/>Gemma 4 (gemma-4-26b-a4b-it)"]
+    D -. "yangilik, kurs, ob-havo" .-> N["Yangilik saytlari RSS,<br/>Markaziy bank, Open-Meteo"]
+    T(["Telegram<br/>@NurimAI_bot"]) -- "webhook" --> W
     A -. "yangilanishlar" .-> R[("GitHub Releases")]
     P["GitHub Pages<br/>yuklab olish sahifasi"] -. "Setup / DMG" .-> R
 ```
@@ -112,7 +118,8 @@ NurimAI-Desktop/
 │   ├── preload.cjs       Interfeysga ochiladigan xavfsiz API
 │   ├── index.html, renderer.js, style.css   Chat oynasi
 │   ├── pet.html, pet.js, pet.css            Ekran chetidagi qahramon
-│   ├── router.cjs        AI xizmatlariga so‘rov va almashish (Gemini → Groq)
+│   ├── router.cjs        AI xizmatlariga so‘rov va almashish (Gemini → Groq → Workers AI)
+│   ├── web.cjs           Internetdan yangilik, kurs va ob-havo (RSS, Markaziy bank, Open-Meteo)
 │   ├── gateway.cjs       NurimAI serveriga ulanish
 │   ├── attachments.cjs   Fayllarni tayyorlash (Word/Excel/PowerPoint/PDF/rasm)
 │   ├── store.cjs         Sozlamalar va shifrlangan shaxsiy kalitlar
@@ -223,11 +230,13 @@ Limitlar `server/wrangler.jsonc` dagi `DAILY_TOTAL`, `DAILY_DEVICE`, `DAILY_IP` 
 | **Google Gemini** | `gemini-3.5-flash-lite` | Asosiy model | Matn, rasm, skrinshot, PDF |
 | **Gemini TTS** | `gemini-3.8-flash-lite-tts` (ovoz: Sulafat) | 🔊 Tinglash — javobni o‘zbekcha ovozga aylantirish | Matn → 24 kHz WAV |
 | **Groq** | `qwen/qwen3.8-27b` | Gemini limitga yetsa yoki javob bermasa | Faqat matn (Word, Excel, PowerPoint matni ham) |
-| **OpenRouter** | `openrouter/free` | Faqat “Shaxsiy API kalitlari” rejimida, ixtiyoriy | Matn, faqat bepul modellar (narx chegarasi 0) |
+| **OpenRouter** | `openrouter/free` | “Shaxsiy API kalitlari” rejimida; serverda `OPENROUTER_API_KEY` siri qo‘yilsa, Groq’dan keyin | Matn, faqat bepul modellar (narx chegarasi 0) |
+| **Cloudflare Workers AI** | `@cf/google/gemma-4-26b-a4b-it` | Faqat serverda, Gemini va Groq band bo‘lsa (kalitsiz, kuniga 10 000 neuron bepul — bir necha yuz javob) | Faqat matn |
 
 **Qanday ishlaydi**
 
-- So‘rov avval Gemini’ga boradi. Limit (429), vaqt tugashi yoki xizmat xatosida Groq’ga o‘tadi va suhbat konteksti saqlanadi.
+- So‘rov avval Gemini’ga boradi. Limit (429), vaqt tugashi yoki xizmat xatosida Groq’ga, u ham band bo‘lsa Workers AI’ga o‘tadi va suhbat konteksti saqlanadi.
+- Yangilik, kurs, ob-havo yoki sport so‘ralsa, NurimAI avval ochiq manbalardan (yangilik saytlarining RSS lentalari, Markaziy bank, Open-Meteo) ma’lumot olib, uni savolga “Internetdan olingan ma’lumot” sifatida qo‘shadi; javob ostida manbalar ko‘rsatiladi. Gemini’ning bepul tarifida Google qidiruvi yo‘q, shuning uchun shu yo‘l tanlangan.
 - `Retry-After` muddatiga rioya qilinadi: limitga yetgan xizmat muddat tugaguncha chetlab o‘tiladi, keyin yana sinaladi.
 - Rasm, PDF yoki ovozli savol bo‘lsa, faqat Gemini ishlatiladi, chunki Groq modeli rasm ko‘rmaydi va ovoz eshitmaydi.
 - Xavfsizlik sababli rad etilgan javob yoki uzunlik chegarasi boshqa modelga qayta yuborilmaydi.
@@ -263,6 +272,7 @@ Limitlar `server/wrangler.jsonc` dagi `DAILY_TOTAL`, `DAILY_DEVICE`, `DAILY_IP` 
 
 | Versiya | Sana | Asosiy o‘zgarishlar |
 |---|---|---|
+| 0.8.2 | 2026-10-25 | Sozlamalarda mavzu tanlovi (Tizim / Yorug‘ / Qorong‘i); internetdan yangilik, kurs, ob-havo va sport; Gemini va Groq band bo‘lsa zaxira Workers AI; Telegram bot @NurimAI_bot |
 | 0.8.1 | 2026-10-24 | Telefon: javobdan keyin “Tayyor!” Pufak paneli o‘zi yopiladi (0.8.0 da ochiq qolardi) |
 | 0.8.0 | 2026-10-24 | Yangi dizayn (Ustozim Nurim brendi): tungi/oltin ranglar, Commissioner va Onest shriftlari, 2D Pufak va stikerlar; kompyuterda suhbatlar paneli, kunlik mashq kartasi, ovozli savol ekrani, haftalik seriya; telefonda pastki menyu |
 | 0.7.2 | 2026-10-24 | Javoblardagi “---” (shuningdek “* * *”, “___”) butun kenglikdagi ingichka chiziq bo‘lib chiziladi, kod ichida o‘zgarmaydi, tinglashda o‘qilmaydi |

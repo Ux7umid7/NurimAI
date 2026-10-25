@@ -1,3 +1,10 @@
+# Verification — 0.8.2, 2026-10-25
+
+- 96 Node tests and 18 Electron UI tests pass locally on Windows. New UI coverage: the Mavzu choice in both apps (Tizim / Yorug‘ / Qorong‘i) switches the palette and the phone's theme-color at once, beats the system's mode, follows the system on "Tizim" (also when it changes) and is applied before the first paint after a reload. Screenshots of both settings screens in light and dark were checked by eye.
+- Out of 7 full UI runs, 5 passed and 2 had one failure each: a 3D-pet mood timing check ("Nur catches files…") and one `toHaveCount` check whose test was not recorded; reruns passed, and two runs without the theme change also passed.
+- Live server (deployed by the user): news, weather and currency questions answered from the internet with sources; cbu.uz times out from Cloudflare, so the market rate (ExchangeRate-API) stands in and says it is not official. `/health` reports `fallback: true` (Workers AI bound). Gemma 4 on Workers AI was tried in a scratch worker: correct Uzbek ("Surat/Maxraj"), 13–17 neurons per answer with thinking off.
+- Not verified: an answer actually served by Workers AI on the live server (it only runs once Gemini and Groq are both used up), and the theme choice on a real phone.
+
 # Verification — 0.8.1, 2026-10-24
 
 - Found while checking 0.8.0 live on the site: after an answer the phone app kept the "Tayyor!" Pufak panel open, because rendering the answer cancelled the panel's timer. Fixed; a new UI test waits for the panel to close and fails on the 0.8.0 code.
