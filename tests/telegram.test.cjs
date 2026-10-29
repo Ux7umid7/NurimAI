@@ -1,6 +1,6 @@
 const test=require('node:test');const assert=require('node:assert/strict');
 // Fake Durable Object storage and a fake network (Telegram Bot API + Gemini) for NurimAI's Telegram bot.
-function fakeState(){const map=new Map();const storage={get:async k=>structuredClone(map.get(k)),put:async(k,v)=>{map.set(k,structuredClone(v));},delete:async k=>{map.delete(k);},transaction:async fn=>fn(storage)};return {storage,map};}
+function fakeState(){const map=new Map();const storage={get:async k=>Array.isArray(k)?new Map(k.filter(x=>map.has(x)).map(x=>[x,structuredClone(map.get(x))])):structuredClone(map.get(k)),put:async(k,v)=>{map.set(k,structuredClone(v));},delete:async k=>{map.delete(k);},transaction:async fn=>fn(storage)};return {storage,map};}
 // News sites: Gazeta.uz has one story, the rest are down.
 const GAZETA='<rss><channel><item><title>Toshkentdagi Elbek bog‘i yangilanadi</title><link>https://www.gazeta.uz/oz/park/?a=1&amp;b="2"</link><description>Bog‘ to‘liq yangilanadi</description><pubDate>Sun, 25 Oct 2026 04:41:00 GMT</pubDate></item></channel></rss>';
 function fakeNet(answer='Javob: **12**'){
@@ -59,6 +59,9 @@ test('setup points the bot at this worker with the derived secret, commands and 
   assert.deepEqual(data,{ok:true,bot:'@NurimAI_test_bot',webhook:'https://api.test/telegram'});
   const hook=net.calls.find(c=>c.url.endsWith('/setWebhook')).body;assert.equal(hook.url,'https://api.test/telegram');assert.equal(hook.secret_token,await webhookSecret(env.TELEGRAM_TOKEN));
   assert.ok(net.calls.some(c=>c.url.endsWith('/setMyCommands')));assert.ok(net.calls.every(c=>!JSON.stringify(c.body||{}).includes(env.TELEGRAM_TOKEN)));
+  assert.deepEqual(hook.allowed_updates,['message','callback_query','my_chat_member']); // the bot learns when it is added to a group
+  const scopes=net.calls.filter(c=>c.url.endsWith('/setMyCommands')).map(c=>c.body.scope?.type||'default');assert.deepEqual(scopes,['default','all_group_chats','all_chat_administrators']);
+  assert.ok(net.calls.find(c=>c.body?.scope?.type==='all_chat_administrators').body.commands.some(c=>c.command==='mavzu'));
  }finally{globalThis.fetch=real;}
 });
 test('a question gets an HTML answer with buttons, the chat is remembered, repeats are ignored and /yangi forgets',async()=>{
@@ -145,5 +148,28 @@ test('when Gemini and Groq are used up, Workers AI answers through the binding; 
   gw.router.reset('Gemini');gw.router.reset('Groq');await ask(msg(61,'Yana'));assert.equal(net.sent().at(-1).text,'Eski <b>javob</b> shakli');
   gw.router.reset('Gemini');gw.router.reset('Groq');await ask(msg(62,'Yana bir'));assert.match(net.sent().at(-1).text,/javob bera olmadim/);
   const without=new AiGateway({storage:fakeState().storage},{...env,AI:ai});runs.length=0;const item=parseUpdate(msg(63,'Salom'));await without.firstDelivery(item);await without.telegram(item);assert.equal(runs.length,0,'not offered unless WORKERS_AI_FREE is set');
+  // The apps' /chat gets the same fallback as the bot.
+  runs.length=0;const apps=new AiGateway({storage:fakeState().storage},{...env,GROQ_API_KEY:'q',GROQ_FREE_TIER:'true',AI:ai,WORKERS_AI_FREE:'true',RATE_SALT:'s'});
+  const chat=await apps.fetch(new Request('https://internal/chat',{method:'POST',body:JSON.stringify({data:{question:'Salom',history:[],files:[]},identities:{ip:'i',device:'d'}})}));
+  assert.equal(chat.status,200);assert.equal((await chat.json()).text,'Zaxira **javob**');assert.equal(runs.length,1);
+ }finally{globalThis.fetch=real;}
+});
+test('in a group the bot runs the daily question game: the cron tick asks, an answer is judged, nothing else is answered',async()=>{
+ const {default:worker,AiGateway}=await import('../server/worker.mjs');const {parseUpdate}=await import('../server/telegram.mjs');
+ let handed=null;const cron=[];await worker.scheduled({},{...env,BUDGET:{idFromName:()=> 'id',get:()=>({fetch:async r=>{handed=new URL(r.url).pathname;return Response.json({ok:true});}})}},{waitUntil:p=>cron.push(p)});await Promise.all(cron);assert.equal(handed,'/tick');
+ const net=fakeNet(body=>{const prompt=body.contents.at(-1).parts.at(-1).text;return prompt.startsWith('Telegram guruhi')?'{"savol":"HTML’da eng katta sarlavha tegi qaysi?","javob":"h1","qabul":["<h1>"],"izoh":"h1 dan h6 gacha, h1 eng kattasi."}':'{"baho":"notogri"}';});
+ const real=globalThis.fetch;globalThis.fetch=net.fetch;const {storage,map}=fakeState();
+ try{
+  const gw=new AiGateway({storage},env);const ask=async u=>{const item=parseUpdate(u);if(item&&await gw.firstDelivery(item))await gw.telegram(item);};
+  const chat={id:-1009,type:'supergroup',title:'Frontend'},admin={message_id:5,chat,from:{id:1087968824,is_bot:true},sender_chat:{id:-1009}};
+  await ask({update_id:70,my_chat_member:{chat,from:{id:7},old_chat_member:{status:'left'},new_chat_member:{status:'member'}}});assert.match(net.sent().at(-1).text,/Salom! Men NurimAI/);assert.equal(net.sent().at(-1).chat_id,-1009);
+  await ask({update_id:71,message:{...admin,text:'/mavzu JS/HTML'}});
+  const t=new Date(Date.now()+5*3600000),now=`${String(t.getUTCHours()).padStart(2,'0')}:${String(t.getUTCMinutes()).padStart(2,'0')}`;
+  await ask({update_id:72,message:{...admin,message_id:6,text:`/vaqt ${now}`}});assert.match(net.sent().at(-1).text,new RegExp(`soat <b>${now}</b>`));
+  await ask({update_id:73,message:{message_id:7,chat,from:{id:8,first_name:'Ali'},text:'Bugun dars bormi?'}});assert.equal(net.gemini().length,0,'chat without an open question is left alone');
+  await gw.fetch(new Request('https://internal/tick',{method:'POST'}));
+  assert.equal(net.gemini().length,1);assert.match(net.gemini()[0].contents[0].parts.at(-1).text,/Mavzu: «JS\/HTML»/);assert.match(net.sent().at(-1).text,/Kunlik savol<\/b> · JS\/HTML\n\nHTML’da eng katta sarlavha tegi qaysi\?/);
+  await ask({update_id:74,message:{message_id:8,chat,from:{id:8,first_name:'Ali'},text:'<h1>'}});assert.equal(net.gemini().length,1,'an exact answer is not sent to the AI');
+  assert.match(net.sent().at(-1).text,/To‘g‘ri!<\/b> <a href="tg:\/\/user\?id=8">Ali<\/a> birinchi topdi/);assert.deepEqual(map.get('tg:score:-1009'),{8:{name:'Ali',points:1}});
  }finally{globalThis.fetch=real;}
 });

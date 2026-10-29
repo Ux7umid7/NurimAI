@@ -1,5 +1,6 @@
 import routerModule from '../src/router.cjs';
-import { TelegramBot, webhookSecret, parseUpdate, questionFor, splitHeard, toTelegramHtml, splitAnswer, escape, sourcesHtml, keyboardFor, TEXTS, SITE } from './telegram.mjs';
+import { TelegramBot, webhookSecret, parseUpdate, questionFor, splitHeard, toTelegramHtml, splitAnswer, escape, sourcesHtml, keyboardFor, TEXTS, SITE, HELP_KEYBOARD } from './telegram.mjs';
+import { GroupGame, GROUP_COMMANDS, ADMIN_COMMANDS } from './group.mjs';
 const { Router, UserError, speak, SPEECH, withSources, URLS } = routerModule;
 const json = (data,status=200,extra={})=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...extra}});
 const MEDIA = { image: new Set(['image/png', 'image/jpeg', 'image/webp', 'image/heic', 'image/heif']), pdf: new Set(['application/pdf']), audio: new Set(['audio/wav']) };
@@ -76,6 +77,12 @@ export default {async fetch(request,env,ctx){
   if(!origin)return response;
   const headers=new Headers(response.headers);for(const [k,v] of Object.entries(cors(origin)))headers.set(k,v);
   return new Response(response.body,{status:response.status,headers});
+},
+// Cron trigger (every minute): the groups' daily questions are asked and unanswered ones revealed on time.
+async scheduled(event,env,ctx){
+  if(!env.TELEGRAM_TOKEN||!env.BUDGET)return;
+  const work=env.BUDGET.get(env.BUDGET.idFromName('global')).fetch(new Request('https://internal/tick',{method:'POST'})).catch(error=>console.log(`tick hand-off failed: ${error?.name||'Error'}`));
+  if(ctx?.waitUntil)ctx.waitUntil(work);else await work;
 }};
 async function handle(request,env,ctx){
   const url=new URL(request.url);
@@ -108,8 +115,9 @@ async function setupBot(env,url,secret){
   const bot=new TelegramBot(env.TELEGRAM_TOKEN,upstream);
   try{
     const me=await bot.call('getMe');const hook=`${url.origin}/telegram`;
-    await bot.call('setWebhook',{url:hook,secret_token:secret,allowed_updates:['message','callback_query'],max_connections:10});
+    await bot.call('setWebhook',{url:hook,secret_token:secret,allowed_updates:['message','callback_query','my_chat_member'],max_connections:10});
     await bot.call('setMyCommands',{commands:[{command:'start',description:'Boshlash'},{command:'yangiliklar',description:'Bugungi yangiliklar'},{command:'yangi',description:'Yangi suhbat'},{command:'yordam',description:'Nima qila olaman'}]});
+    await bot.call('setMyCommands',{commands:GROUP_COMMANDS,scope:{type:'all_group_chats'}});await bot.call('setMyCommands',{commands:ADMIN_COMMANDS,scope:{type:'all_chat_administrators'}});
     await bot.call('setMyDescription',{description:TEXTS.description});await bot.call('setMyShortDescription',{short_description:TEXTS.short});
     return json({ok:true,bot:`@${me.username}`,webhook:hook});
   }catch(error){console.log(`telegram setup failed: ${error?.message||'Error'}`);return json({ok:false,error:'Telegram rejected the setup: check the TELEGRAM_TOKEN secret.'},502);}
@@ -117,6 +125,7 @@ async function setupBot(env,url,secret){
 export class AiGateway {
   constructor(state,env){this.state=state;this.env=env;this.router=new Router({fetcher:(url,options)=>url===URLS.Cloudflare?workersAi(env,options):upstream(url,options)});this.active=0;}
   async fetch(request){
+    if(new URL(request.url).pathname==='/tick'){if(this.env.TELEGRAM_TOKEN)await this.groups().tick();return json({ok:true});}
     if(new URL(request.url).pathname==='/telegram'){
       const {update}=await request.json();const item=parseUpdate(update);
       if(item&&this.env.TELEGRAM_TOKEN&&await this.firstDelivery(item)){const work=this.telegram(item);this.state.waitUntil?.(work);} // the reply goes on after this returns
@@ -128,7 +137,7 @@ export class AiGateway {
     const limits={total:Math.min(1000,Math.max(1,Number(this.env.DAILY_TOTAL)||200)),ip:Math.min(100,Math.max(1,Number(this.env.DAILY_IP)||60)),device:Math.min(100,Math.max(1,Number(this.env.DAILY_DEVICE)||30))};
     const result=await this.state.storage.transaction(async tx=>{const next=budget(await tx.get('budget'),Date.now(),identities.ip,identities.device,limits);if(next.allowed)await tx.put('budget',next.data);return next;});
     if(!result.allowed)return json({error:'Free limit reached'},429,{'Retry-After':String(result.retry)});
-    const settings={keys:{Gemini:this.env.GEMINI_API_KEY||'',Groq:this.env.GROQ_API_KEY||'',OpenRouter:''},free:{Gemini:this.env.GEMINI_FREE_TIER==='true',Groq:this.env.GROQ_FREE_TIER==='true'},autoFallback:true};
+    const settings=this.settings(); // the apps get the same routes as the bot, Workers AI included
     this.active++;
     try{
       const reply=await this.router.ask(settings,data.history,data.question,AbortSignal.timeout(85000),data.files);
@@ -137,6 +146,15 @@ export class AiGateway {
   }
   // Gemini, then Groq, then OpenRouter's free models (if its key is set), then Workers AI.
   settings(){return {keys:{Gemini:this.env.GEMINI_API_KEY||'',Groq:this.env.GROQ_API_KEY||'',OpenRouter:this.env.OPENROUTER_API_KEY||'',Cloudflare:this.env.AI?'binding':''},free:{Gemini:this.env.GEMINI_FREE_TIER==='true',Groq:this.env.GROQ_FREE_TIER==='true',Cloudflare:this.env.WORKERS_AI_FREE==='true'},autoFallback:true};}
+  groups(bot=new TelegramBot(this.env.TELEGRAM_TOKEN,upstream)){return new GroupGame({store:this.state.storage,bot,ask:(prompt,id)=>this.groupAsk(prompt,id),username:this.env.BOT_USERNAME||'NurimAI_bot'});}
+  // The group game's AI calls (questions and judging answers) have their own budget per group and in total.
+  async groupAsk(prompt,groupId){
+    const day=Math.floor(Date.now()/86400000),who=await hash(`${this.env.RATE_SALT}:${day}:group:${groupId}`);
+    const each=Math.min(500,Math.max(1,Number(this.env.TG_GROUP_DAILY)||80)),limits={total:Math.min(5000,Math.max(1,Number(this.env.TG_GROUP_TOTAL)||1000)),ip:each,device:each,minute:15};
+    const allowed=await this.state.storage.transaction(async tx=>{const next=budget(await tx.get('tg-group'),Date.now(),who,who,limits);if(next.allowed)await tx.put('tg-group',next.data);return next;});
+    if(!allowed.allowed)throw Object.assign(new Error('group limit'),{code:'limit'});
+    this.active++;try{return (await this.router.ask(this.settings(),[],prompt,AbortSignal.timeout(60000),[],{search:false})).text;}finally{this.active--;}
+  }
   // Telegram resends an update it thinks failed: each one is answered once (per chat, update ids only grow).
   async firstDelivery(item){return this.state.storage.transaction(async tx=>{const key=`tg:seen:${item.chatId}`;if((await tx.get(key)||0)>=item.updateId)return false;await tx.put(key,item.updateId);return true;});}
   // One Telegram message -> one answer in the chat. The bot has its own daily budget (per Telegram user and in total) and
@@ -146,11 +164,12 @@ export class AiGateway {
     const bot=new TelegramBot(this.env.TELEGRAM_TOKEN,upstream),store=this.state.storage,chatKey=`tg:chat:${item.chatId}`;
     try{
       if(item.kind==='callback'){await bot.call('answerCallbackQuery',{callback_query_id:item.id}).catch(()=>{});if(item.data==='new'){await store.delete(chatKey);await bot.send(item.chatId,TEXTS.fresh);}return;}
-      if(!item.private){if(item.kind==='command')await bot.send(item.chatId,TEXTS.group);return;}
+      // Groups: the daily question game (server/group.mjs). A failure there is only logged, never posted to the group.
+      if(!item.private){if(item.group)await this.groups(bot).update(item).catch(error=>console.log(`group failed: ${String(error?.message||error?.name||'Error').slice(0,160)}`));return;}
       if(item.kind==='command'){
         if(item.command==='start'){await store.delete(chatKey);await bot.call('sendPhoto',{chat_id:item.chatId,photo:`${SITE}bot/hello.jpg`,caption:TEXTS.hello,parse_mode:'HTML'}).catch(()=>bot.send(item.chatId,TEXTS.hello));}
         else if(item.command==='yangi'){await store.delete(chatKey);await bot.send(item.chatId,TEXTS.fresh);}
-        else await bot.send(item.chatId,TEXTS.help);
+        else await bot.send(item.chatId,TEXTS.help,{reply_markup:HELP_KEYBOARD});
         return;
       }
       if(['unsupported','too-big','too-long'].includes(item.kind)){await bot.send(item.chatId,item.kind==='too-big'?TEXTS.big:item.kind==='too-long'?TEXTS.long:TEXTS.unsupported);return;}

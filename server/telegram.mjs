@@ -10,10 +10,9 @@ export const TEXTS = Object.freeze({
   description: 'Salom! Men NurimAI — o‘zbekcha gapiradigan AI ustoz. Savolingizni yozing, masalani rasmga olib yuboring yoki ovozli xabar qoldiring: mavzuni oddiy tilda, qadamma-qadam tushuntirib beraman. Bepul.',
   short: 'O‘zbekcha AI ustoz: savol, rasm va ovozli xabarga javob beradi.',
   hello: '<b>Salom! Men NurimAI</b> — o‘zbekcha gapiradigan AI ustozingiz.\n\nMenga:\n• savolingizni <b>yozing</b>;\n• masala yoki matnni <b>rasmga olib</b> yuboring;\n• <b>ovozli xabar</b> qoldiring;\n• PDF yoki <b>stiker</b> yuboring.\n\nJavobni oddiy tilda, qadamma-qadam tushuntiraman. /yangiliklar — bugungi yangiliklar, /yangi — yangi suhbat, /yordam — yordam.',
-  help: '<b>NurimAI nima qila oladi</b>\n\n• Istalgan mavzuni misollar bilan tushuntiradi.\n• Rasmdagi masalani yechish yo‘lini ko‘rsatadi.\n• Ovozli xabarni tinglab, javob beradi.\n• PDF hujjatni qisqacha tushuntiradi.\n• Stikeringizni ko‘rib, unga javob qaytaradi.\n• Yangilik, valyuta kursi, ob-havo va sport savollarida internetdan (Kun.uz, Gazeta.uz, Daryo.uz, BBC, Markaziy bank, Open-Meteo) ma’lumot olib, manbalarini ko‘rsatadi. /yangiliklar — bugungi asosiy yangiliklar.\n• Suhbat davomini eslab qoladi: /yangi bilan yangisini boshlang.\n\nTest, kartochkalar, kunlik mashq va ovozli javoblar NurimAI ilovasida: ' + SITE,
+  help: '<b>NurimAI nima qila oladi</b>\n\n• Istalgan mavzuni misollar bilan tushuntiradi.\n• Rasmdagi masalani yechish yo‘lini ko‘rsatadi.\n• Ovozli xabarni tinglab, javob beradi.\n• PDF hujjatni qisqacha tushuntiradi.\n• Stikeringizni ko‘rib, unga javob qaytaradi.\n• Yangilik, valyuta kursi, ob-havo va sport savollarida internetdan (Kun.uz, Gazeta.uz, Daryo.uz, BBC, Markaziy bank, Open-Meteo) ma’lumot olib, manbalarini ko‘rsatadi. /yangiliklar — bugungi asosiy yangiliklar.\n• Suhbat davomini eslab qoladi: /yangi bilan yangisini boshlang.\n• <b>Guruhga qo‘shing</b>: har kuni tanlangan mavzuda (masalan, Tarix 8-sinf yoki JavaScript) savol beraman, javoblarni tekshiraman va reyting yuritaman.\n\nTest, kartochkalar, kunlik mashq va ovozli javoblar NurimAI ilovasida: ' + SITE,
   fresh: 'Yangi suhbat boshlandi. Savolingizni yozing 🙂',
   unsupported: 'Hozircha matn, rasm, stiker, PDF va ovozli xabarni tushunaman. Word, Excel va boshqa fayllar uchun NurimAI ilovasidan foydalaning: ' + SITE,
-  group: 'Men shaxsiy suhbatda ishlayman: menga to‘g‘ridan-to‘g‘ri yozing.',
   limit: 'Bugungi bepul savollar tugadi. Ertaga yana yozing yoki NurimAI ilovasidan foydalaning: ' + SITE,
   slow: 'Juda tez yozyapsiz 🙂 Bir daqiqadan keyin yana yuboring.',
   busy: 'Hozir juda ko‘p savol kelyapti. Bir ozdan keyin qayta yuboring.',
@@ -31,17 +30,31 @@ export async function webhookSecret(token) {
   return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('').slice(0, 48);
 }
 
+export const displayName = from => String([from?.first_name, from?.last_name].filter(Boolean).join(' ') || (from?.username ? `@${from.username}` : 'Ishtirokchi')).slice(0, 40);
+const GROUPS = new Set(['group', 'supergroup']);
 // One incoming update -> what NurimAI has to do. Unknown updates return null and are ignored.
 export function parseUpdate(update) {
   if (!update || !Number.isSafeInteger(update.update_id)) return null;
   const callback = update.callback_query;
   if (callback?.message?.chat && callback.from) return { kind: 'callback', updateId: update.update_id, id: callback.id, chatId: callback.message.chat.id, userId: callback.from.id, data: String(callback.data || '') };
+  // The bot was added to a group or removed from it.
+  const member = update.my_chat_member;
+  if (member?.chat && GROUPS.has(member.chat.type)) {
+    const was = member.old_chat_member?.status, now = member.new_chat_member?.status, out = s => !s || s === 'left' || s === 'kicked';
+    if (out(was) !== out(now)) return { kind: out(now) ? 'left' : 'joined', updateId: update.update_id, chatId: member.chat.id, userId: member.from?.id || 0, title: String(member.chat.title || ''), private: false, group: true };
+    return null;
+  }
   const m = update.message;
-  if (!m?.chat || !m.from || m.from.is_bot) return null;
-  const base = { updateId: update.update_id, chatId: m.chat.id, userId: m.from.id, private: m.chat.type === 'private', caption: typeof m.caption === 'string' ? m.caption.slice(0, 1000) : '' };
+  // An anonymous group admin writes as the group itself (from = GroupAnonymousBot); other bots and channel reposts are ignored.
+  const anonymousAdmin = Boolean(m?.sender_chat && m.sender_chat.id === m.chat?.id);
+  if (!m?.chat || !m.from || (m.from.is_bot && !anonymousAdmin) || m.is_automatic_forward) return null;
+  const group = GROUPS.has(m.chat.type);
+  if (group && m.migrate_to_chat_id) return { kind: 'migrated', updateId: update.update_id, chatId: m.chat.id, to: m.migrate_to_chat_id, private: false, group };
+  const base = { updateId: update.update_id, chatId: m.chat.id, userId: m.from.id, private: m.chat.type === 'private', caption: typeof m.caption === 'string' ? m.caption.slice(0, 1000) : '',
+    ...(group ? { group, title: String(m.chat.title || '').slice(0, 80), messageId: m.message_id, name: anonymousAdmin ? 'Admin' : displayName(m.from), replyTo: m.reply_to_message?.message_id || 0, replyToBot: Boolean(m.reply_to_message?.from?.is_bot), anonymousAdmin } : {}) };
   if (typeof m.text === 'string') {
-    const command = /^\/(\w+)(?:@\w+)?(?:\s|$)/.exec(m.text);
-    if (command) return { ...base, kind: 'command', command: command[1].toLowerCase() };
+    const command = /^\/(\w+)(?:@(\w+))?(?:\s|$)/.exec(m.text);
+    if (command) return { ...base, kind: 'command', command: command[1].toLowerCase(), target: command[2] || '', args: m.text.slice(command[0].length).trim().slice(0, 200) };
     return { ...base, kind: 'text', text: m.text.slice(0, 4000) };
   }
   if (Array.isArray(m.photo) && m.photo.length) { const best = m.photo.filter(p => !p.file_size || p.file_size <= MAX_FILE).sort((a, b) => b.width * b.height - a.width * a.height)[0]; return best ? { ...base, kind: 'photo', fileId: best.file_id, mime: 'image/jpeg' } : { ...base, kind: 'too-big' }; }
@@ -103,6 +116,8 @@ export function splitAnswer(text, max = 3500) {
   return parts;
 }
 export const KEYBOARD = { inline_keyboard: [[{ text: '🆕 Yangi suhbat', callback_data: 'new' }, { text: '📱 NurimAI ilovasi', url: SITE }]] };
+export const GROUP_LINK = 'https://t.me/NurimAI_bot?startgroup=quiz';
+export const HELP_KEYBOARD = { inline_keyboard: [[{ text: '👥 Guruhga qo‘shish', url: GROUP_LINK }], ...KEYBOARD.inline_keyboard] };
 // Answers built from the internet end with their sources as links; when the question had a topic, a button opens it on Google too.
 export function sourcesHtml(reply) { return reply.sources?.length ? `\n\n<b>🔎 Manbalar:</b> ${reply.sources.map(s => `<a href="${escape(s.uri).replace(/"/g, '&quot;')}">${escape(s.title)}</a>`).join(' · ')}` : ''; }
 export function keyboardFor(reply) { const query = reply.sources?.length && reply.queries?.[0]; return query ? { inline_keyboard: [[{ text: `🔎 Google: ${query.slice(0, 40)}`, url: `https://www.google.com/search?q=${encodeURIComponent(query)}` }], ...KEYBOARD.inline_keyboard] } : KEYBOARD; }
