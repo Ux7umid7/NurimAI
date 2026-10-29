@@ -82,9 +82,9 @@ test('a day in the group: set up by an admin, the question at the set time, a hi
  const sent=bot.sent.length;await game.update(say('Temur Malikmi',8,'Ali'));assert.equal(bot.sent.length,sent,'one hint per person');
  for(let i=0;i<3;i++)await game.update(say(`taxmin ${i}`,8,'Ali'));const judged=prompts.length;await game.update(say('Amir Temur',8,'Ali'));assert.equal(prompts.length,judged,'five tries per person');assert.equal(bot.sent.length,sent);
  await game.update(say('amir temur!',10,'<Lola>',{replyTo:asked.messageId,replyToBot:true}));assert.equal(prompts.length,judged,'an exact answer needs no AI');
- assert.equal(bot.sent.at(-1).text,'✅ <b>To‘g‘ri!</b> <a href="tg://user?id=10">&lt;Lola&gt;</a> birinchi topdi (+1 ball).\nJavob: <b>Amir Temur</b>\n1370-yilda Samarqandda.\n\n🏆 /reyting');
+ assert.equal(bot.sent.at(-1).text,'✅ <b>To‘g‘ri!</b> <a href="tg://user?id=10">&lt;Lola&gt;</a> birinchi topdi (+3 ball).\nJavob: <b>Amir Temur</b>\n1370-yilda Samarqandda.\n\n🏆 /reyting'); // a hard question is worth 3
  assert.equal(map.get(`tg:group:${G}`).active,null);await game.update(say('Temur',11,'Sardor'));assert.equal(prompts.length,judged,'after the winner nothing is judged');
- await game.update(cmd('reyting','',9));assert.equal(bot.sent.at(-1).text,'🏆 <b>Reyting</b>\n🥇 &lt;Lola&gt; — 1 ball');
+ await game.update(cmd('reyting','',9));assert.equal(bot.sent.at(-1).text,'🏆 <b>Bugungi reyting</b>\n🥇 &lt;Lola&gt; — 1 ta savol, 3 ball');
  now=at(30,'07:35');await game.tick();assert.equal(prompts.length,judged+1);assert.match(prompts.at(-1),/Bu savollarni takrorlama:\n- Temuriylar davlatining asoschisi kim\? \(1\)/);
  const second=bot.sent.at(-1);assert.match(second.text,/Kunlik savol/);
  // Nobody answers: a hard question gets its hints at 5 and 10 minutes (the AI's, then the first letter), then the answer at 20.
@@ -111,4 +111,22 @@ test('admins can ask now, reveal now, pause; the daily AI limit and a removed bo
  await game.update(cmd('nimadir'));assert.match(bot.sent.at(-1).text,/bepul AI limiti/,'unknown commands are ignored');
  await game.update({kind:'migrated',chatId:G,to:-2002});assert.deepEqual(map.get('tg:groups'),[-2002]);assert.equal(map.get('tg:group:-2002').topic,'Matematika 1-sinf');assert.equal(map.has(`tg:group:${G}`),false);
  await game.update({kind:'left',chatId:-2002});assert.deepEqual(map.get('tg:groups'),[]);assert.equal(map.has('tg:group:-2002'),false);
+});
+test('the ranking counts questions found and points by difficulty, starts afresh each day, and /reset clears it or makes it manual',async()=>{
+ const {GroupGame}=await import('../server/group.mjs');
+ const {store,map}=fakeStore(),bot=fakeBot();let now=at(29,'12:00'),level='oson';
+ const game=new GroupGame({store,bot,now:()=>now,ask:async()=>`{"savol":"Savol ${level}?","javob":"ha","qiyinlik":"${level}"}`});
+ const win=async(user,name)=>{await game.update(cmd('savol'));await game.update(say('ha',user,name));};
+ await game.update(cmd('mavzu','Umumiy'));
+ await win(8,'Ali');assert.match(bot.sent.at(-1).text,/\(\+1 ball\)/);level='orta';await win(8,'Ali');assert.match(bot.sent.at(-1).text,/\(\+2 ball\)/);level='qiyin';await win(9,'Vali');assert.match(bot.sent.at(-1).text,/\(\+3 ball\)/);level='oson';await win(10,'Sardor');
+ await game.update(cmd('reyting','',9));assert.equal(bot.sent.at(-1).text,'🏆 <b>Bugungi reyting</b>\n🥇 Ali — 2 ta savol, 3 ball\n🥈 Vali — 1 ta savol, 3 ball\n🥉 Sardor — 1 ta savol, 1 ball'); // equal points: more questions first
+ await game.update(cmd('holat','',9));assert.match(bot.sent.at(-1).text,/Reyting: har kuni yangidan/);
+ now=at(30,'09:00');await game.update(cmd('reyting','',9));assert.match(bot.sent.at(-1).text,/Bugungi reyting<\/b>\nHali hech kim ball olmagan/,'a new day starts at zero');
+ await win(9,'Vali');await game.update(cmd('reset','',9));assert.equal(bot.sent.at(-1).text,'Buni faqat guruh adminlari o‘zgartira oladi.');
+ await game.update(cmd('reset'));assert.equal(bot.sent.at(-1).text,'♻️ Reyting tozalandi. Hammada 0 ball.');await game.update(cmd('reyting','',9));assert.match(bot.sent.at(-1).text,/Hali hech kim ball olmagan/);
+ await game.update(cmd('reset','qo‘lda'));assert.match(bot.sent.at(-1).text,/faqat \/reset bilan tozalanadi/);await win(9,'Vali');
+ now=at(31,'09:00');await win(9,'Vali');await game.update(cmd('reyting','',9));assert.equal(bot.sent.at(-1).text,'🏆 <b>Reyting</b> · 30.10.2026 dan beri\n🥇 Vali — 2 ta savol, 2 ball','by hand: the points add up across days');
+ await game.update(cmd('reset','kunlik'));assert.match(bot.sent.at(-1).text,/har kuni yangidan boshlanadi/);await game.update(cmd('reyting','',9));assert.match(bot.sent.at(-1).text,/Hali hech kim ball olmagan/);
+ // Scores saved before 0.8.3 ({id:{name,points}}, one point per question) still show, as questions found.
+ map.set(`tg:score:${G}`,{12:{name:'Eski',points:4}});await game.update(cmd('reyting','',9));assert.equal(bot.sent.at(-1).text,'🏆 <b>Bugungi reyting</b>\n🥇 Eski — 4 ta savol, 4 ball');
 });

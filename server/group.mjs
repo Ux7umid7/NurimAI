@@ -10,20 +10,30 @@ export const DEFAULTS = Object.freeze({ topic: '', time: '20:00', reveal: 25, on
 // A group that never chose a time with /vaqt follows the default (it was 08:00 before 0.8.3).
 export const timeOf = group => group.timeSet ? group.time : DEFAULTS.time;
 // Hints come while nobody has found the answer: after `every` minutes, then as long again, never in the last 3 minutes.
-export const LEVELS = Object.freeze({ oson: { label: '🟢 oson', every: 10 }, orta: { label: '🟡 o‘rtacha', every: 7 }, qiyin: { label: '🔴 qiyin', every: 5 } });
+// The first right answer earns points by difficulty: oson 1, o‘rtacha 2, qiyin 3.
+export const LEVELS = Object.freeze({ oson: { label: '🟢 oson', every: 10, points: 1 }, orta: { label: '🟡 o‘rtacha', every: 7, points: 2 }, qiyin: { label: '🔴 qiyin', every: 5, points: 3 } });
+export const pointsOf = level => (LEVELS[level] || LEVELS.orta).points;
+// The ranking starts afresh every day (Tashkent) unless an admin chose /reset qo‘lda; /reset clears it at once.
+export const dailyReset = group => group.resetDaily !== false;
+// Stored scores: { since: day, rows: { userId: { name, found, points } } }; before 0.8.3 it was { userId: { name, points } }, one point each.
+export function scoreBoard(stored, group, now) {
+  const today = tashkent(now).day;
+  const board = stored?.rows ? structuredClone(stored) : { since: today, rows: Object.fromEntries(Object.entries(stored || {}).map(([id, r]) => [id, { name: r.name, found: r.points, points: r.points }])) };
+  return dailyReset(group) && board.since !== today ? { since: today, rows: {} } : board;
+}
 export function hintTimes(level, reveal) {
   const every = (LEVELS[level] || LEVELS.orta).every, times = [every, every * 2].filter(m => m <= reveal - 3);
   return times.length || reveal < 6 ? times : [Math.floor(reveal / 2)]; // a short /muddat still gets one hint, half-way
 }
 const MAX_GROUPS = 300, MAX_RECENT = 20, MAX_TRIES = 5, MAX_JUDGED = 40, MAX_HINTS = 6, WINDOW = 30, RETRY = 5 * 60000;
-const ADMIN = new Set(['mavzu', 'vaqt', 'muddat', 'savol', 'javob', 'toxtat', 'boshla']);
+const ADMIN = new Set(['mavzu', 'vaqt', 'muddat', 'savol', 'javob', 'toxtat', 'boshla', 'reset']);
 export const GROUP_COMMANDS = Object.freeze([
   { command: 'reyting', description: 'Kim ko‘p topdi' }, { command: 'holat', description: 'Guruh sozlamalari' }, { command: 'yordam', description: 'Qanday ishlayman' }]);
 export const ADMIN_COMMANDS = Object.freeze([
   { command: 'mavzu', description: 'Savollar mavzusi, masalan: Tarix 8-sinf' }, { command: 'vaqt', description: 'Har kuni qachon (20:00)' },
   { command: 'muddat', description: 'Necha daqiqada javobni aytay (25)' }, { command: 'savol', description: 'Hozir savol berish' },
   { command: 'javob', description: 'Javobni hozir ochish' }, { command: 'toxtat', description: 'Kunlik savolni o‘chirish' },
-  { command: 'boshla', description: 'Kunlik savolni yoqish' }, ...GROUP_COMMANDS]);
+  { command: 'boshla', description: 'Kunlik savolni yoqish' }, { command: 'reset', description: 'Reytingni tozalash (kunlik yoki qo‘lda)' }, ...GROUP_COMMANDS]);
 
 // Tashkent is UTC+5 all year.
 export function tashkent(now) { const t = new Date(now + 5 * 3600000); return { day: t.toISOString().slice(0, 10), minutes: t.getUTCHours() * 60 + t.getUTCMinutes() }; }
@@ -94,14 +104,17 @@ export function parseVerdict(text) {
 
 const mention = (id, who) => `<a href="tg://user?id=${Number(id)}">${escape(who)}</a>`;
 export const GROUP_TEXTS = Object.freeze({
-  welcome: g => `<b>Salom! Men NurimAI</b> 🧠\nHar kuni soat ${timeOf(g)} da shu guruhga bitta savol beraman, javoblaringizni o‘qib, to‘g‘ri yoki yaqin kelsa aytaman. Hech kim topmasa, savol qiyinligiga qarab 5–10 daqiqada maslahat beraman, ${g.reveal} daqiqadan keyin esa javobni o‘zim aytaman.\n\n<b>Sozlash (guruh adminlari):</b>\n/mavzu Tarix 8-sinf — savollar mavzusi\n/vaqt 20:00 — har kuni qachon (Toshkent vaqti)\n/muddat 25 — necha daqiqada javobni aytay\n/savol — hozir savol berish\n/javob — javobni hozir ochish\n/toxtat, /boshla — kunlik savolni o‘chirish yoki yoqish\n\nHamma uchun: /reyting — kim ko‘p topdi, /holat — sozlamalar.\n\n<i>Javobni savol xabariga reply qilib yozing. Savol ochiq turganda javob sifatida yozilgan qisqa xabarlar AI orqali tekshiriladi; reytingda ism va ball saqlanadi.</i>`,
-  status: g => `<b>Guruh sozlamalari</b>\nMavzu: ${g.topic ? escape(g.topic) : 'tanlanmagan — /mavzu Tarix 8-sinf'}\nVaqt: har kuni ${timeOf(g)} (Toshkent)\nJavob: ${g.reveal} daqiqadan keyin\nKunlik savol: ${g.on ? 'yoqilgan' : 'o‘chirilgan (/boshla)'}${g.active ? '\n\nHozir javobi topilmagan savol bor.' : ''}`,
+  welcome: g => `<b>Salom! Men NurimAI</b> 🧠\nHar kuni soat ${timeOf(g)} da shu guruhga bitta savol beraman, javoblaringizni o‘qib, to‘g‘ri yoki yaqin kelsa aytaman. Hech kim topmasa, savol qiyinligiga qarab 5–10 daqiqada maslahat beraman, ${g.reveal} daqiqadan keyin esa javobni o‘zim aytaman.\n\n<b>Sozlash (guruh adminlari):</b>\n/mavzu Tarix 8-sinf — savollar mavzusi\n/vaqt 20:00 — har kuni qachon (Toshkent vaqti)\n/muddat 25 — necha daqiqada javobni aytay\n/savol — hozir savol berish\n/javob — javobni hozir ochish\n/toxtat, /boshla — kunlik savolni o‘chirish yoki yoqish\n/reset — reytingni hozir tozalash (/reset qo‘lda — faqat shu buyruq bilan, /reset kunlik — har kuni)\n\nHamma uchun: /reyting — kim nechta topdi va necha ball, /holat — sozlamalar.\n🟢 Oson savol — 1 ball, 🟡 o‘rtacha — 2, 🔴 qiyin — 3 ball.\n\n<i>Javobni savol xabariga reply qilib yozing. Savol ochiq turganda javob sifatida yozilgan qisqa xabarlar AI orqali tekshiriladi; reytingda ism va ball saqlanadi.</i>`,
+  status: g => `<b>Guruh sozlamalari</b>\nMavzu: ${g.topic ? escape(g.topic) : 'tanlanmagan — /mavzu Tarix 8-sinf'}\nVaqt: har kuni ${timeOf(g)} (Toshkent)\nJavob: ${g.reveal} daqiqadan keyin\nKunlik savol: ${g.on ? 'yoqilgan' : 'o‘chirilgan (/boshla)'}\nReyting: ${dailyReset(g) ? 'har kuni yangidan' : 'faqat /reset bilan tozalanadi'}${g.active ? '\n\nHozir javobi topilmagan savol bor.' : ''}`,
   question: (g, q) => { const first = hintTimes(q.level, g.reveal)[0]; return `🧠 <b>Kunlik savol</b> · ${escape(g.topic)} · ${(LEVELS[q.level] || LEVELS.orta).label}\n\n${escape(q.question)}\n\n<i>Javobni shu xabarga reply qilib yozing. Hech kim topmasa, ${first ? `${first} daqiqadan keyin maslahat beraman, ` : ''}${g.reveal} daqiqada javobni o‘zim aytaman.</i>`; },
   hint: (i, text) => `💡 <b>${i ? 'Yana bir maslahat' : 'Maslahat'}:</b> ${escape(text)}`,
-  correct: (a, id, who) => `✅ <b>To‘g‘ri!</b> ${mention(id, who)} birinchi topdi (+1 ball).\nJavob: <b>${escape(a.answer)}</b>${a.explain ? `\n${escape(a.explain)}` : ''}\n\n🏆 /reyting`,
+  correct: (a, id, who) => `✅ <b>To‘g‘ri!</b> ${mention(id, who)} birinchi topdi (+${pointsOf(a.level)} ball).\nJavob: <b>${escape(a.answer)}</b>${a.explain ? `\n${escape(a.explain)}` : ''}\n\n🏆 /reyting`,
   close: (id, who, hint) => `🤏 ${mention(id, who)}, juda yaqin!${hint ? ` ${escape(hint)}` : ' Yana bir oz o‘ylang.'}`,
   reveal: (g, a) => `⏰ <b>Vaqt tugadi.</b> To‘g‘ri javob: <b>${escape(a.answer)}</b>${a.explain ? `\n${escape(a.explain)}` : ''}${g.on && g.topic ? `\n\nKeyingi savol ertaga soat ${timeOf(g)} da.` : ''}`,
-  ranking: rows => rows.length ? `🏆 <b>Reyting</b>\n${rows.map(([, r], i) => `${['🥇', '🥈', '🥉'][i] || `${i + 1}.`} ${escape(r.name)} — ${r.points} ball`).join('\n')}` : 'Hali hech kim ball olmagan. Birinchi savolni kuting yoki admin /savol yozsin.',
+  ranking: (rows, g, since) => { const head = dailyReset(g) ? '🏆 <b>Bugungi reyting</b>' : `🏆 <b>Reyting</b> · ${since.split('-').reverse().join('.')} dan beri`; return rows.length ? `${head}\n${rows.map(([, r], i) => `${['🥇', '🥈', '🥉'][i] || `${i + 1}.`} ${escape(r.name)} — ${r.found} ta savol, ${r.points} ball`).join('\n')}` : `${head}\nHali hech kim ball olmagan. Savolni kuting yoki admin /savol yozsin.`; },
+  reset: '♻️ Reyting tozalandi. Hammada 0 ball.',
+  resetDaily: '✅ Reyting endi har kuni yangidan boshlanadi. Hozir tozalash: /reset',
+  resetManual: '✅ Reyting endi faqat /reset bilan tozalanadi, ballar kundan-kunga yig‘ilib boradi.',
   adminOnly: 'Buni faqat guruh adminlari o‘zgartira oladi.',
   needTopic: 'Avval mavzuni tanlang, masalan: /mavzu Tarix 8-sinf',
   topicUsage: 'Mavzuni shunday yozing: /mavzu Tarix 8-sinf (yoki /mavzu JavaScript va HTML)',
@@ -179,7 +192,7 @@ export class GroupGame {
     const reply = text => this.bot.send(item.chatId, text, { reply_parameters: { message_id: item.messageId, allow_sending_without_reply: true } });
     if (item.command === 'start' || item.command === 'yordam' || item.command === 'help') return item.command === 'start' ? this.welcome(group) : this.bot.send(item.chatId, GROUP_TEXTS.welcome(group));
     if (item.command === 'holat') return reply(GROUP_TEXTS.status(group));
-    if (item.command === 'reyting') return reply(GROUP_TEXTS.ranking(await this.ranking(item.chatId)));
+    if (item.command === 'reyting') { const board = await this.board(group); return reply(GROUP_TEXTS.ranking(this.top(board), group, board.since)); }
     if (!await this.isAdmin(item)) return reply(GROUP_TEXTS.adminOnly);
     const args = String(item.args || '').trim();
     if (item.command === 'mavzu') {
@@ -191,6 +204,12 @@ export class GroupGame {
     if (item.command === 'muddat') { const n = Number(args); if (!Number.isInteger(n) || n < 5 || n > 120) return reply(GROUP_TEXTS.revealUsage); group = await this.edit(item.chatId, g => { g.reveal = n; }); return reply(GROUP_TEXTS.revealSet(group)); }
     if (item.command === 'boshla') { group = await this.edit(item.chatId, g => { g.on = true; }); return reply(GROUP_TEXTS.on(group)); }
     if (item.command === 'toxtat') { await this.edit(item.chatId, g => { g.on = false; }); return reply(GROUP_TEXTS.off); }
+    if (item.command === 'reset') {
+      const mode = plain(args).replace(/ /g, '');
+      if (/^(kunlik|harkuni|daily)$/.test(mode)) { await this.edit(item.chatId, g => { g.resetDaily = true; }); return reply(GROUP_TEXTS.resetDaily); }
+      if (/^(qolda|qoida|manual|ozim)$/.test(mode)) { await this.edit(item.chatId, g => { g.resetDaily = false; }); return reply(GROUP_TEXTS.resetManual); }
+      await this.store.put(`tg:score:${item.chatId}`, { since: tashkent(this.now()).day, rows: {} }); return reply(GROUP_TEXTS.reset);
+    }
     if (item.command === 'javob') return group.active ? this.reveal(group) : reply(GROUP_TEXTS.noOpen);
     if (item.command === 'savol') {
       if (!group.topic) return reply(GROUP_TEXTS.needTopic);
@@ -240,22 +259,24 @@ export class GroupGame {
     if (verdict.verdict === 'correct') {
       const won = await this.edit(item.chatId, g => { if (g.active?.id !== active.id) return false; g.active = null; }); // the first right answer wins
       if (!won) return;
-      await this.score(item.chatId, item.userId, item.name);
+      await this.score(won, item.userId, item.name, pointsOf(active.level));
       await this.bot.send(item.chatId, GROUP_TEXTS.correct(active, item.userId, item.name), reply);
     } else if (verdict.verdict === 'close') {
       const tell = await this.edit(item.chatId, g => { const a = g.active; if (a?.id !== active.id || a.told[user] || (a.closeNotes || 0) >= MAX_HINTS) return false; a.told[user] = true; a.closeNotes = (a.closeNotes || 0) + 1; });
       if (tell) await this.bot.send(item.chatId, GROUP_TEXTS.close(item.userId, item.name, verdict.hint), reply);
     }
   }
-  async score(id, userId, who) {
+  // One more question found and its points, on today's board (or the running one, when the group resets by hand).
+  async score(group, userId, who, points) {
     await this.store.transaction(async tx => {
-      const scores = await tx.get(`tg:score:${id}`) || {}, row = scores[userId] || { name: who, points: 0 };
-      row.name = who; row.points++; scores[userId] = row;
-      const keep = Object.entries(scores).sort((a, b) => b[1].points - a[1].points).slice(0, 500);
-      await tx.put(`tg:score:${id}`, Object.fromEntries(keep));
+      const board = scoreBoard(await tx.get(`tg:score:${group.id}`), group, this.now()), row = board.rows[userId] || { name: who, found: 0, points: 0 };
+      row.name = who; row.found++; row.points += points; board.rows[userId] = row;
+      board.rows = Object.fromEntries(Object.entries(board.rows).sort((a, b) => b[1].points - a[1].points).slice(0, 500));
+      await tx.put(`tg:score:${group.id}`, board);
     });
   }
-  async ranking(id) { return Object.entries(await this.store.get(`tg:score:${id}`) || {}).sort((a, b) => b[1].points - a[1].points).slice(0, 10); }
+  async board(group) { return scoreBoard(await this.store.get(`tg:score:${group.id}`), group, this.now()); }
+  top(board) { return Object.entries(board.rows).sort((a, b) => b[1].points - a[1].points || b[1].found - a[1].found).slice(0, 10); }
   // Called every minute by the Worker's cron trigger.
   async tick() {
     const ids = await this.store.get('tg:groups') || [], now = this.now();
