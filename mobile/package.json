@@ -1,6 +1,6 @@
 {
   "name": "nurimai-mobile",
-  "version": "0.8.2",
+  "version": "0.8.3",
   "private": true,
   "description": "NurimAI Android ilovasi (Capacitor): docs/app dagi telefon veb-ilovasini o'raydi",
   "scripts": {
@@ -11,7 +11,9 @@
     "@capacitor/android": "8.5.3",
     "@capacitor/app": "8.1.2",
     "@capacitor/core": "8.5.3",
-    "@capacitor/local-notifications": "8.3.1"
+    "@capacitor/filesystem": "8.1.5",
+    "@capacitor/local-notifications": "8.3.1",
+    "@capacitor/share": "8.0.3"
   },
   "devDependencies": {
     "@capacitor/cli": "8.5.3"

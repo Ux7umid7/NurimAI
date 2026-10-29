@@ -4,6 +4,7 @@ const {Router,UserError,ORDER,speak,withSources} = require('./router.cjs');const
 const {UpdateController} = require('./updater.cjs');const release = require('./release-config.json');
 const {prepare,checkFits,forRequest,forView,LIMITS,PICKER_EXTENSIONS} = require('./attachments.cjs');const whatsNew = require('./whats-new.json');
 const {Chats} = require('./chats.cjs');const {grabSelection} = require('./selection.cjs');const practiceModule = require('./practice.cjs');const {Practice} = practiceModule;
+const Docs = require('./shared/office-write.js'); // referats (.docx) and presentations (.pptx) made from the AI's plan
 const qa = process.argv.includes('--qa');const root = path.join(__dirname,'..');
 app.setName('NurimAI');app.setAppUserModelId('com.nurimai.desktop');
 if(qa) {const profile = process.env.NURIMAI_QA_PROFILE;if(!profile || !path.isAbsolute(profile)) throw new Error('An isolated QA profile is required');app.setPath('userData',profile);}
@@ -95,10 +96,25 @@ async function explainSelection(qaText){
 }
 const VOICE_QUESTION='Bu ovozli xabar. Uni diqqat bilan tingla. Birinchi qatorda eshitganingni so‘zma-so‘z «Savolingiz: …» deb yoz, keyingi qatordan javob ber. Ovoz eshitilmasa yoki tushunarsiz bo‘lsa, shuni ayt.';
 const HEARD=/^\s*\**\s*Savolingiz\s*:?\s*\**\s*[«"]?(.+?)[»"]?\s*\**\s*$/i;
-async function ask(question,extraFiles=[],signal,voice=false){
+async function ask(question,extraFiles=[],signal,voice=false,long=false){
   const sent=[...forRequest(files),...extraFiles];
   if(qa){if(question.endsWith('/qa-xato'))throw new UserError('Sinov xatosi.');return {text:`${voice?'Savolingiz: Kasr nima?\n':''}Bu avtomatik UI sinovi uchun tayyor javob. Jonli AI emas.${sent.length-extraFiles.length?` Biriktirilgan fayllar: ${sent.length-extraFiles.length}.`:''}`,incomplete:false};}
-  return store.value.usePersonalKeys?router.ask(store.value,history,question,signal,sent).then(r=>({...r,text:withSources(r)})):askGateway({url:release.gateway,deviceId:store.value.deviceId,history,question,files:sent,signal,voice});
+  return store.value.usePersonalKeys?router.ask(store.value,history,question,signal,sent,long?{long,search:false}:{}).then(r=>({...r,text:withSources(r)})):askGateway({url:release.gateway,deviceId:store.value.deviceId,history,question,files:sent,signal,voice,long});
+}
+// Made files are saved in Documents\NurimAI (in QA mode: inside the test profile); only paths in there may be opened.
+const docsDir=()=>qa?path.join(app.getPath('userData'),'documents'):path.join(app.getPath('documents'),'NurimAI');
+function ownDoc(file){const dir=path.resolve(docsDir())+path.sep,full=path.resolve(String(file||''));if(!full.startsWith(dir)||!/\.(docx|pptx)$/i.test(full)||!fs.existsSync(full))throw new UserError('Fayl topilmadi: u o‘chirilgan yoki ko‘chirilgan bo‘lishi mumkin.');return full;}
+async function saveDoc(plan){
+  const dir=docsDir();await fs.promises.mkdir(dir,{recursive:true});const name=Docs.fileName(plan),ext=path.extname(name),base=name.slice(0,-ext.length);
+  let file=path.join(dir,name);for(let i=2;fs.existsSync(file);i++)file=path.join(dir,`${base} (${i})${ext}`);
+  await fs.promises.writeFile(file,Docs.build(plan));return {name:path.basename(file),path:file,kind:plan.kind};
+}
+const QA_PLAN={docx:'{"mavzu":"Sinov referati","bolimlar":[{"sarlavha":"Kirish","matn":["Sinov matni."]},{"sarlavha":"Xulosa","matn":["Yakun."]}],"adabiyotlar":["Darslik"]}',pptx:'{"mavzu":"Sinov taqdimoti","izoh":"QA","slaydlar":[{"sarlavha":"Birinchi","bandlar":["Bir","Ikki"]},{"sarlavha":"Xulosa","bandlar":["Yakun"]}]}'};
+// "Fotosintez haqida referat yozib ber" / "Taqdimot tayyorla: Kosmos": the AI writes a JSON plan, NurimAI makes the Word/PowerPoint file.
+async function makeDoc(question,want,signal){
+  const reply=qa?{text:QA_PLAN[want.kind]}:await ask(Docs.prompt(question,want,files.length>0),[],signal,false,true);
+  const plan=Docs.parse(want.kind,reply.text);if(!plan)throw new UserError('Faylni tayyorlay olmadim. Qayta urinib ko‘ring yoki mavzuni boshqacha yozing.');
+  return {...reply,text:Docs.summary(plan),doc:await saveDoc(plan)};
 }
 // display: what the chat shows; voice: the reply's first line is the transcript; teacher style adds a hidden instruction for the AI only.
 async function converse(question,{display=question,voice=false,extra=[]}){
@@ -106,6 +122,11 @@ async function converse(question,{display=question,voice=false,extra=[]}){
   activity();controller=new AbortController();const fresh=files.filter(f=>!sentIds.has(f.id));fresh.forEach(f=>sentIds.add(f.id));
   const asked={role:'user',text:display,files:fresh.map(({name,ext,kind})=>({name,ext,kind}))};visible.push(asked);
   mood('think');
+  const want=!voice&&!extra.length&&Docs.detect(question);
+  if(want){
+    try{const made=await makeDoc(question,want,controller.signal);history.push({role:'user',text:display},{role:'assistant',text:made.text});history=history.slice(-24);visible.push({role:'assistant',text:made.text,doc:made.doc});mood('happy');remember();return made;}
+    catch(e){visible.push({role:'assistant',text:'Javob olinmadi. Savolni qayta yuborishingiz mumkin.',error:true});mood(e?.name==='AbortError'?'idle':'sad');remember();throw e;}finally{controller=null;lastActive=Date.now();}
+  }
   try{
     const reply=await ask(practice.state.teacher?`${question}\n\n(${practiceModule.TEACHER})`:question,extra,controller.signal,voice);
     let text=reply.text,transcript='';
@@ -192,6 +213,8 @@ function registerIPC(){
   register('save-settings',value=>{if(controller)throw new UserError('Javob tugashini kuting.');const old=store.value.keys;const result=store.update(value);for(const p of ORDER)if(old[p]!==store.value.keys[p])router.reset(p);chat.setAlwaysOnTop(store.value.topmost);pet.setAlwaysOnTop(store.value.topmost);updates.setEnabled(store.value.autoUpdate);return result;});
   register('hide',()=>chat.hide());register('toggle',toggle,true);register('quit',()=>app.quit(),true);
   register('copy',text=>{if(typeof text==='string'&&text.length<=100000)clipboard.writeText(text);});
+  register('doc-open',async file=>{const full=ownDoc(file);if(qa)return true;const error=await shell.openPath(full);if(error)throw new UserError(`Faylni ochib bo‘lmadi: ${error}`);return true;});
+  register('doc-show',file=>{const full=ownDoc(file);if(!qa)shell.showItemInFolder(full);return true;});
   register('export',async()=>{if(!visible.length)return;const result=await dialog.showSaveDialog(chat,{defaultPath:`NurimAI-suhbat-${new Date().toISOString().slice(0,10)}.txt`,filters:[{name:'Matn',extensions:['txt']}]});if(!result.canceled)await fs.promises.writeFile(result.filePath,'NurimAI\n\n'+visible.map(m=>`${m.role==='user'?'SIZ':'NurimAI'}:\n${m.files?.length?`[Fayllar: ${m.files.map(x=>x.name).join(', ')}]\n`:''}${m.text}`).join('\n\n'),'utf8');});
   register('check-update',()=>updates.check(true));register('install-update',()=>{if(controller)throw new UserError('Avval javob tugashini kuting.');exiting=true;const result=updates.install();if(!result)exiting=false;return result;});
   register('open-link',name=>{const urls={Gemini:'https://aistudio.google.com/apikey',Groq:'https://console.groq.com/keys',OpenRouter:'https://openrouter.ai/keys',releases:`https://github.com/${release.owner}/${release.repo}/releases/latest`};if(!qa&&Object.hasOwn(urls,name))return shell.openExternal(urls[name]);});

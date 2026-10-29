@@ -111,3 +111,17 @@ test('Nur talks while an answer is read and listens while a question is recorded
  await page.evaluate(()=>{showRecording(true);showClock('0:07');});await expect(page.locator('#voice')).toBeVisible();await expect(page.locator('#voice-time')).toHaveText('0:07');await expect(page.locator('#voice-send')).toBeFocused();
  await page.screenshot({path:'test-results/desktop-voice.png'});await page.evaluate(()=>showRecording(false));await expect(page.locator('#voice')).toBeHidden(); // the full-screen listening view follows the recorder
 });
+test('a referat or presentation request makes a Word/PowerPoint file in Documents\\NurimAI, opened from a card that stays in history',async()=>{
+ await page.locator('#new').click();await expect(page.locator('.prompts button',{hasText:'Referat yoz'})).toBeVisible();
+ await page.locator('.prompts button',{hasText:'Referat yoz'}).click();await expect(page.locator('#question')).toHaveValue('Referat yozib ber (Word): ');
+ await page.locator('#question').fill('Fotosintez haqida referat yozib ber');await page.locator('#send').click();
+ const answer=page.locator('.bubble.assistant').last(),card=answer.locator('.doc-card');
+ await expect(answer).toContainText('Referat tayyor: Sinov referati');await expect(card).toContainText('Referat - Sinov referati.docx');await expect(card.locator('b')).toHaveText('DOCX');
+ expect(fs.readFileSync(path.join(profile,'documents','Referat - Sinov referati.docx')).subarray(0,4)).toEqual(Buffer.from([0x50,0x4b,3,4]));
+ await card.locator('.doc-open').click();await card.locator('.doc-show').click();await expect(page.locator('#notice')).toBeHidden();
+ await page.locator('#question').fill('Quyosh tizimi haqida taqdimot tayyorla');await page.locator('#send').click();await expect(page.locator('.doc-card').last()).toContainText('Taqdimot - Sinov taqdimoti.pptx');
+ await page.locator('#question').fill('Yana bitta referat yoz: suv');await page.locator('#send').click();await expect(page.locator('.doc-card').last()).toContainText('Referat - Sinov referati (2).docx');
+ await page.screenshot({path:'test-results/desktop-doc.png'});
+ expect(await page.evaluate(()=>window.nurim.docOpen('C:\\Windows\\win.ini'))).toEqual({ok:false,error:'Fayl topilmadi: u o‘chirilgan yoki ko‘chirilgan bo‘lishi mumkin.'}); // only NurimAI's own files
+ await page.locator('#history').click();await page.locator('#history-list .history-open').first().click();await expect(page.locator('.doc-card')).toHaveCount(3); // the cards come back with the chat
+});

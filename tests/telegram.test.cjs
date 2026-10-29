@@ -5,7 +5,7 @@ function fakeState(){const map=new Map();const storage={get:async k=>Array.isArr
 const GAZETA='<rss><channel><item><title>Toshkentdagi Elbek bog‘i yangilanadi</title><link>https://www.gazeta.uz/oz/park/?a=1&amp;b="2"</link><description>Bog‘ to‘liq yangilanadi</description><pubDate>Sun, 25 Oct 2026 04:41:00 GMT</pubDate></item></channel></rss>';
 function fakeNet(answer='Javob: **12**'){
  const calls=[];
- const fetch=async(url,options={})=>{const body=options.body?JSON.parse(options.body):null;calls.push({url:String(url),body});
+ const fetch=async(url,options={})=>{const body=options.body instanceof FormData?Object.fromEntries(options.body):options.body?JSON.parse(options.body):null;calls.push({url:String(url),body});
   if(String(url).includes('generativelanguage'))return Response.json({candidates:[{content:{parts:[{text:typeof answer==='function'?answer(body):answer}]},finishReason:'STOP'}]});
   if(!String(url).includes('api.telegram.org'))return String(url).includes('gazeta.uz')?new Response(GAZETA):new Response('down',{status:503});
   if(String(url).includes('/file/bot'))return new Response(new Uint8Array([79,103,103,83,1,2,3]));
@@ -152,6 +152,24 @@ test('when Gemini and Groq are used up, Workers AI answers through the binding; 
   runs.length=0;const apps=new AiGateway({storage:fakeState().storage},{...env,GROQ_API_KEY:'q',GROQ_FREE_TIER:'true',AI:ai,WORKERS_AI_FREE:'true',RATE_SALT:'s'});
   const chat=await apps.fetch(new Request('https://internal/chat',{method:'POST',body:JSON.stringify({data:{question:'Salom',history:[],files:[]},identities:{ip:'i',device:'d'}})}));
   assert.equal(chat.status,200);assert.equal((await chat.json()).text,'Zaxira **javob**');assert.equal(runs.length,1);
+ }finally{globalThis.fetch=real;}
+});
+test('/referat and /taqdimot (or asking in words) send a Word or PowerPoint file made from the AI\'s plan',async()=>{
+ const {AiGateway}=await import('../server/worker.mjs');const {parseUpdate}=await import('../server/telegram.mjs');
+ let garbage=false;const net=fakeNet(body=>{const p=body.contents.at(-1).parts.at(-1).text;if(garbage)return 'Kechirasiz, tushunmadim.';return p.includes('slaydli taqdimot')?'{"mavzu":"Quyosh tizimi","izoh":"8-sinf","slaydlar":[{"sarlavha":"Sayyoralar","bandlar":["Yer"]},{"sarlavha":"Xulosa","bandlar":["Kosmos"]}]}':'{"mavzu":"Fotosintez","bolimlar":[{"sarlavha":"Kirish","matn":["Matn."]},{"sarlavha":"Xulosa","matn":["Yakun."]}],"adabiyotlar":[]}';});
+ const real=globalThis.fetch;globalThis.fetch=net.fetch;const {storage,map}=fakeState();
+ try{
+  const gw=new AiGateway({storage},env);const ask=async u=>{const item=parseUpdate(u);if(await gw.firstDelivery(item))await gw.telegram(item);};
+  await ask(msg(80,'/referat'));assert.match(net.sent().at(-1).text,/Mavzuni ham yozing, masalan: \/referat Fotosintez/);assert.equal(net.gemini().length,0);
+  await ask(msg(81,'/taqdimot Quyosh tizimi, 6 slayd'));
+  assert.match(net.gemini()[0].contents.at(-1).parts.at(-1).text,/«taqdimot tayyorla: Quyosh tizimi, 6 slayd»[\s\S]*6 slaydli taqdimot/);
+  assert.ok(net.calls.some(c=>c.url.endsWith('/sendChatAction')&&c.body.action==='upload_document'));
+  const doc=net.calls.find(c=>c.url.endsWith('/sendDocument')).body;
+  assert.deepEqual([doc.chat_id,doc.document.name,doc.document.type,doc.parse_mode],['42','Taqdimot - Quyosh tizimi.pptx','application/vnd.openxmlformats-officedocument.presentationml.presentation','HTML']);
+  assert.deepEqual([...new Uint8Array(await doc.document.arrayBuffer()).slice(0,4)],[0x50,0x4b,3,4]);assert.match(doc.caption,/^📊 <b>Taqdimot tayyor:<\/b> Quyosh tizimi\n3 ta slayd/);assert.equal(JSON.parse(doc.reply_markup).inline_keyboard[0][0].callback_data,'new');
+  assert.match(map.get('tg:chat:42').history.at(-1).text,/^📊 \*\*Taqdimot tayyor/);
+  await ask(msg(82,'Fotosintez haqida referat yozib ber'));assert.equal(net.calls.filter(c=>c.url.endsWith('/sendDocument')).at(-1).body.document.name,'Referat - Fotosintez.docx');
+  garbage=true;await ask(msg(83,'Suv haqida referat yoz'));assert.match(net.sent().at(-1).text,/Faylni tayyorlay olmadim/);
  }finally{globalThis.fetch=real;}
 });
 test('in a group the bot runs the daily question game: the cron tick asks, an answer is judged, nothing else is answered',async()=>{

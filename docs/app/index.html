@@ -41,6 +41,7 @@
   <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 7h9M18 7h2M4 17h3M11 17h9"/><circle cx="15.5" cy="7" r="2.3"/><circle cx="8.5" cy="17" r="2.3"/></symbol>
   <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 4v11M7.4 10.6 12 15.2l4.6-4.6M4.5 19.5h15"/></symbol>
   <symbol id="i-image" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="14" rx="2"/><circle cx="9" cy="10" r="1.6"/><path d="M20.5 16l-5-5-8 8"/></symbol>
+  <symbol id="i-slides" viewBox="0 0 24 24"><rect x="3.5" y="4.5" width="17" height="11.5" rx="1.8"/><path d="M12 16v3.5M8.5 20h7"/><path d="M7.5 12.5l2.6-2.8 2.2 1.9 3.2-3.6"/></symbol>
   <symbol id="i-file" viewBox="0 0 24 24"><path d="M6.3 3.5h7.6l4.6 4.6v11.4a1.5 1.5 0 0 1-1.5 1.5H6.3a1.5 1.5 0 0 1-1.5-1.5v-14.5a1.5 1.5 0 0 1 1.5-1.5Z"/><path d="M13.9 3.5v4.6h4.6"/><path d="M8 12.4h7.6M8 15.8h4.2"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.2 4.2L19 7"/></symbol>
 </svg>
@@ -70,6 +71,8 @@
         <button type="button" data-action="camera" role="listitem"><i><svg><use href="#i-camera"/></svg></i><b>Masalani rasmga ol</b><span>yechish yoʻli bilan</span></button>
         <button type="button" data-action="quiz" role="listitem"><i><svg><use href="#i-quiz"/></svg></i><b>Test ishlaymiz</b><span>istalgan mavzuda</span></button>
         <button type="button" data-prompt="Quyidagi matnni o‘zbek tiliga tarjima qil: " role="listitem"><i><svg><use href="#i-globe"/></svg></i><b>Tarjima qil</b><span>istalgan tildan</span></button>
+        <button type="button" data-prompt="Referat yozib ber (Word): " role="listitem"><i><svg><use href="#i-file"/></svg></i><b>Referat yoz</b><span>Word fayl</span></button>
+        <button type="button" data-prompt="Taqdimot tayyorlab ber (PowerPoint): " role="listitem"><i><svg><use href="#i-slides"/></svg></i><b>Taqdimot</b><span>PowerPoint fayl</span></button>
         <button type="button" data-prompt="Matn yozishga yordam ber: " role="listitem" class="wide"><i><svg><use href="#i-pen"/></svg></i><b>Matn yozish</b><span>xat, insho, post</span></button>
       </div>
     </section>
@@ -167,7 +170,7 @@
 
 <script src="config.js"></script>
 <script src="lib/cap/capacitor.js"></script><script src="lib/cap/app.js"></script><script src="lib/cap/local-notifications.js"></script>
-<script src="lib/math-text.js"></script><script src="lib/practice-core.js"></script><script src="lib/office-core.js"></script>
+<script src="lib/math-text.js"></script><script src="lib/practice-core.js"></script><script src="lib/office-core.js"></script><script src="lib/office-write.js"></script>
 <script src="app.js"></script><script src="lib/voice.js"></script><script src="lib/ustoz.js"></script><script src="start.js"></script>
 </body>
 </html>

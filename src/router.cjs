@@ -22,16 +22,17 @@ function context(history, question) {
 }
 // files: [{kind:'text',name,text}] are inlined as text for every provider; [{kind:'image'|'pdf'|'audio',name,mime,data}] go to Gemini only.
 const hasMedia = files => files.some(f => f.kind !== 'text');
-function body(provider, history, question, files = []) {
+// long: a referat or presentation plan, so the reply may be several times longer than a chat answer.
+function body(provider, history, question, files = [], long = false) {
   const turns = context(history, question);
   const media = files.filter(f => f.kind !== 'text');
   const prompt = [...files.filter(f => f.kind === 'text').map(f => `Biriktirilgan fayl: ${f.name}\n"""\n${f.text}\n"""`), ...(media.length ? [`Biriktirilgan: ${media.map(f => f.name).join(', ')}`] : []), question].join('\n\n');
   turns[turns.length - 1] = { role: 'user', text: prompt };
-  if (provider === 'Gemini') return { systemInstruction: { parts: [{ text: INSTRUCTION }] }, contents: turns.map((t, i) => ({ role: t.role === 'assistant' ? 'model' : 'user', parts: [...(i === turns.length - 1 ? media.map(f => ({ inlineData: { mimeType: f.mime, data: f.data } })) : []), { text: t.text }] })), generationConfig: { maxOutputTokens: 3200 } };
+  if (provider === 'Gemini') return { systemInstruction: { parts: [{ text: INSTRUCTION }] }, contents: turns.map((t, i) => ({ role: t.role === 'assistant' ? 'model' : 'user', parts: [...(i === turns.length - 1 ? media.map(f => ({ inlineData: { mimeType: f.mime, data: f.data } })) : []), { text: t.text }] })), generationConfig: { maxOutputTokens: long ? 8192 : 3200 } };
   const common = { model: MODELS[provider], messages: [{ role: 'system', content: INSTRUCTION }, ...turns.map(t => ({ role: t.role, content: t.text }))], stream: false };
-  if (provider === 'Groq') return { ...common, max_completion_tokens: 2400, reasoning_effort: 'none', reasoning_format: 'hidden' };
-  if (provider === 'OpenRouter') return { ...common, max_tokens: 3200, provider: { max_price: { prompt: 0, completion: 0, request: 0 } } };
-  if (provider === 'Cloudflare') return { ...common, max_completion_tokens: 2400, chat_template_kwargs: { enable_thinking: false } }; // thinking made answers slow and long
+  if (provider === 'Groq') return { ...common, max_completion_tokens: long ? 6000 : 2400, reasoning_effort: 'none', reasoning_format: 'hidden' };
+  if (provider === 'OpenRouter') return { ...common, max_tokens: long ? 8000 : 3200, provider: { max_price: { prompt: 0, completion: 0, request: 0 } } };
+  if (provider === 'Cloudflare') return { ...common, max_completion_tokens: long ? 6000 : 2400, chat_template_kwargs: { enable_thinking: false } }; // thinking made answers slow and long
   throw new Error('Unknown provider');
 }
 function parse(provider, data) {
@@ -80,14 +81,14 @@ class Router {
     for (const provider of routes) {
       signal.throwIfAborted(); const state = this.states[provider];
       if (state?.disabled || state?.retryAt > this.now()) continue;
-      const attempt = new AbortController(); const timer = setTimeout(() => attempt.abort(), hasMedia(files) ? Math.max(this.timeout, 75000) : this.timeout); // PDFs and images take Gemini longer
+      const attempt = new AbortController(); const timer = setTimeout(() => attempt.abort(), hasMedia(files) || options.long ? Math.max(this.timeout, 75000) : this.timeout); // PDFs, images and long documents take longer
       const combined = AbortSignal.any([signal, attempt.signal]);
       const mark = (status, delay = 0, disabled = false) => { this.states[provider] = { status, retryAt: this.now() + delay, disabled }; };
       try {
         const headers = { 'Content-Type': 'application/json', 'User-Agent': 'NurimAI/0.6' };
         if (provider === 'Gemini') headers['x-goog-api-key'] = settings.keys[provider]; else headers.Authorization = `Bearer ${settings.keys[provider]}`;
         // 'manual' never follows a redirect (keys stay on the provider host) and works in Workers, unlike 'error'; a 3xx is handled as a failed route.
-        const response = await this.fetcher(URLS[provider], { method: 'POST', headers, body: JSON.stringify(body(provider, history, question, files)), signal: combined, redirect: 'manual' });
+        const response = await this.fetcher(URLS[provider], { method: 'POST', headers, body: JSON.stringify(body(provider, history, question, files, options.long === true)), signal: combined, redirect: 'manual' });
         const raw = await response.text(); signal.throwIfAborted();
         let data; try { if(raw.length > 4 * 1024 * 1024) throw new Error(); data = JSON.parse(raw); } catch { data = {}; }
         if (!response.ok) {

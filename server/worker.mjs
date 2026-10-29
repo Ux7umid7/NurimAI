@@ -1,6 +1,7 @@
 import routerModule from '../src/router.cjs';
-import { TelegramBot, webhookSecret, parseUpdate, questionFor, splitHeard, toTelegramHtml, splitAnswer, escape, sourcesHtml, keyboardFor, TEXTS, SITE, HELP_KEYBOARD } from './telegram.mjs';
+import { TelegramBot, webhookSecret, parseUpdate, questionFor, splitHeard, toTelegramHtml, splitAnswer, escape, sourcesHtml, keyboardFor, TEXTS, SITE, KEYBOARD, HELP_KEYBOARD } from './telegram.mjs';
 import { GroupGame, GROUP_COMMANDS, ADMIN_COMMANDS } from './group.mjs';
+import Docs from '../src/shared/office-write.js';
 const { Router, UserError, speak, SPEECH, withSources, URLS } = routerModule;
 const json = (data,status=200,extra={})=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...extra}});
 const MEDIA = { image: new Set(['image/png', 'image/jpeg', 'image/webp', 'image/heic', 'image/heif']), pdf: new Set(['application/pdf']), audio: new Set(['audio/wav']) };
@@ -24,7 +25,7 @@ export function validatePayload(data) {
   if(!Array.isArray(data.history)||data.history.length>12||data.history.length%2)throw new Error('history');
   let count=0;for(let i=0;i<data.history.length;i++){const m=data.history[i];if(!m||m.role!==(i%2?'assistant':'user')||typeof m.text!=='string')throw new Error('history');count+=m.text.length;}
   if(count>12000)throw new Error('history');
-  return {question:data.question.trim(),deviceId:data.deviceId,history:data.history.map(m=>({role:m.role,text:m.text})),files:validateFiles(data.files)};
+  return {question:data.question.trim(),deviceId:data.deviceId,history:data.history.map(m=>({role:m.role,text:m.text})),files:validateFiles(data.files),long:data.long===true}; // long: a referat/presentation plan
 }
 export function validateSpeech(data) {
   if(!data||typeof data.text!=='string'||!data.text.trim()||data.text.length>SPEECH.maxChars)throw new Error('text');
@@ -116,7 +117,7 @@ async function setupBot(env,url,secret){
   try{
     const me=await bot.call('getMe');const hook=`${url.origin}/telegram`;
     await bot.call('setWebhook',{url:hook,secret_token:secret,allowed_updates:['message','callback_query','my_chat_member'],max_connections:10});
-    await bot.call('setMyCommands',{commands:[{command:'start',description:'Boshlash'},{command:'yangiliklar',description:'Bugungi yangiliklar'},{command:'yangi',description:'Yangi suhbat'},{command:'yordam',description:'Nima qila olaman'}]});
+    await bot.call('setMyCommands',{commands:[{command:'start',description:'Boshlash'},{command:'referat',description:'Referat (Word fayl)'},{command:'taqdimot',description:'Taqdimot (PowerPoint fayl)'},{command:'yangiliklar',description:'Bugungi yangiliklar'},{command:'yangi',description:'Yangi suhbat'},{command:'yordam',description:'Nima qila olaman'}]});
     await bot.call('setMyCommands',{commands:GROUP_COMMANDS,scope:{type:'all_group_chats'}});await bot.call('setMyCommands',{commands:ADMIN_COMMANDS,scope:{type:'all_chat_administrators'}});
     await bot.call('setMyDescription',{description:TEXTS.description});await bot.call('setMyShortDescription',{short_description:TEXTS.short});
     return json({ok:true,bot:`@${me.username}`,webhook:hook});
@@ -140,7 +141,7 @@ export class AiGateway {
     const settings=this.settings(); // the apps get the same routes as the bot, Workers AI included
     this.active++;
     try{
-      const reply=await this.router.ask(settings,data.history,data.question,AbortSignal.timeout(85000),data.files);
+      const reply=await this.router.ask(settings,data.history,data.question,AbortSignal.timeout(data.long?110000:85000),data.files,data.long?{long:true,search:false}:{});
       return json({text:withSources(reply),incomplete:reply.incomplete}); // news answers carry their sources
     }catch(error){console.log(`chat failed: ${error instanceof UserError?error.message:error?.name||'Error'}; routes: ${this.router.diagnostics(settings).map(r=>`${r.provider}=${r.status}`).join(', ')}`);const rejected=error instanceof UserError&&error.code==='input';return json({error:rejected?'Input rejected':error instanceof UserError?'AI temporarily unavailable':'Service unavailable'},rejected?422:503);}finally{this.active--;}
   }
@@ -166,6 +167,8 @@ export class AiGateway {
       if(item.kind==='callback'){await bot.call('answerCallbackQuery',{callback_query_id:item.id}).catch(()=>{});if(item.data==='new'){await store.delete(chatKey);await bot.send(item.chatId,TEXTS.fresh);}return;}
       // Groups: the daily question game (server/group.mjs). A failure there is only logged, never posted to the group.
       if(!item.private){if(item.group)await this.groups(bot).update(item).catch(error=>console.log(`group failed: ${String(error?.message||error?.name||'Error').slice(0,160)}`));return;}
+      // /referat Mavzu and /taqdimot Mavzu are the same as asking for one in words.
+      if(item.kind==='command'&&(item.command==='referat'||item.command==='taqdimot')){if(!item.args){await bot.send(item.chatId,TEXTS.docUsage[item.command]);return;}item={...item,kind:'text',text:`${item.command} tayyorla: ${item.args}`};}
       if(item.kind==='command'){
         if(item.command==='start'){await store.delete(chatKey);await bot.call('sendPhoto',{chat_id:item.chatId,photo:`${SITE}bot/hello.jpg`,caption:TEXTS.hello,parse_mode:'HTML'}).catch(()=>bot.send(item.chatId,TEXTS.hello));}
         else if(item.command==='yangi'){await store.delete(chatKey);await bot.send(item.chatId,TEXTS.fresh);}
@@ -178,10 +181,18 @@ export class AiGateway {
       const allowed=await store.transaction(async tx=>{const next=budget(await tx.get('telegram'),Date.now(),who,who,limits);if(next.allowed)await tx.put('telegram',next.data);return next;});
       if(!allowed.allowed){await bot.send(item.chatId,allowed.retry===60?TEXTS.slow:TEXTS.limit);return;}
       if(this.active>=4){await bot.send(item.chatId,TEXTS.busy);return;}
-      await bot.call('sendChatAction',{chat_id:item.chatId,action:'typing'}).catch(()=>{});
+      const want=item.kind==='text'?Docs.detect(item.text):null; // "Fotosintez haqida referat yozib ber" -> a Word file
+      await bot.call('sendChatAction',{chat_id:item.chatId,action:want?'upload_document':'typing'}).catch(()=>{});
+      const saved=await store.get(chatKey);const history=saved&&Date.now()-saved.updated<3*86400000?saved.history:[];
+      if(want){
+        let reply;this.active++;try{reply=await this.router.ask(this.settings(),history,Docs.prompt(item.text,want),AbortSignal.timeout(110000),[],{search:false,long:true});}finally{this.active--;}
+        const plan=Docs.parse(want.kind,reply.text);if(!plan){console.log(`telegram doc failed: unreadable plan (${reply.provider})`);await bot.send(item.chatId,TEXTS.docFailed);return;}
+        await bot.sendDocument(item.chatId,Docs.fileName(plan),Docs.build(plan),Docs.MIME[plan.kind],toTelegramHtml(Docs.summary(plan)),{reply_markup:KEYBOARD});
+        await store.put(chatKey,{updated:Date.now(),history:[...history,{role:'user',text:item.text.slice(0,1000)},{role:'assistant',text:Docs.summary(plan).slice(0,2000)}].slice(-8)});
+        return;
+      }
       const {question,remember}=questionFor(item);
       const files=[];if(item.fileId){const file=await bot.download(item.fileId);files.push({kind:item.kind==='voice'?'audio':item.kind==='pdf'?'pdf':'image',name:item.kind==='voice'?'Ovozli xabar':item.kind==='sticker'?'stiker':item.name||'rasm.jpg',mime:file.mime&&file.mime.split('/')[0]===item.mime.split('/')[0]?file.mime:item.mime,data:file.data});}
-      const saved=await store.get(chatKey);const history=saved&&Date.now()-saved.updated<3*86400000?saved.history:[];
       let reply;this.active++;try{reply=await this.router.ask(this.settings(),history,question,AbortSignal.timeout(85000),files,{search:item.kind==='news'?'Bugungi yangiliklar':item.kind==='text'?undefined:false});}finally{this.active--;}
       const {heard,text}=item.kind==='voice'?splitHeard(reply.text):{heard:'',text:reply.text};
       await store.put(chatKey,{updated:Date.now(),history:[...history,{role:'user',text:(heard?`🎤 ${heard}`:remember).slice(0,1000)},{role:'assistant',text:text.slice(0,2000)}].slice(-8)});

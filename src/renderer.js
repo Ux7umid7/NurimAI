@@ -26,7 +26,15 @@ function chip(file,removable){
   return el;
 }
 function renderFiles(list){files=list;$('attachments').replaceChildren(...files.map(f=>chip(f,true)));$('attachments').hidden=!files.length;$('file-actions').hidden=!files.length||busy;$('question').placeholder=files.length?'Fayl haqida savol yozing yoki tayyor tugmani bosing…':'Istalgan savolingizni yozing…';}
-function bubble(role,text,attached=[]){
+// A Word/PowerPoint file NurimAI made (saved in Documents\NurimAI): open it or show it in its folder.
+function docCard(doc){
+  const card=document.createElement('div');card.className=`doc-card ${doc.kind}`;const badge=document.createElement('b');badge.textContent=doc.kind==='pptx'?'PPTX':'DOCX';
+  const name=document.createElement('span');name.textContent=doc.name;name.title=doc.path;
+  const open=document.createElement('button');open.type='button';open.className='primary doc-open';open.textContent='Ochish';open.onclick=()=>call(window.nurim.docOpen(doc.path)).catch(e=>notice(e.message));
+  const show=document.createElement('button');show.type='button';show.className='doc-show';show.textContent='Papkada ko‘rsatish';show.onclick=()=>call(window.nurim.docShow(doc.path)).catch(e=>notice(e.message));
+  card.append(badge,name,open,show);return card;
+}
+function bubble(role,text,attached=[],doc=null){
   if(role!=='user')text=NurimMath.plainMath(text); // LaTeX math ($\frac{1}{2}$ -> 1/2) is shown, copied and read aloud as plain text
   $('welcome').hidden=true;const el=document.createElement('article');el.className=`bubble ${role}`;const head=document.createElement('div');head.className='bubble-head';const label=document.createElement('span');label.textContent=role==='user'?'SIZ':'NurimAI';head.append(label);
   if(role!=='user'){const tools=document.createElement('span');tools.className='bubble-tools';const copy=document.createElement('button');copy.className='copy';copy.textContent='Nusxa';copy.onclick=async()=>{await call(window.nurim.copy(text));copy.textContent='Olindi ✓';};
@@ -35,6 +43,7 @@ function bubble(role,text,attached=[]){
   el.append(head);
   if(attached.length){const row=document.createElement('div');row.className='bubble-files';row.append(...attached.map(f=>chip(f,false)));el.append(row);}
   if(role==='user'){const p=document.createElement('p');p.textContent=text;el.append(p);}else{const body=document.createElement('div');body.className='rich';rich(body,text);el.append(body);}
+  if(doc)el.append(docCard(doc));
   $('messages').append(el);scroll();return el;
 }
 function setBusy(value){busy=value;$('waiting').hidden=!value;$('stop').hidden=!value;$('send').hidden=value;$('question').readOnly=value;for(const id of ['new','history','settings','attach','capture','mic','side-new'])$(id).disabled=value;for(const b of document.querySelectorAll('.side-open'))b.disabled=value;$('file-actions').hidden=!files.length||value;$('status').textContent=value?'Javob tayyorlanmoqda…':state?.settings.usePersonalKeys?'Shaxsiy AI · avtomatik':'Yoningizdagi yordamchi';scroll();}
@@ -42,7 +51,7 @@ function updateView(value){$('update-status').textContent=value.text;$('install-
 async function init(){
   state=await call(window.nurim.init());$('shortcut').textContent=(state.platform==='darwin'?'⌘ + ⌥ + Space · tez ochish':'Ctrl + Alt + Space · tez ochish')+(state.explainKey?`   ·   ${state.explainKey} · tushuntirish`:'');
   if(state.explainKey){$('explain-tip').textContent=`✨ Istalgan dasturda matnni belgilab ${state.explainKey} ni bosing — NurimAI uni oddiy tilda tushuntirib beradi.`;$('explain-tip').hidden=false;}
-  for(const m of state.history)bubble(m.role,m.text,m.files||[]);renderFiles(state.files||[]);for(const id of state.sentIds||[])shown.add(id);
+  for(const m of state.history)bubble(m.role,m.text,m.files||[],m.doc);renderFiles(state.files||[]);for(const id of state.sentIds||[])shown.add(id);
   if(state.whatsNew?.length){$('whats-new-title').textContent=`NurimAI ${state.version} versiyasiga yangilandi`;$('whats-new-list').replaceChildren(...state.whatsNew.map(t=>{const li=document.createElement('li');li.textContent=t;return li;}));$('whats-new').hidden=false;}
   if(state.settings.warning)notice(state.settings.warning);setBusy(state.busy);greet();
 }
@@ -59,7 +68,7 @@ function practiceCard(card,p){
 }
 async function ask(question){
   if(!question||busy)return;notice('');const fresh=files.filter(f=>!shown.has(f.id));fresh.forEach(f=>shown.add(f.id));bubble('user',question,fresh.map(({name,ext,kind})=>({name,ext,kind})));$('question').value='';setBusy(true);
-  try{const reply=await call(window.nurim.send(question));bubble('assistant',reply.text);if(reply.incomplete)notice('Javob uzunligi chegarasiga yetdi. Davomini so‘rashingiz mumkin.');}
+  try{const reply=await call(window.nurim.send(question));bubble('assistant',reply.text,[],reply.doc);if(reply.incomplete)notice('Javob uzunligi chegarasiga yetdi. Davomini so‘rashingiz mumkin.');}
   catch(error){notice(error.message);bubble('assistant','Javob olinmadi. Savolni qayta yuborishingiz mumkin.');$('question').value=question;}
   finally{setBusy(false);$('question').focus();renderSide();}
 }
@@ -107,7 +116,7 @@ function historyItem(item,current){
   del.onclick=async()=>{try{await call(window.nurim.historyDelete(item.id));await showHistory();renderSide();}catch(e){$('history-note').textContent=e.message;}};
   li.append(open,del);return li;
 }
-async function openChat(id){const data=await call(window.nurim.historyOpen(id));clearChat();for(const m of data.history)bubble(m.role,m.text,m.files||[]);$('question').focus();renderSide();}
+async function openChat(id){const data=await call(window.nurim.historyOpen(id));clearChat();for(const m of data.history)bubble(m.role,m.text,m.files||[],m.doc);$('question').focus();renderSide();}
 // Sidebar (wide window): the same saved chats, newest first, with search; the narrow window keeps the Tarix dialog.
 let sideTimer=null;
 async function renderSide(){

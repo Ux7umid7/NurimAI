@@ -12,6 +12,8 @@ function cleanMessage(m) {
   const out = { role: m.role, text: m.text.slice(0, LIMITS.text) };
   if (Array.isArray(m.files) && m.files.length) out.files = m.files.slice(0, 5).filter(f => typeof f?.name === 'string').map(f => ({ name: f.name.slice(0, 120), ext: String(f.ext || '').slice(0, 8), kind: String(f.kind || '').slice(0, 8) }));
   if (m.error === true) out.error = true;
+  // A referat or presentation NurimAI made: only its name and where it was saved (Documents\NurimAI), never its content.
+  if (m.doc && typeof m.doc.name === 'string' && typeof m.doc.path === 'string' && /^(docx|pptx)$/.test(m.doc.kind)) out.doc = { name: m.doc.name.slice(0, 160), path: m.doc.path.slice(0, 600), kind: m.doc.kind };
   return out;
 }
 function cleanChat(c) {

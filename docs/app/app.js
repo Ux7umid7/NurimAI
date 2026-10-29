@@ -47,7 +47,51 @@ function chip(file, removable) {
   return el;
 }
 function renderFiles() { $('attachments').replaceChildren(...files.map(f => chip(f, true))); $('attachments').hidden = !files.length; $('file-actions').hidden = !files.length || busy; $('question').placeholder = files.length ? 'Fayl haqida so‘rang…' : 'NurimAI’ga yozing…'; composerState(); }
-function bubble(role, text, attached = []) {
+// --- Referat (Word) va taqdimot (PowerPoint): fayl telefonda yasaladi, oxirgi 10 tasi shu telefonda saqlanadi ---
+const DOCS_KEEP = 10;
+const bytesToB64 = bytes => { let s = ''; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode(...bytes.subarray(i, i + 0x8000)); return btoa(s); };
+function keepDoc(doc, bytes) {
+  try {
+    localStorage.setItem('nurim.doc.' + doc.id, bytesToB64(bytes));
+    const list = [doc.id, ...saved.get('docs', []).filter(id => id !== doc.id)];
+    for (const old of list.slice(DOCS_KEEP)) localStorage.removeItem('nurim.doc.' + old);
+    saved.set('docs', list.slice(0, DOCS_KEEP));
+  } catch {} // xotira to'lgan bo'lsa fayl faqat shu seansda qoladi
+}
+const madeDocs = new Map();
+function docBytes(id) {
+  if (madeDocs.has(id)) return madeDocs.get(id);
+  try { const s = localStorage.getItem('nurim.doc.' + id); if (!s) return null; const bin = atob(s), out = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i); return out; } catch { return null; }
+}
+let nativeFiles = null; // Android: Capacitor Filesystem + Share (registered once)
+async function saveDoc(doc) {
+  const bytes = docBytes(doc.id); if (!bytes) throw new UserError('Bu fayl endi telefonda yo‘q (eski yoki o‘chirilgan). Qayta so‘rang.');
+  if (NATIVE) {
+    nativeFiles ||= { fs: window.capacitorExports.registerPlugin('Filesystem'), share: window.capacitorExports.registerPlugin('Share') };
+    const written = await nativeFiles.fs.writeFile({ path: doc.name, data: bytesToB64(bytes), directory: 'CACHE' });
+    try { await nativeFiles.share.share({ title: doc.name, files: [written.uri], dialogTitle: 'Faylni ochish yoki saqlash' }); } catch (e) { if (!/cancel/i.test(String(e?.message || e))) throw new UserError('Faylni ochib bo‘lmadi.'); }
+    return;
+  }
+  const url = URL.createObjectURL(new Blob([bytes], { type: NurimDocs.MIME[doc.kind] }));
+  const a = document.createElement('a'); a.href = url; a.download = doc.name; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+function docCard(doc) {
+  const card = document.createElement('div'); card.className = `doc-card ${doc.kind}`;
+  const badge = document.createElement('b'); badge.textContent = doc.kind === 'pptx' ? 'PPTX' : 'DOCX';
+  const name = document.createElement('span'); name.textContent = doc.name;
+  const get = document.createElement('button'); get.type = 'button'; get.className = 'primary doc-get'; get.textContent = NATIVE ? 'Ochish / saqlash' : 'Yuklab olish';
+  get.onclick = () => saveDoc(doc).catch(e => notice(e.message));
+  card.append(badge, name, get); return card;
+}
+const QA_PLAN = { docx: '{"mavzu":"Sinov referati","bolimlar":[{"sarlavha":"Kirish","matn":["Sinov matni."]},{"sarlavha":"Xulosa","matn":["Yakun."]}],"adabiyotlar":["Darslik"]}', pptx: '{"mavzu":"Sinov taqdimoti","izoh":"QA","slaydlar":[{"sarlavha":"Birinchi","bandlar":["Bir","Ikki"]},{"sarlavha":"Xulosa","bandlar":["Yakun"]}]}' };
+async function makeDoc(question, want, signal) {
+  const reply = QA ? { text: QA_PLAN[want.kind] } : await askAI(NurimDocs.prompt(question, want, files.length > 0), { signal, long: true });
+  const plan = NurimDocs.parse(want.kind, reply.text); if (!plan) throw new UserError('Faylni tayyorlay olmadim. Qayta urinib ko‘ring yoki mavzuni boshqacha yozing.');
+  const bytes = NurimDocs.build(plan), doc = { id: crypto.randomUUID(), name: NurimDocs.fileName(plan), kind: plan.kind };
+  madeDocs.set(doc.id, bytes); keepDoc(doc, bytes);
+  return { text: NurimDocs.summary(plan), incomplete: false, doc };
+}
+function bubble(role, text, attached = [], doc = null) {
   if (role !== 'user') text = NurimMath.plainMath(text); // LaTeX ($\frac{1}{2}$ -> 1/2): ko'rinishi, nusxasi va ovozi oddiy matn
   $('welcome').hidden = true; $('suggest').hidden = true; heroStop();
   const el = document.createElement('article'); el.className = `bubble ${role}`;
@@ -57,6 +101,7 @@ function bubble(role, text, attached = []) {
   } else {
     const avatar = document.createElement('img'); avatar.src = 'pufak/avatar.webp'; avatar.alt = '';
     const body = document.createElement('div'); body.className = 'rich'; rich(body, text); el.append(avatar, body);
+    if (doc) body.append(docCard(doc));
     if (text.startsWith('Javob olinmadi')) el.classList.add('error');
     else {
       const actions = document.createElement('div'); actions.className = 'actions';
@@ -90,10 +135,10 @@ async function gateway(path, body, signal, ms) {
 }
 const recent = () => { const out = []; let count = 0; for (let i = history.length - 2; i >= 0 && out.length < 12; i -= 2) { const a = history[i], b = history[i + 1]; if (a.role !== 'user' || b.role !== 'assistant') continue; count += a.text.length + b.text.length; if (count > 12000) break; out.unshift(a, b); } return out; };
 const forRequest = list => list.map(f => f.kind === 'text' ? { kind: 'text', name: f.name, text: f.text } : { kind: f.kind, name: f.name, mime: f.mime, data: f.data });
-async function askAI(question, { extra = [], signal, voice = false, withHistory = true, withFiles = true } = {}) {
+async function askAI(question, { extra = [], signal, voice = false, withHistory = true, withFiles = true, long = false } = {}) {
   const sentFiles = [...(withFiles ? forRequest(files) : []), ...extra];
   if (QA) { await new Promise(r => setTimeout(r, 200)); if (question.endsWith('/qa-xato')) throw new UserError('Sinov xatosi.'); const n = sentFiles.length - extra.length; return { text: `${voice ? 'Savolingiz: Kasr nima?\n' : ''}Bu avtomatik sinov uchun tayyor javob. Jonli AI emas.${n ? ` Biriktirilgan fayllar: ${n}.` : ''}`, incomplete: false }; }
-  const r = await gateway('/chat', { deviceId, history: withHistory ? recent() : [], question, ...(sentFiles.length ? { files: sentFiles } : {}) }, signal, sentFiles.length ? 120000 : 90000);
+  const r = await gateway('/chat', { deviceId, history: withHistory ? recent() : [], question, ...(sentFiles.length ? { files: sentFiles } : {}), ...(long ? { long: true } : {}) }, signal, sentFiles.length || long ? 120000 : 90000); // long: a referat/presentation plan
   if (!r.ok) throw new UserError({ 429: 'Bugungi bepul limit tugadi. Ertaga yana yozing.', 413: 'Fayllar juda katta. Keraksizini olib tashlang.', 422: sentFiles.length ? 'AI bu fayl yoki savolni qabul qilmadi. Faylni olib tashlab ko‘ring.' : 'AI bu savolni qabul qilmadi. Matnni qisqartiring yoki yangi suhbat boshlang.', 400: voice ? 'Ovozli savolni server hali qabul qilmayapti. Savolni yozib yuboring.' : 'So‘rov noto‘g‘ri. Ilovani yangilang.', 403: 'Server bu ilovani tanimadi. Ilovani yangilang.' }[r.status] || 'AI serveri hozir javob bera olmadi. Keyinroq urinib ko‘ring.');
   if (typeof r.data.text !== 'string' || !r.data.text.trim()) throw new UserError('Server javobi o‘qilmadi.');
   return { text: r.data.text, incomplete: r.data.incomplete === true };
@@ -107,6 +152,12 @@ async function converse(question, { display = question, voice = false, extra = [
   controller = new AbortController(); const fresh = files.filter(f => !shownFiles.has(f.id)); fresh.forEach(f => shownFiles.add(f.id));
   const asked = { role: 'user', text: display, files: fresh.map(({ name, ext, kind }) => ({ name, ext, kind })) }; visible.push(asked);
   mood('think');
+  const want = !voice && !extra.length && NurimDocs.detect(question); // "Fotosintez haqida referat yozib ber" -> Word fayl
+  if (want) {
+    try { const made = await makeDoc(question, want, controller.signal); history.push({ role: 'user', text: display }, { role: 'assistant', text: made.text }); history = history.slice(-24); visible.push({ role: 'assistant', text: made.text, doc: made.doc }); mood('happy'); remember(); return made; }
+    catch (e) { visible.push({ role: 'assistant', text: 'Javob olinmadi. Savolni qayta yuborishingiz mumkin.', error: true }); mood(e?.name === 'AbortError' ? 'idle' : 'sad'); remember(); throw e; }
+    finally { controller = null; }
+  }
   try {
     const reply = await askAI(practice.state.teacher ? `${question}\n\n(${NurimPractice.TEACHER})` : question, { extra, signal: controller.signal, voice });
     let text = reply.text, transcript = '';
@@ -119,7 +170,7 @@ async function converse(question, { display = question, voice = false, extra = [
 async function askText(question) {
   if (!question || busy) return; notice('');
   const fresh = files.filter(f => !shownFiles.has(f.id)); bubble('user', question, fresh.map(({ name, ext, kind }) => ({ name, ext, kind }))); $('question').value = ''; grow(); setBusy(true);
-  try { const reply = await call(window.nurim.send(question)); bubble('assistant', reply.text); if (reply.incomplete) notice('Javob uzunligi chegarasiga yetdi. Davomini so‘rashingiz mumkin.'); }
+  try { const reply = await call(window.nurim.send(question)); bubble('assistant', reply.text, [], reply.doc); if (reply.incomplete) notice('Javob uzunligi chegarasiga yetdi. Davomini so‘rashingiz mumkin.'); }
   catch (error) { notice(error.message); bubble('assistant', 'Javob olinmadi. Savolni qayta yuborishingiz mumkin.'); $('question').value = question; grow(); }
   finally { setBusy(false); }
 }
@@ -158,7 +209,7 @@ function openChat(id) {
   if (busy) return; const c = saved.get('chats', []).find(x => x.id === id); if (!c) return;
   newChat(); chatId = c.id; visible = c.messages.map(m => ({ ...m }));
   for (let i = 0; i + 1 < visible.length; i++) { const [a, b] = [visible[i], visible[i + 1]]; if (a.role === 'user' && b.role === 'assistant' && !b.error) { history.push({ role: 'user', text: a.text }, { role: 'assistant', text: b.text }); i++; } }
-  history = history.slice(-24); for (const m of visible) bubble(m.role, m.text, m.files || []); closeDrawer(); renderHistory();
+  history = history.slice(-24); for (const m of visible) bubble(m.role, m.text, m.files || [], m.doc); closeDrawer(); renderHistory();
 }
 const MONTHS = ['yan', 'fev', 'mar', 'apr', 'may', 'iyn', 'iyl', 'avg', 'sen', 'okt', 'noy', 'dek'];
 function when(time) { const d = new Date(time), now = new Date(), hm = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); const days = Math.round((new Date(now.toDateString()) - new Date(d.toDateString())) / 864e5); return days === 0 ? 'Bugun ' + hm : days === 1 ? 'Kecha ' + hm : `${d.getDate()}-${MONTHS[d.getMonth()]}`; }

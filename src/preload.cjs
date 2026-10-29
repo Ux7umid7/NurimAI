@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('nurim',Object.freeze({
   reset:()=>ipcRenderer.invoke('reset'), settings:()=>ipcRenderer.invoke('settings'), saveSettings:value=>ipcRenderer.invoke('save-settings',value),
   hide:()=>ipcRenderer.invoke('hide'), toggle:()=>ipcRenderer.invoke('toggle'), quit:()=>ipcRenderer.invoke('quit'),
   copy:text=>ipcRenderer.invoke('copy',text), exportChat:()=>ipcRenderer.invoke('export'),
+  docOpen:file=>ipcRenderer.invoke('doc-open',file), docShow:file=>ipcRenderer.invoke('doc-show',file),
   checkUpdate:()=>ipcRenderer.invoke('check-update'), installUpdate:()=>ipcRenderer.invoke('install-update'),
   openLink:name=>ipcRenderer.invoke('open-link',name),
   movePet:point=>ipcRenderer.invoke('move-pet',point), petActive:()=>ipcRenderer.invoke('pet-active'),

@@ -9,7 +9,7 @@ function docx(text){const raw=Buffer.from(`<w:document><w:body><w:p><w:r><w:t>${
  return Buffer.concat([local,name,data,dir,name,end]);}
 const PNG=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFklEQVR4nGP8z8Dwn4GBgYGJgYGBAQAWBgICcNjU9wAAAABJRU5ErkJggg==','base64');
 test('phone app: greeting, a typed question, answer actions and the chat in the menu',async()=>{
- await expect(page.locator('#greet')).toHaveText(/Xayrli|Tun/);await expect(page.locator('.suggest button')).toHaveCount(5);
+ await expect(page.locator('#greet')).toHaveText(/Xayrli|Tun/);await expect(page.locator('.suggest button')).toHaveCount(7);
  await expect(page.locator('#tabbar')).toBeVisible();await expect(page.locator('#streak-chip')).toContainText('Kunlik mashq');await expect(page.locator('#hero-still')).toHaveAttribute('src',/pufak\/pufak\.webp/);
  await page.evaluate(()=>{showRecording(true);showClock('0:07');});await expect(page.locator('#voice')).toBeVisible();await page.screenshot({path:'test-results/mobile-voice.png'});await page.locator('#voice-cancel').click();await expect(page.locator('#voice')).toBeHidden(); // the listening view (no recorder: cancel just closes it)
  await page.locator('#question').fill('Kasr nima?');await expect(page.locator('#send')).toBeVisible();await expect(page.locator('#mic')).toBeHidden();await page.locator('#send').click();
@@ -56,4 +56,16 @@ test('phone app: settings, a hand-picked theme, and history survives a reload',a
  await page.locator('#save-history').uncheck();await page.locator('#save-history').check();await page.locator('#settings-dialog .icon-btn').click();
  await page.emulateMedia({colorScheme:'dark'});await page.reload();await page.locator('#question').waitFor();expect((await look()).theme).toBe('light'); // remembered, and set before the first paint
  await page.locator('#menu').click();await expect(page.locator('#history-list li')).toHaveCount(3);
+});
+test('phone app: a presentation request makes a PowerPoint file to download, kept on the phone for later',async()=>{
+ await page.locator('#drawer-new').click();await page.locator('.suggest button',{hasText:'Taqdimot'}).click();await expect(page.locator('#question')).toHaveValue('Taqdimot tayyorlab ber (PowerPoint): ');
+ await page.locator('#question').fill('Quyosh tizimi haqida taqdimot tayyorla');await page.locator('#send').click();
+ const card=page.locator('.bubble.assistant .doc-card').last();await expect(card).toContainText('Taqdimot - Sinov taqdimoti.pptx');await expect(card.locator('button')).toHaveText('Yuklab olish');
+ await page.evaluate(()=>{window.__download=null;HTMLAnchorElement.prototype.click=function(){window.__download={name:this.download,blob:this.href.startsWith('blob:')};};});
+ await card.locator('button').click();expect(await page.evaluate(()=>window.__download)).toEqual({name:'Taqdimot - Sinov taqdimoti.pptx',blob:true});
+ expect(await page.evaluate(()=>{const [id]=JSON.parse(localStorage.getItem('nurim.docs'));return atob(localStorage.getItem('nurim.doc.'+id)).slice(0,2);})).toBe('PK');
+ await page.screenshot({path:'test-results/mobile-doc.png'});
+ await page.reload();await page.locator('#question').waitFor();await page.locator('#menu').click();await page.locator('#history-list li .open').first().click();
+ await page.evaluate(()=>{window.__download=null;HTMLAnchorElement.prototype.click=function(){window.__download={name:this.download};};});
+ await page.locator('.doc-card button').last().click();expect(await page.evaluate(()=>window.__download)).toEqual({name:'Taqdimot - Sinov taqdimoti.pptx'}); // still there after a restart
 });
