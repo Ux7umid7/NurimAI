@@ -186,7 +186,7 @@ test('in a group the bot runs the daily question game: the cron tick asks, an an
   await ask({update_id:72,message:{...admin,message_id:6,text:`/vaqt ${now}`}});assert.match(net.sent().at(-1).text,new RegExp(`soat <b>${now}</b>`));
   await ask({update_id:73,message:{message_id:7,chat,from:{id:8,first_name:'Ali'},text:'Bugun dars bormi?'}});assert.equal(net.gemini().length,0,'chat without an open question is left alone');
   await gw.fetch(new Request('https://internal/tick',{method:'POST'}));
-  assert.equal(net.gemini().length,1);assert.match(net.gemini()[0].contents[0].parts.at(-1).text,/Mavzu: «JS\/HTML»/);assert.match(net.sent().at(-1).text,/Kunlik savol<\/b> · JS\/HTML\n\nHTML’da eng katta sarlavha tegi qaysi\?/);
+  assert.equal(net.gemini().length,1);assert.match(net.gemini()[0].contents[0].parts.at(-1).text,/Mavzu: «JS\/HTML»/);assert.match(net.sent().at(-1).text,/Kunlik savol<\/b> · JS\/HTML · 🟡 o‘rtacha\n\nHTML’da eng katta sarlavha tegi qaysi\?\n\n<i>[^<]*7 daqiqadan keyin maslahat beraman, 25 daqiqada/);
   await ask({update_id:74,message:{message_id:8,chat,from:{id:8,first_name:'Ali'},text:'<h1>'}});assert.equal(net.gemini().length,1,'an exact answer is not sent to the AI');
   assert.match(net.sent().at(-1).text,/To‘g‘ri!<\/b> <a href="tg:\/\/user\?id=8">Ali<\/a> birinchi topdi/);assert.deepEqual(map.get('tg:score:-1009'),{8:{name:'Ali',points:1}});
  }finally{globalThis.fetch=real;}

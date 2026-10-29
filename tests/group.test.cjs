@@ -10,17 +10,30 @@ const say=(text,user,name,extra={})=>({kind:'text',chatId:G,group:true,userId:us
 test('schedule: today\'s question in a 30-minute window from the set time, once a day; reveal after the set minutes',async()=>{
  const {due,tashkent,parseTime}=await import('../server/group.mjs');
  assert.deepEqual(tashkent(at(29,'00:10')),{day:'2026-10-29',minutes:10});
- const g={topic:'Tarix',time:'08:00',reveal:25,on:true,lastDay:'',lastTry:0,active:null};
+ const g={topic:'Tarix',time:'08:00',timeSet:true,reveal:25,on:true,lastDay:'',lastTry:0,active:null};
+ const fresh={...g,timeSet:undefined}; // never set with /vaqt (also groups made before 0.8.3, stored with 08:00): the default 20:00
+ assert.equal(due(fresh,at(29,'08:00')),null);assert.equal(due(fresh,at(29,'19:59')),null);assert.equal(due(fresh,at(29,'20:00')),'ask');
  assert.equal(due(g,at(29,'07:59')),null);assert.equal(due(g,at(29,'08:00')),'ask');assert.equal(due(g,at(29,'08:29')),'ask');assert.equal(due(g,at(29,'08:30')),null);
  assert.equal(due({...g,lastDay:'2026-10-29'},at(29,'08:05')),null);assert.equal(due({...g,lastTry:at(29,'08:01')},at(29,'08:04')),null);assert.equal(due({...g,lastTry:at(29,'08:01')},at(29,'08:06')),'ask');
  assert.equal(due({...g,topic:''},at(29,'08:00')),null);assert.equal(due({...g,on:false},at(29,'08:00')),null);
- const a={...g,active:{askedAt:at(29,'08:00')}};assert.equal(due(a,at(29,'08:24')),null);assert.equal(due(a,at(29,'08:25')),'reveal');assert.equal(due({...a,on:false},at(29,'08:26')),'reveal');
+ const a={...g,active:{askedAt:at(29,'08:00'),answer:'Amir Temur',hints:['XIV asr'],hinted:0}};assert.equal(due(a,at(29,'08:24')),'hint');assert.equal(due(a,at(29,'08:25')),'reveal');assert.equal(due({...a,on:false},at(29,'08:26')),'reveal');
+ // Hints while nobody has found it: a medium question at 7 and 14 minutes, a hard one at 5 and 10, an easy one at 10 and 20.
+ const at8=m=>at(29,`08:${String(m).padStart(2,'0')}`),step=(level,hinted,m)=>due({...a,active:{...a.active,level,hinted}},at8(m));
+ assert.deepEqual([step('orta',0,6),step('orta',0,7),step('orta',1,13),step('orta',1,14),step('orta',2,20)],[null,'hint',null,'hint',null]);
+ assert.deepEqual([step('qiyin',0,4),step('qiyin',0,5),step('qiyin',1,10),step('oson',0,9),step('oson',0,10),step('oson',1,20)],[null,'hint','hint',null,'hint','hint']);
+ const {hintTimes,hintsFor,autoHint}=await import('../server/group.mjs');
+ assert.deepEqual([hintTimes('orta',25),hintTimes('qiyin',25),hintTimes('oson',25),hintTimes('oson',12),hintTimes('orta',5)],[[7,14],[5,10],[10,20],[6],[]]);
+ assert.deepEqual(hintsFor({answer:'Amir Temur',hints:[]}),['Javob «A» harfi bilan boshlanadi, 2 ta so‘zdan iborat.']);assert.deepEqual(hintsFor({answer:'h1',hints:['Sarlavha tegi','Raqami bor','Uchinchi']}),['Sarlavha tegi','Raqami bor']);
+ assert.deepEqual([autoHint('1991'),autoHint('<h1>'),autoHint('Samarqand')],['Javob — 4 xonali son.','Javob «H» harfi bilan boshlanadi, 2 ta harf.','Javob «S» harfi bilan boshlanadi, 9 ta harf.']);
  assert.deepEqual(['8','7:30','23.59','08:05','24:00','7:60','abc',''].map(parseTime),['08:00','07:30','23:59','08:05',null,null,null,null]);
 });
 test('questions and verdicts are read from the AI\'s JSON; exact answers need no AI',async()=>{
  const {parseQuestion,parseVerdict,exactMatch,looksLikeAnswer,judgePrompt,questionPrompt}=await import('../server/group.mjs');
  const q=parseQuestion('```json\n{"savol":"Temuriylar davlatining asoschisi kim?","javob":"Amir Temur","qabul":["Temur","Tamerlan"],"izoh":"1370-yilda."}\n```');
- assert.deepEqual(q,{question:'Temuriylar davlatining asoschisi kim?',answer:'Amir Temur',accept:['Temur','Tamerlan'],explain:'1370-yilda.'});
+ assert.deepEqual(q,{question:'Temuriylar davlatining asoschisi kim?',answer:'Amir Temur',accept:['Temur','Tamerlan'],explain:'1370-yilda.',level:'orta',hints:[]});
+ const h=parseQuestion('{"savol":"Temuriylar asoschisi kim?","javob":"Amir Temur","qiyinlik":"Qiyin","maslahatlar":["XIV asrda yashagan","Uning ismi Amir Temur","Samarqand"]}');
+ assert.deepEqual([h.level,h.hints],['qiyin',['XIV asrda yashagan','Samarqand']]); // a hint that says the answer is dropped
+ assert.equal(parseQuestion('{"savol":"Savol bormi?","javob":"ha","qiyinlik":"o‘rtacha"}').level,'orta');assert.equal(parseQuestion('{"savol":"Savol bormi?","javob":"ha","qiyinlik":"juda"}').level,'orta');
  for(const bad of ['yo‘q','{"savol":"Kim?","javob":""}','{"savol":"","javob":"x"}','{oops'])assert.equal(parseQuestion(bad),null);
  for(const text of ['amir temur!','  Amir   TEMUR ','Амир Темур','temur','Tamerlan'])assert.equal(exactMatch(text,q),true,text);
  for(const text of ['Temur Malik','Bobur'])assert.equal(exactMatch(text,q),false,text);
@@ -48,18 +61,18 @@ test('a day in the group: set up by an admin, the question at the set time, a hi
  const {GroupGame}=await import('../server/group.mjs');
  const {store,map}=fakeStore(),bot=fakeBot();let now=at(29,'07:00');const prompts=[];
  const answers={judge:'{"baho":"notogri"}'};
- const ask=async prompt=>{prompts.push(prompt);if(prompt.startsWith('Telegram guruhi'))return `{"savol":"Temuriylar davlatining asoschisi kim? (${prompts.length})","javob":"Amir Temur","qabul":["Temur"],"izoh":"1370-yilda Samarqandda."}`;return answers.judge;};
+ const ask=async prompt=>{prompts.push(prompt);if(prompt.startsWith('Telegram guruhi'))return `{"savol":"Temuriylar davlatining asoschisi kim? (${prompts.length})","javob":"Amir Temur","qabul":["Temur"],"izoh":"1370-yilda Samarqandda.","qiyinlik":"qiyin","maslahatlar":["U Samarqandni poytaxt qilgan."]}`;return answers.judge;};
  const game=new GroupGame({store,bot,ask,now:()=>now});
  await game.update({kind:'joined',chatId:G,title:'8-B sinf'});assert.match(bot.sent.at(-1).text,/Salom! Men NurimAI/);assert.deepEqual(map.get('tg:groups'),[G]);
  await game.update(cmd('start'));assert.equal(bot.sent.length,1,'joining by link also sends /start: one greeting');
  await game.update(cmd('mavzu','Tarix 8-sinf',8));assert.equal(bot.sent.at(-1).text,'Buni faqat guruh adminlari o‘zgartira oladi.');
  await game.update(cmd('savol'));assert.match(bot.sent.at(-1).text,/Avval mavzuni tanlang/);
- await game.update(cmd('mavzu','Tarix 8-sinf'));assert.match(bot.sent.at(-1).text,/Mavzu: <b>Tarix 8-sinf<\/b>\. Har kuni soat 08:00/);assert.equal(bot.sent.at(-1).reply_parameters.message_id,50);
+ await game.update(cmd('mavzu','Tarix 8-sinf'));assert.match(bot.sent.at(-1).text,/Mavzu: <b>Tarix 8-sinf<\/b>\. Har kuni soat 20:00/);assert.equal(bot.sent.at(-1).reply_parameters.message_id,50);
  await game.update(cmd('vaqt','7:30'));await game.update(cmd('muddat','20'));await game.update(cmd('muddat','500'));assert.match(bot.sent.at(-1).text,/5 dan 120 gacha/);
  await game.update(cmd('holat','',8));assert.match(bot.sent.at(-1).text,/Mavzu: Tarix 8-sinf\nVaqt: har kuni 07:30 \(Toshkent\)\nJavob: 20 daqiqadan keyin/);
  now=at(29,'07:29');await game.tick();assert.equal(prompts.length,0);
  now=at(29,'07:30');await game.tick();assert.equal(prompts.length,1);assert.match(prompts[0],/Mavzu: «Tarix 8-sinf»/);
- const question=bot.sent.at(-1);assert.match(question.text,/^🧠 <b>Kunlik savol<\/b> · Tarix 8-sinf\n\nTemuriylar davlatining asoschisi kim\? \(1\)/);
+ const question=bot.sent.at(-1);assert.match(question.text,/^🧠 <b>Kunlik savol<\/b> · Tarix 8-sinf · 🔴 qiyin\n\nTemuriylar davlatining asoschisi kim\? \(1\)\n\n<i>Javobni shu xabarga reply qilib yozing\. Hech kim topmasa, 5 daqiqadan keyin maslahat beraman, 20 daqiqada javobni o‘zim aytaman\.<\/i>$/);
  const asked=map.get(`tg:group:${G}`).active;assert.equal(asked.messageId,bot.sent.length+100);assert.equal(map.get(`tg:group:${G}`).lastDay,'2026-10-29');
  now=at(29,'07:31');await game.tick();assert.equal(prompts.length,1,'once a day');
  await game.update(say('salom hammaga',9,'Vali',{replyTo:77,replyToBot:false}));assert.equal(prompts.length,1,'a reply to someone else is not an answer');
@@ -73,7 +86,13 @@ test('a day in the group: set up by an admin, the question at the set time, a hi
  assert.equal(map.get(`tg:group:${G}`).active,null);await game.update(say('Temur',11,'Sardor'));assert.equal(prompts.length,judged,'after the winner nothing is judged');
  await game.update(cmd('reyting','',9));assert.equal(bot.sent.at(-1).text,'🏆 <b>Reyting</b>\n🥇 &lt;Lola&gt; — 1 ball');
  now=at(30,'07:35');await game.tick();assert.equal(prompts.length,judged+1);assert.match(prompts.at(-1),/Bu savollarni takrorlama:\n- Temuriylar davlatining asoschisi kim\? \(1\)/);
- now=at(30,'07:54');await game.tick();assert.match(bot.sent.at(-1).text,/Kunlik savol/);
+ const second=bot.sent.at(-1);assert.match(second.text,/Kunlik savol/);
+ // Nobody answers: a hard question gets its hints at 5 and 10 minutes (the AI's, then the first letter), then the answer at 20.
+ now=at(30,'07:39');await game.tick();assert.equal(bot.sent.at(-1),second);
+ now=at(30,'07:40');await game.tick();assert.equal(bot.sent.at(-1).text,'💡 <b>Maslahat:</b> U Samarqandni poytaxt qilgan.');assert.equal(bot.sent.at(-1).reply_parameters.message_id,map.get(`tg:group:${G}`).active.messageId);
+ await game.tick();assert.equal(bot.sent.at(-1).text,'💡 <b>Maslahat:</b> U Samarqandni poytaxt qilgan.');assert.equal(bot.sent.filter(m=>m.text.startsWith('💡')).length,1,'each hint once');
+ now=at(30,'07:45');await game.tick();assert.equal(bot.sent.at(-1).text,'💡 <b>Yana bir maslahat:</b> Javob «A» harfi bilan boshlanadi, 2 ta so‘zdan iborat.');
+ now=at(30,'07:54');const hinted=bot.sent.length;await game.tick();assert.equal(bot.sent.length,hinted,'no more hints');
  now=at(30,'07:55');await game.tick();assert.equal(bot.sent.at(-1).text,'⏰ <b>Vaqt tugadi.</b> To‘g‘ri javob: <b>Amir Temur</b>\n1370-yilda Samarqandda.\n\nKeyingi savol ertaga soat 07:30 da.');assert.equal(map.get(`tg:group:${G}`).active,null);
 });
 test('admins can ask now, reveal now, pause; the daily AI limit and a removed bot are handled',async()=>{
