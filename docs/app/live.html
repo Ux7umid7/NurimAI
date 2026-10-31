@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://telegram.org; style-src 'self'; img-src 'self' data:; media-src 'self' blob:; connect-src 'self' https://nurimai-api.ux7umidjon7.workers.dev wss://generativelanguage.googleapis.com; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<title>NurimAI — jonli suhbat</title>
+<meta name="description" content="NurimAI bilan jonli ovozli suhbat: gapiring, u ovozda javob beradi.">
+<meta name="theme-color" content="#121317" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F6F1E7" media="(prefers-color-scheme: light)">
+<link rel="icon" href="icons/icon-192.png">
+<script src="lib/theme.js"></script>
+<link rel="stylesheet" href="fonts.css">
+<link rel="stylesheet" href="live.css">
+</head>
+<body>
+<main class="live" id="live" data-state="idle">
+  <header class="live-top">
+    <a class="back" id="back" href="index.html" aria-label="NurimAI ilovasiga qaytish">← NurimAI</a>
+    <strong>Jonli suhbat</strong>
+    <span class="clock" id="clock" hidden>15:00</span>
+  </header>
+
+  <section class="stage" aria-hidden="true">
+    <span class="ring r3"></span><span class="ring r2"></span><span class="ring r1"></span>
+    <img id="nur" src="pufak/wave.webp" alt="">
+  </section>
+
+  <p class="status" id="status" role="status" aria-live="polite">Tugmani bosing va gapiring — NurimAI ovozda javob beradi.</p>
+
+  <ol class="lines" id="lines" aria-label="Suhbat matni" aria-live="polite"></ol>
+
+  <div class="controls">
+    <button type="button" class="round mute" id="mute" aria-pressed="false" hidden>Mikrofon</button>
+    <button type="button" class="round main" id="talk">Boshlash</button>
+    <button type="button" class="round open" id="browser" hidden>Brauzerda ochish</button>
+  </div>
+
+  <p class="note">Ovozingiz suhbat davomida Google Gemini’ga yuboriladi va saqlanmaydi. Bir suhbat 15 daqiqagacha, kuniga bir necha marta. Quloqchin bilan yaxshiroq eshitiladi.</p>
+</main>
+<script src="config.js"></script>
+<script src="live.js"></script>
+</body>
+</html>

@@ -10,7 +10,7 @@ test('renderer has no Node access and AI markup remains inert text',async()=>{
  expect(await page.evaluate(()=>typeof require)).toBe('undefined');await page.locator('#question').fill('<img src=x onerror="window.hacked=true">');await page.locator('#send').click();await expect(page.locator('.bubble.user p')).toContainText('<img');expect(await page.evaluate(()=>window.hacked)).toBeUndefined();expect(await page.locator('.bubble.user img').count()).toBe(0);
 });
 test('settings masks keys and shows honest update status',async()=>{
- await page.locator('#settings').click();await page.locator('summary').click();await expect(page.locator('#key-Gemini')).toHaveAttribute('type','password');await expect(page.locator('#key-Groq')).toHaveAttribute('type','password');await page.locator('#check-update').click();await expect(page.locator('#update-status')).toContainText('Dasturchi rejimi');await page.screenshot({path:'test-results/settings.png'});await page.locator('#close-settings').click();
+ await page.locator('#settings').click();await page.locator('summary').click();await expect(page.locator('#key-Gemini')).toHaveAttribute('type','password');await expect(page.locator('#key-Groq')).toHaveAttribute('type','password');for(const p of ['Claude','ChatGPT']){await expect(page.locator(`#key-${p}`)).toHaveAttribute('type','password');await expect(page.locator(`#free-${p}`)).toHaveCount(0);}await expect(page.locator('.provider.paid small').first()).toContainText('Claude Opus 5.5');await page.locator('#key-Claude').fill('sk-proj-wrong');await page.locator('#settings-form button[type=submit]').click();await expect(page.locator('#settings-error')).toContainText('sk-ant-');await page.locator('#key-Claude').fill('');await page.locator('#check-update').click();await expect(page.locator('#update-status')).toContainText('Dasturchi rejimi');await page.screenshot({path:'test-results/settings.png'});await page.locator('#close-settings').click();
 });
 test('the theme is chosen by hand (light, dark or the system’s) and remembered',async()=>{
  const look=()=>page.evaluate(()=>({theme:document.documentElement.dataset.theme,bg:getComputedStyle(document.documentElement).getPropertyValue('--bg').trim(),saved:localStorage.getItem('nurim.theme')}));
@@ -135,4 +135,22 @@ test('memory: what the user tells about themself is noted under the answer, list
  await page.locator('#question').fill('Yana /qa-xotira');await page.locator('#send').click();await expect(page.locator('.bubble.assistant')).toHaveCount(2);await expect(page.locator('.bubble.assistant').last().locator('.memory-note')).toHaveCount(0); // off: nothing sent, nothing noted
  await page.locator('#settings').click();await expect(page.locator('#memory-list li')).toHaveCount(1);await page.locator('#memory-on').check();await page.locator('#memory-clear').click();
  await expect(page.locator('#memory-list li')).toHaveCount(0);await expect(page.locator('#memory-empty')).toBeVisible();await page.locator('#close-settings').click();
+});
+test('computer files: a chosen folder, the 📁 switch, a change made with a yes and refused with a no, shown under the answer',async()=>{
+ await page.locator('#new').click();await expect(page.locator('#files')).toHaveAttribute('aria-pressed','false');
+ await page.locator('#settings').click();await expect(page.locator('#folders-empty')).toBeVisible();await page.locator('#folder-add').click();
+ await expect(page.locator('#folder-list li span')).toContainText('qa-papka');await page.locator('#folder-list').scrollIntoViewIfNeeded();await page.screenshot({path:'test-results/desktop-folders.png'});await page.locator('#close-settings').click();
+ await page.locator('#files').click();await expect(page.locator('#files')).toHaveAttribute('aria-pressed','true');await expect(page.locator('#question')).toHaveAttribute('placeholder',/Fayllar bilan nima qilay/);
+ await page.locator('#question').fill('Papkaga salom.txt yoz');await page.locator('#send').click();
+ await expect(page.locator('.bubble.assistant').last()).toContainText('📁 ✏️ qa-papka/salom.txt — yaratildi');
+ const folder=path.join(profile,'qa-papka');expect(fs.readFileSync(path.join(folder,'salom.txt'),'utf8')).toBe('Salom, NurimAI!');
+ fs.writeFileSync(path.join(folder,'salom.txt'),'Eski matn');
+ await page.locator('#question').fill('Yana yoz /qa-rad');await page.locator('#send').click();
+ await expect(page.locator('.bubble.assistant').last()).toContainText('✋ qa-papka/salom.txt — ruxsat berilmadi');expect(fs.readFileSync(path.join(folder,'salom.txt'),'utf8')).toBe('Eski matn');
+ await page.screenshot({path:'test-results/desktop-files-chat.png'});
+ await page.locator('#files').click();await expect(page.locator('#files')).toHaveAttribute('aria-pressed','false');
+ await page.locator('#settings').click();await page.locator('#folder-list li button').click();await expect(page.locator('#folders-empty')).toBeVisible();await page.locator('#close-settings').click();
+});
+test('the live conversation button asks the app to open its window',async()=>{
+ await expect(page.locator('#live')).toHaveAttribute('aria-label','Jonli suhbat');await page.locator('#live').click();await expect(page.locator('#notice')).not.toContainText('Xato');
 });

@@ -1,6 +1,6 @@
 const {app,BrowserWindow,ipcMain,screen,Menu,Tray,nativeImage,globalShortcut,safeStorage,dialog,clipboard,ClipboardItem,shell,desktopCapturer,systemPreferences,Notification} = require('electron');
 const fs = require('node:fs');const path = require('node:path');const {pathToFileURL} = require('node:url');
-const {Router,UserError,ORDER,speak,withSources} = require('./router.cjs');const {Store} = require('./store.cjs');const {askGateway,speakGateway} = require('./gateway.cjs');
+const {Router,UserError,PAID,speak,withSources} = require('./router.cjs');const {Store,KEYS} = require('./store.cjs');const {claude} = require('./claude.cjs');const {Folders,work,named} = require('./folders.cjs');const {askGateway,speakGateway} = require('./gateway.cjs');
 const {UpdateController} = require('./updater.cjs');const release = require('./release-config.json');
 const {prepare,checkFits,forRequest,forView,LIMITS,PICKER_EXTENSIONS} = require('./attachments.cjs');const whatsNew = require('./whats-new.json');
 const {Chats} = require('./chats.cjs');const {grabSelection} = require('./selection.cjs');const practiceModule = require('./practice.cjs');const {Practice} = practiceModule;
@@ -9,11 +9,11 @@ const {Memory} = require('./memory-store.cjs');let memory; // what the user told
 const qa = process.argv.includes('--qa');const root = path.join(__dirname,'..');
 app.setName('NurimAI');app.setAppUserModelId('com.nurimai.desktop');
 if(qa) {const profile = process.env.NURIMAI_QA_PROFILE;if(!profile || !path.isAbsolute(profile)) throw new Error('An isolated QA profile is required');app.setPath('userData',profile);}
-let chat,pet,tray,store,updates,controller;let history=[],visible=[],exiting=false;let interval,startTimer;
+let chat,pet,live,tray,store,updates,controller;let history=[],visible=[],exiting=false;let interval,startTimer;
 let files=[],fileSeq=0,previousVersion='';const sentIds=new Set(); // attachments already shown on a sent message
 let chats,chatId=Chats.newId(),explainKey=false,explaining=false; // chatId: the conversation on screen, as saved in history
 let practice,generating=null,remindTimer; // Ustoz rejimi: testlar, kartochkalar, eslatmalar
-const router = new Router();
+const router = new Router({extra:{Claude:claude()}});
 const asset = name=>path.join(root,'assets',name);
 const PET={width:144,height:180};
 // The 3D mascot loops idle / think / sleep and plays happy / wave / sad / catch once; the pet window only reacts to these moods.
@@ -55,7 +55,18 @@ async function captureScreen(){
     return source.thumbnail.toPNG();
   }finally{if(petShown)pet.showInactive();chat.setBounds(bounds);chat.show();chat.focus();}
 }
-const micAllowed=(contents,permission,types)=>permission==='media'&&contents===chat?.webContents&&types.length>0&&types.every(t=>t==='audio'); // voice questions only
+// Voice questions in the chat window, and the live conversation page in its own window (and only that page).
+const LIVE_URL='https://ux7umid7.github.io/NurimAI/app/live.html?from=desktop';
+const onLivePage=contents=>contents===live?.webContents&&contents.getURL().startsWith(LIVE_URL.split('?')[0]);
+const micAllowed=(contents,permission,types)=>permission==='media'&&(contents===chat?.webContents||onLivePage(contents))&&types.length>0&&types.every(t=>t==='audio');
+// The live conversation (Gemini Live) runs on the phone app's page, which the server allows; the window stays on that page.
+function openLive(){
+  if(live&&!live.isDestroyed()){live.show();live.focus();return;}
+  live=new BrowserWindow({title:'NurimAI — jonli suhbat',width:430,height:760,minWidth:340,minHeight:560,autoHideMenuBar:true,backgroundColor:'#121317',icon:asset('Nuri.ico'),webPreferences:{nodeIntegration:false,contextIsolation:true,sandbox:true,webSecurity:true}});
+  live.webContents.setWindowOpenHandler(()=>({action:'deny'}));
+  live.webContents.on('will-navigate',(event,url)=>{if(!url.startsWith(LIVE_URL.split('?')[0]))event.preventDefault();});
+  live.on('closed',()=>{live=null;});live.loadURL(LIVE_URL);
+}
 function lockWindow(window,file){
   window.webContents.setWindowOpenHandler(()=>({action:'deny'}));window.webContents.on('will-navigate',event=>event.preventDefault());
   window.webContents.session.setPermissionRequestHandler((contents,permission,callback,details)=>callback(micAllowed(contents,permission,details?.mediaTypes||[])));
@@ -102,8 +113,15 @@ const HEARD=/^\s*\**\s*Savolingiz\s*:?\s*\**\s*[«"]?(.+?)[»"]?\s*\**\s*$/i;
 async function ask(question,extraFiles=[],signal,voice=false,long=false){
   const sent=[...forRequest(files),...extraFiles],facts=long?undefined:memory.forQuestion();
   if(qa){if(question.endsWith('/qa-xato'))throw new UserError('Sinov xatosi.');const reply=question.includes('/qa-xotira')?{text:'Tanishganimdan xursandman!',incomplete:false,facts:['Ismi Sinov','8-sinfda o‘qiydi']}:{text:`${voice?'Savolingiz: Kasr nima?\n':''}Bu avtomatik UI sinovi uchun tayyor javob. Jonli AI emas.${sent.length-extraFiles.length?` Biriktirilgan fayllar: ${sent.length-extraFiles.length}.`:''}`,incomplete:false,facts:[]};return remembered(facts?reply:{...reply,facts:[]});}
-  const reply=await(store.value.usePersonalKeys?router.ask(store.value,history,question,signal,sent,{...(long?{long,search:false}:{}),...(facts?{memory:facts}:{})}).then(r=>({...r,text:withSources(r)})):askGateway({url:release.gateway,deviceId:store.value.deviceId,history,question,files:sent,signal,voice,long,memory:facts}));
-  return remembered(reply);
+  return remembered(await askAI({history,question,signal,sent,options:{...(long?{long,search:false}:{}),...(facts?{memory:facts}:{})},voice,long,facts}));
+}
+// The user's own paid keys (Claude, ChatGPT) answer first. When they cannot, the free routes answer as before: the personal
+// free keys when "O‘z API kalitlarim" is on, otherwise the NurimAI server.
+async function askAI({history,question,signal,sent,options={},voice=false,long=false,facts}){
+  const personal=settings=>router.ask(settings,history,question,signal,sent,options).then(r=>({...r,text:withSources(r)}));
+  if(store.value.usePersonalKeys)return personal(store.value);
+  if(PAID.some(p=>store.value.keys[p])){try{return await personal({...store.value,keys:Object.fromEntries(PAID.map(p=>[p,store.value.keys[p]])),free:{}});}catch(e){signal.throwIfAborted();}}
+  return askGateway({url:release.gateway,deviceId:store.value.deviceId,history,question,files:sent,signal,voice,long,memory:facts});
 }
 function remembered(reply){const fresh=(reply.facts||[]).filter(Boolean);if(fresh.length)memory.add(fresh);return {...reply,remembered:fresh};}
 // Made files are saved in Documents\NurimAI (in QA mode: inside the test profile); only paths in there may be opened.
@@ -122,18 +140,35 @@ async function makeDoc(question,want,signal){
   return {...reply,text:Docs.summary(plan),doc:await saveDoc(plan)};
 }
 // display: what the chat shows; voice: the reply's first line is the transcript; teacher style adds a hidden instruction for the AI only.
-async function converse(question,{display=question,voice=false,extra=[]}){
+// Kompyuter fayllari (folders.cjs): with 📁 on, the AI works in the chosen folders step by step. Each change waits for the
+// user's yes in a system dialog; deleted and overwritten files go to the Recycle Bin. QA runs a scripted AI in a test folder.
+const FILE_QA=['<nurim-tool>{"tool":"list","path":"qa-papka"}</nurim-tool>','<nurim-tool>{"tool":"write","path":"qa-papka/salom.txt","content":"Salom, NurimAI!"}</nurim-tool>','Tayyor: qa-papka ichidagi fayllarni ko‘rdim va salom.txt faylini yaratishni so‘radim.'];
+async function fileWork(question,signal){
+  const facts=memory.forQuestion();let qaStep=0;
+  const confirm=async({title,detail})=>{if(qa)return !question.includes('/qa-rad');if(!chat.isVisible())chat.show();const {response}=await dialog.showMessageBox(chat,{type:'question',buttons:['Ruxsat berish','Rad etish'],defaultId:1,cancelId:1,noLink:true,title:'NurimAI ruxsat so‘rayapti',message:title,detail:detail.slice(0,1500)});return response===0;};
+  const folders=new Folders({paths:store.value.folders,imageTool,confirm,trash:full=>qa?fs.promises.rm(full,{recursive:true,force:true}):shell.trashItem(full)});
+  const onStep=text=>chat.webContents.send('files-step',text);
+  const once=({question:q,history:h,files:f,first})=>askAI({history:h,question:q,signal,sent:f,options:first&&facts?{memory:facts}:{},facts:first?facts:undefined});
+  // A task takes several steps; when the server's per-minute limit is hit, the step waits for it once instead of failing.
+  const askStep=async step=>{
+    if(qa)return {text:FILE_QA[qaStep++]||'Tayyor.',incomplete:false,facts:[]};
+    try{return await once(step);}catch(e){if(e?.code!=='limit'||!(e.retry>0&&e.retry<=65))throw e;onStep(`⏳ Daqiqalik limit: ${e.retry} soniya kutyapman`);await require('node:timers/promises').setTimeout(e.retry*1000,undefined,{signal});return once(step);}
+  };
+  return remembered(await work({folders,question,history,files:forRequest(files),signal,askStep,onStep}));
+}
+async function converse(question,{display=question,voice=false,extra=[],useFolders=false}){
   if(controller||generating)throw new UserError('Avvalgi javobni kuting.');
   activity();controller=new AbortController();const fresh=files.filter(f=>!sentIds.has(f.id));fresh.forEach(f=>sentIds.add(f.id));
   const asked={role:'user',text:display,files:fresh.map(({name,ext,kind})=>({name,ext,kind}))};visible.push(asked);
   mood('think');
-  const want=!voice&&!extra.length&&Docs.detect(question);
+  const inFolders=useFolders&&store.value.folders.length>0;
+  const want=!voice&&!extra.length&&!inFolders&&Docs.detect(question);
   if(want){
     try{const made=await makeDoc(question,want,controller.signal);history.push({role:'user',text:display},{role:'assistant',text:made.text});history=history.slice(-24);visible.push({role:'assistant',text:made.text,doc:made.doc});mood('happy');remember();return made;}
     catch(e){visible.push({role:'assistant',text:'Javob olinmadi. Savolni qayta yuborishingiz mumkin.',error:true});mood(e?.name==='AbortError'?'idle':'sad');remember();throw e;}finally{controller=null;lastActive=Date.now();}
   }
   try{
-    const reply=await ask(practice.state.teacher?`${question}\n\n(${practiceModule.TEACHER})`:question,extra,controller.signal,voice);
+    const reply=inFolders?await fileWork(question,controller.signal):await ask(practice.state.teacher?`${question}\n\n(${practiceModule.TEACHER})`:question,extra,controller.signal,voice);
     let text=reply.text,transcript='';
     if(voice){const lines=text.split('\n');const heard=HEARD.exec(lines[0]||'');if(heard){transcript=heard[1].trim().slice(0,600);text=lines.slice(1).join('\n').trim()||text;asked.text=`🎤 ${transcript}`;}}
     history.push({role:'user',text:transcript||display},{role:'assistant',text});history=history.slice(-24);visible.push({role:'assistant',text});mood('happy');remember();
@@ -152,7 +187,7 @@ async function generate(options){
   activity();generating=new AbortController();mood('think');
   try{
     const sent=fromChat?forRequest(files):[];const signal=generating.signal;
-    const reply=qa?{text:practiceModule.sample(kind,kind==='quiz'?Math.min(count,3):3)}:store.value.usePersonalKeys?await router.ask(store.value,fromChat?history:[],prompt,signal,sent,{search:false}):await askGateway({url:release.gateway,deviceId:store.value.deviceId,history:fromChat?history:[],question:prompt,files:sent,signal});
+    const reply=qa?{text:practiceModule.sample(kind,kind==='quiz'?Math.min(count,3):3)}:await askAI({history:fromChat?history:[],question:prompt,signal,sent,options:{search:false}});
     if(kind==='quiz'){const quiz=practiceModule.parseQuiz(reply.text);mood('catch');return {quiz:{...quiz,topic:topic||quiz.title}};}
     const cards=practiceModule.parseCards(reply.text);const deck=practice.addDeck(cards.title,cards.cards);mood('catch');return {deck:deck.id,view:practice.view()};
   }catch(e){mood(e?.name==='AbortError'?'idle':'sad');throw e;}finally{generating=null;lastActive=Date.now();}
@@ -178,10 +213,23 @@ function register(channel,handler,petAllowed=false){ipcMain.handle(channel,async
 });}
 function registerIPC(){
   register('init',summary);register('settings',summary);
-  register('send',question=>{
+  register('send',(question,options)=>{
     if(typeof question!=='string'||!question.trim()||question.length>6000)throw new UserError('Savol 1–6000 belgi bo‘lsin.');
-    return converse(question.trim(),{});
+    return converse(question.trim(),{useFolders:options?.folders===true});
   });
+  // Folders the AI may work in: chosen in a system dialog (a whole drive or Windows itself is refused), listed and removed in Settings.
+  register('folders',()=>named(store.value.folders));
+  register('folder-add',async()=>{
+    let picked;
+    if(qa){picked=path.join(app.getPath('userData'),'qa-papka');fs.mkdirSync(picked,{recursive:true});fs.writeFileSync(path.join(picked,'reja.txt'),'Dars rejasi');}
+    else{const result=await dialog.showOpenDialog(chat,{title:'NurimAI ishlashi mumkin bo‘lgan papkani tanlang',properties:['openDirectory']});if(result.canceled||!result.filePaths[0])return named(store.value.folders);picked=result.filePaths[0];}
+    const full=path.resolve(picked),system=process.env.SystemRoot&&path.resolve(process.env.SystemRoot);
+    if(path.parse(full).root===full)throw new UserError('Butun diskni emas, aniq papkani tanlang (masalan, Hujjatlar ichidagi «Maktab»).');
+    if(system&&(full.toLowerCase()===system.toLowerCase()||full.toLowerCase().startsWith(system.toLowerCase()+path.sep)))throw new UserError('Windows tizim papkasini tanlab bo‘lmaydi.');
+    if(store.value.folders.length>=10&&!store.value.folders.includes(full))throw new UserError('10 tagacha papka qo‘shish mumkin.');
+    store.setFolders([...store.value.folders,full]);return named(store.value.folders);
+  });
+  register('folder-remove',index=>{if(Number.isInteger(index))store.setFolders(store.value.folders.filter((_,i)=>i!==index));return named(store.value.folders);});
   // Voice question: a WAV recording goes to Gemini once (it is not kept as a chat attachment); the answer starts with what was heard.
   register('send-voice',(data,seconds)=>{
     if(!(data instanceof ArrayBuffer||ArrayBuffer.isView(data)))throw new UserError('Ovoz yozilmadi.');
@@ -215,7 +263,7 @@ function registerIPC(){
   register('history-list',query=>({items:chats.search(query),current:chatId,enabled:store.value.saveHistory,available:chats.available,warning:chats.warning}));
   register('history-open',id=>{if(controller)throw new UserError('Avval javob tugashini kuting.');const saved=chats.get(id);if(!saved)throw new UserError('Suhbat topilmadi.');activity();chatId=saved.id;visible=saved.messages.map(m=>({...m}));history=pairs(saved.messages);files=[];sentIds.clear();return {history:visible,files:[]};});
   register('history-delete',id=>{chats.remove(id);return chats.search();});register('history-clear',()=>{chats.clear();return [];});
-  register('save-settings',value=>{if(controller)throw new UserError('Javob tugashini kuting.');const old=store.value.keys;const result=store.update(value);for(const p of ORDER)if(old[p]!==store.value.keys[p])router.reset(p);chat.setAlwaysOnTop(store.value.topmost);pet.setAlwaysOnTop(store.value.topmost);updates.setEnabled(store.value.autoUpdate);return result;});
+  register('save-settings',value=>{if(controller)throw new UserError('Javob tugashini kuting.');const old=store.value.keys;const result=store.update(value);for(const p of KEYS)if(old[p]!==store.value.keys[p])router.reset(p);chat.setAlwaysOnTop(store.value.topmost);pet.setAlwaysOnTop(store.value.topmost);updates.setEnabled(store.value.autoUpdate);return result;});
   register('hide',()=>chat.hide());register('toggle',toggle,true);register('quit',()=>app.quit(),true);
   register('copy',text=>{if(typeof text==='string'&&text.length<=100000)clipboard.writeText(text);});
   register('memory',()=>memory.view());
@@ -226,7 +274,8 @@ function registerIPC(){
   register('doc-show',file=>{const full=ownDoc(file);if(!qa)shell.showItemInFolder(full);return true;});
   register('export',async()=>{if(!visible.length)return;const result=await dialog.showSaveDialog(chat,{defaultPath:`NurimAI-suhbat-${new Date().toISOString().slice(0,10)}.txt`,filters:[{name:'Matn',extensions:['txt']}]});if(!result.canceled)await fs.promises.writeFile(result.filePath,'NurimAI\n\n'+visible.map(m=>`${m.role==='user'?'SIZ':'NurimAI'}:\n${m.files?.length?`[Fayllar: ${m.files.map(x=>x.name).join(', ')}]\n`:''}${m.text}`).join('\n\n'),'utf8');});
   register('check-update',()=>updates.check(true));register('install-update',()=>{if(controller)throw new UserError('Avval javob tugashini kuting.');exiting=true;const result=updates.install();if(!result)exiting=false;return result;});
-  register('open-link',name=>{const urls={Gemini:'https://aistudio.google.com/apikey',Groq:'https://console.groq.com/keys',OpenRouter:'https://openrouter.ai/keys',releases:`https://github.com/${release.owner}/${release.repo}/releases/latest`};if(!qa&&Object.hasOwn(urls,name))return shell.openExternal(urls[name]);});
+  register('open-live',()=>{if(qa)return {opened:false};openLive();return {opened:true};});
+  register('open-link',name=>{const urls={Claude:'https://platform.claude.com/settings/keys',ChatGPT:'https://platform.openai.com/api-keys',Gemini:'https://aistudio.google.com/apikey',Groq:'https://console.groq.com/keys',OpenRouter:'https://openrouter.ai/keys',releases:`https://github.com/${release.owner}/${release.repo}/releases/latest`};if(!qa&&Object.hasOwn(urls,name))return shell.openExternal(urls[name]);});
   register('attach-pick',async()=>{
     const result=await dialog.showOpenDialog(chat,{title:'Fayl biriktirish',properties:['openFile','multiSelections'],filters:[{name:'Rasm, PDF, Word, Excel, PowerPoint, matn',extensions:PICKER_EXTENSIONS},{name:'Barcha fayllar',extensions:['*']}]});
     if(result.canceled)return {files:forView(files),errors:[]};

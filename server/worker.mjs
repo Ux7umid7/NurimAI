@@ -1,8 +1,9 @@
 import routerModule from '../src/router.cjs';
-import { TelegramBot, webhookSecret, parseUpdate, questionFor, splitHeard, toTelegramHtml, splitAnswer, escape, sourcesHtml, keyboardFor, TEXTS, SITE, KEYBOARD, HELP_KEYBOARD, voiceMode } from './telegram.mjs';
+import { TelegramBot, webhookSecret, parseUpdate, questionFor, splitHeard, toTelegramHtml, splitAnswer, escape, sourcesHtml, keyboardFor, TEXTS, SITE, KEYBOARD, HELP_KEYBOARD, LIVE_KEYBOARD, voiceMode } from './telegram.mjs';
 import { mergeFacts, cleanFacts, MEMORY_TEXTS } from './memory.mjs';
 import { speechText, wavToMp3 } from './voice.mjs';
 import { GroupGame, GROUP_COMMANDS, ADMIN_COMMANDS } from './group.mjs';
+import { createLiveToken, telegramUser, validateLive } from './live.mjs';
 import Docs from '../src/shared/office-write.js';
 const { Router, UserError, speak, SPEECH, withSources, URLS } = routerModule;
 const json = (data,status=200,extra={})=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...extra}});
@@ -92,15 +93,25 @@ async function handle(request,env,ctx){
   const url=new URL(request.url);
   if(request.method==='GET'&&url.pathname==='/health'){const fallback=Boolean(env.AI&&env.WORKERS_AI_FREE==='true');return json({service:'NurimAI',ready:Boolean(env.RATE_SALT&&((env.GEMINI_API_KEY&&env.GEMINI_FREE_TIER==='true')||(env.GROQ_API_KEY&&env.GROQ_FREE_TIER==='true')||fallback)),telegram:Boolean(env.TELEGRAM_TOKEN),fallback});}
   if(url.pathname==='/telegram'||url.pathname==='/telegram/setup')return telegramRoute(request,env,ctx,url);
-  if(request.method!=='POST'||!['/chat','/speak'].includes(url.pathname))return json({error:'Not found'},404);
+  if(request.method!=='POST'||!['/chat','/speak','/live'].includes(url.pathname))return json({error:'Not found'},404);
   if(!request.headers.get('content-type')?.startsWith('application/json'))return json({error:'JSON required'},415);
   if(!env.RATE_SALT||!env.BUDGET)return json({error:'Service not configured'},503);
+  if(url.pathname==='/live')return liveRoute(request,env);
   const speech=url.pathname==='/speak';
   let data;try{const body=await readBounded(request,speech?16*1024:14*1024*1024);data=speech?validateSpeech(body):validatePayload(body);}catch(error){return error instanceof TooLarge?json({error:'Request too large'},413):json({error:'Invalid request'},400);}
   const ip=request.headers.get('CF-Connecting-IP');if(!ip)return json({error:'Client unavailable'},403);
   const day=Math.floor(Date.now()/86400000);
   const identities={ip:await hash(`${env.RATE_SALT}:${day}:${ip}`),device:await hash(`${env.RATE_SALT}:${day}:${data.deviceId}`)};
   try{return await env.BUDGET.get(env.BUDGET.idFromName('global')).fetch(new Request(speech?'https://internal/speak':'https://internal/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data,identities})}));}catch{return json({error:'Service unavailable'},503);}
+}
+// Live conversation token: from the Telegram Mini App the signed user is the identity, from the apps their device id.
+async function liveRoute(request,env){
+  let data;try{data=validateLive(await readBounded(request,8*1024));}catch(error){return error instanceof TooLarge?json({error:'Request too large'},413):json({error:'Invalid request'},400);}
+  const ip=request.headers.get('CF-Connecting-IP');if(!ip)return json({error:'Client unavailable'},403);
+  let who=data.deviceId;if(data.initData){const user=await telegramUser(data.initData,env.TELEGRAM_TOKEN);if(!user)return json({error:'Telegram sign-in failed'},401);who=`tg:${user.id}`;}
+  const day=Math.floor(Date.now()/86400000);
+  const identities={ip:await hash(`${env.RATE_SALT}:${day}:${ip}`),device:await hash(`${env.RATE_SALT}:${day}:${who}`)};
+  try{return await env.BUDGET.get(env.BUDGET.idFromName('global')).fetch(new Request('https://internal/live',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({identities})}));}catch{return json({error:'Service unavailable'},503);}
 }
 // Telegram bot: GET /telegram/setup points the bot (TELEGRAM_TOKEN secret) at this worker; POST /telegram receives its updates.
 // The webhook answers Telegram at once; the Durable Object replies in the chat when the answer is ready.
@@ -120,7 +131,7 @@ async function setupBot(env,url,secret){
   try{
     const me=await bot.call('getMe');const hook=`${url.origin}/telegram`;
     await bot.call('setWebhook',{url:hook,secret_token:secret,allowed_updates:['message','callback_query','my_chat_member'],max_connections:10});
-    await bot.call('setMyCommands',{commands:[{command:'start',description:'Boshlash'},{command:'referat',description:'Referat (Word fayl)'},{command:'taqdimot',description:'Taqdimot (PowerPoint fayl)'},{command:'ovoz',description:'Ovozli javob sozlamasi'},{command:'xotira',description:'Siz haqingizda eslab qolganlarim'},{command:'yangiliklar',description:'Bugungi yangiliklar'},{command:'yangi',description:'Yangi suhbat'},{command:'yordam',description:'Nima qila olaman'}]});
+    await bot.call('setMyCommands',{commands:[{command:'start',description:'Boshlash'},{command:'referat',description:'Referat (Word fayl)'},{command:'taqdimot',description:'Taqdimot (PowerPoint fayl)'},{command:'gaplash',description:'Jonli ovozli suhbat'},{command:'ovoz',description:'Ovozli javob sozlamasi'},{command:'xotira',description:'Siz haqingizda eslab qolganlarim'},{command:'yangiliklar',description:'Bugungi yangiliklar'},{command:'yangi',description:'Yangi suhbat'},{command:'yordam',description:'Nima qila olaman'}]});
     await bot.call('setMyCommands',{commands:GROUP_COMMANDS,scope:{type:'all_group_chats'}});await bot.call('setMyCommands',{commands:ADMIN_COMMANDS,scope:{type:'all_chat_administrators'}});
     await bot.call('setMyDescription',{description:TEXTS.description});await bot.call('setMyShortDescription',{short_description:TEXTS.short});
     return json({ok:true,bot:`@${me.username}`,webhook:hook});
@@ -138,7 +149,8 @@ export class AiGateway {
     if(this.active>=4)return json({error:'Busy'},429,{'Retry-After':'20'});
     const {data,identities}=await request.json();
     if(new URL(request.url).pathname==='/speak')return this.speech(data,identities);
-    const limits={total:Math.min(1000,Math.max(1,Number(this.env.DAILY_TOTAL)||200)),ip:Math.min(100,Math.max(1,Number(this.env.DAILY_IP)||60)),device:Math.min(100,Math.max(1,Number(this.env.DAILY_DEVICE)||30))};
+    if(new URL(request.url).pathname==='/live')return this.live(identities);
+    const limits={total:Math.min(1000,Math.max(1,Number(this.env.DAILY_TOTAL)||200)),ip:Math.min(100,Math.max(1,Number(this.env.DAILY_IP)||60)),device:Math.min(100,Math.max(1,Number(this.env.DAILY_DEVICE)||30)),minute:10}; // ten a minute: a computer-files task takes several steps
     const result=await this.state.storage.transaction(async tx=>{const next=budget(await tx.get('budget'),Date.now(),identities.ip,identities.device,limits);if(next.allowed)await tx.put('budget',next.data);return next;});
     if(!result.allowed)return json({error:'Free limit reached'},429,{'Retry-After':String(result.retry)});
     const settings=this.settings(); // the apps get the same routes as the bot, Workers AI included
@@ -148,7 +160,7 @@ export class AiGateway {
       return json({text:withSources(reply),incomplete:reply.incomplete,...(data.memory?{facts:reply.facts}:{})}); // news answers carry their sources; new facts go back to the app
     }catch(error){console.log(`chat failed: ${error instanceof UserError?error.message:error?.name||'Error'}; routes: ${this.router.diagnostics(settings).map(r=>`${r.provider}=${r.status}`).join(', ')}`);const rejected=error instanceof UserError&&error.code==='input';return json({error:rejected?'Input rejected':error instanceof UserError?'AI temporarily unavailable':'Service unavailable'},rejected?422:503);}finally{this.active--;}
   }
-  // Gemini, then Groq, then OpenRouter's free models (if its key is set), then Workers AI.
+  // Gemini, then GPT-OSS and Qwen on Groq, then OpenRouter's free models (if its key is set), then Workers AI.
   settings(){return {keys:{Gemini:this.env.GEMINI_API_KEY||'',Groq:this.env.GROQ_API_KEY||'',OpenRouter:this.env.OPENROUTER_API_KEY||'',Cloudflare:this.env.AI?'binding':''},free:{Gemini:this.env.GEMINI_FREE_TIER==='true',Groq:this.env.GROQ_FREE_TIER==='true',Cloudflare:this.env.WORKERS_AI_FREE==='true'},autoFallback:true};}
   groups(bot=new TelegramBot(this.env.TELEGRAM_TOKEN,upstream)){return new GroupGame({store:this.state.storage,bot,ask:(prompt,id)=>this.groupAsk(prompt,id),username:this.env.BOT_USERNAME||'NurimAI_bot'});}
   // The group game's AI calls (questions and judging answers) have their own budget per group and in total.
@@ -176,6 +188,7 @@ export class AiGateway {
         if(item.command==='start'){await store.delete(chatKey);await bot.call('sendPhoto',{chat_id:item.chatId,photo:`${SITE}bot/hello.jpg`,caption:TEXTS.hello,parse_mode:'HTML'}).catch(()=>bot.send(item.chatId,TEXTS.hello));}
         else if(item.command==='yangi'){await store.delete(chatKey);await bot.send(item.chatId,TEXTS.fresh);}
         else if(item.command==='ovoz'){const mode=voiceMode(item.args);if(mode)await store.put(`tg:pref:${item.chatId}`,{voice:mode});await bot.send(item.chatId,TEXTS.voice(mode||(await store.get(`tg:pref:${item.chatId}`))?.voice||'auto',Boolean(mode)));}
+        else if(item.command==='gaplash')await bot.send(item.chatId,TEXTS.live,{reply_markup:LIVE_KEYBOARD});
         else if(item.command==='xotira')await bot.send(item.chatId,MEMORY_TEXTS.list((await store.get(memKey))?.facts||[]));
         else if(item.command==='unut'){await store.delete(memKey);await bot.send(item.chatId,MEMORY_TEXTS.forgot);}
         else await bot.send(item.chatId,TEXTS.help,{reply_markup:HELP_KEYBOARD});
@@ -224,6 +237,15 @@ export class AiGateway {
     await bot.call('sendChatAction',{chat_id:item.chatId,action:'record_voice'}).catch(()=>{});
     try{const audio=await speak({key:this.env.GEMINI_API_KEY,text:words,signal:AbortSignal.timeout(60000),fetcher:upstream});await bot.sendVoice(item.chatId,wavToMp3(audio.data));}
     catch(error){console.log(`telegram voice failed: ${String(error?.message||error?.name||'Error').slice(0,120)}`);}
+  }
+  // Live calls (up to 15 minutes each) have their own daily budget: a few per person, a cap for everyone.
+  async live(identities){
+    if(!this.env.GEMINI_API_KEY||this.env.GEMINI_FREE_TIER!=='true')return json({error:'Live not configured'},503);
+    const limits={total:Math.min(1000,Math.max(1,Number(this.env.LIVE_TOTAL)||100)),ip:Math.min(100,Math.max(1,Number(this.env.LIVE_IP)||20)),device:Math.min(50,Math.max(1,Number(this.env.LIVE_DEVICE)||6)),minute:3};
+    const result=await this.state.storage.transaction(async tx=>{const next=budget(await tx.get('live'),Date.now(),identities.ip,identities.device,limits);if(next.allowed)await tx.put('live',next.data);return next;});
+    if(!result.allowed)return json({error:'Free limit reached'},429,{'Retry-After':String(result.retry)});
+    try{return json(await createLiveToken({key:this.env.GEMINI_API_KEY,fetcher:upstream,signal:AbortSignal.timeout(15000)}));}
+    catch(error){console.log(`live token failed: ${error?.status||error?.name||'Error'}`);return json({error:error?.status===429?'Free limit reached':'Live unavailable'},error?.status===429?429:503);}
   }
   // Voice answers have their own daily budget, so listening never eats the chat limit.
   async speech(data,identities){

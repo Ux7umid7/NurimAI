@@ -1,7 +1,8 @@
 const { contextBridge, ipcRenderer } = require('electron');
 const listen = channel => callback => { const listener = (_event, data) => callback(data); ipcRenderer.on(channel, listener); return () => ipcRenderer.removeListener(channel, listener); };
 contextBridge.exposeInMainWorld('nurim',Object.freeze({
-  init:()=>ipcRenderer.invoke('init'), send:question=>ipcRenderer.invoke('send',question), stop:()=>ipcRenderer.invoke('stop'),
+  init:()=>ipcRenderer.invoke('init'), send:(question,options)=>ipcRenderer.invoke('send',question,options),
+  folders:()=>ipcRenderer.invoke('folders'), folderAdd:()=>ipcRenderer.invoke('folder-add'), folderRemove:index=>ipcRenderer.invoke('folder-remove',index), stop:()=>ipcRenderer.invoke('stop'),
   sendVoice:(wav,seconds)=>ipcRenderer.invoke('send-voice',wav,seconds), speak:text=>ipcRenderer.invoke('speak',text), micAccess:()=>ipcRenderer.invoke('mic-access'),
   petMood:state=>ipcRenderer.invoke('pet-mood',state),
   reset:()=>ipcRenderer.invoke('reset'), settings:()=>ipcRenderer.invoke('settings'), saveSettings:value=>ipcRenderer.invoke('save-settings',value),
@@ -10,7 +11,7 @@ contextBridge.exposeInMainWorld('nurim',Object.freeze({
   docOpen:file=>ipcRenderer.invoke('doc-open',file), docShow:file=>ipcRenderer.invoke('doc-show',file),
   memory:()=>ipcRenderer.invoke('memory'), memorySet:on=>ipcRenderer.invoke('memory-set',on), memoryRemove:index=>ipcRenderer.invoke('memory-remove',index), memoryClear:()=>ipcRenderer.invoke('memory-clear'),
   checkUpdate:()=>ipcRenderer.invoke('check-update'), installUpdate:()=>ipcRenderer.invoke('install-update'),
-  openLink:name=>ipcRenderer.invoke('open-link',name),
+  openLink:name=>ipcRenderer.invoke('open-link',name), openLive:()=>ipcRenderer.invoke('open-live'),
   movePet:point=>ipcRenderer.invoke('move-pet',point), petActive:()=>ipcRenderer.invoke('pet-active'),
   historyList:query=>ipcRenderer.invoke('history-list',query), historyOpen:id=>ipcRenderer.invoke('history-open',id),
   historyDelete:id=>ipcRenderer.invoke('history-delete',id), historyClear:()=>ipcRenderer.invoke('history-clear'),
@@ -21,5 +22,5 @@ contextBridge.exposeInMainWorld('nurim',Object.freeze({
   reminderAdd:value=>ipcRenderer.invoke('reminder-add',value), reminderDelete:id=>ipcRenderer.invoke('reminder-delete',id),
   attachPick:()=>ipcRenderer.invoke('attach-pick'), attachData:(name,data)=>ipcRenderer.invoke('attach-data',name,data),
   attachScreen:()=>ipcRenderer.invoke('attach-screen'), attachRemove:id=>ipcRenderer.invoke('attach-remove',id),
-  onMood:listen('mood'), onExplain:listen('explain'), onUpdate:listen('update-status'), onPanel:listen('open-panel'), onReminder:listen('reminder')
+  onMood:listen('mood'), onExplain:listen('explain'), onUpdate:listen('update-status'), onPanel:listen('open-panel'), onReminder:listen('reminder'), onFilesStep:listen('files-step')
 }));

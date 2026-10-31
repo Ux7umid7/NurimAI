@@ -39,6 +39,17 @@ function renderMemory(view){
   $('memory-on').checked=view.enabled;$('memory-empty').hidden=view.facts.length>0;$('memory-clear').hidden=!view.facts.length;
   $('memory-list').replaceChildren(...view.facts.map((text,i)=>{const li=document.createElement('li'),span=document.createElement('span'),x=document.createElement('button');span.textContent=text;x.type='button';x.textContent='×';x.setAttribute('aria-label',`«${text}» ni unutish`);x.onclick=async()=>{try{renderMemory(await call(window.nurim.memoryRemove(i)));}catch(e){notice(e.message);}};li.append(span,x);return li;}));
 }
+// Kompyuter fayllari: the folders the AI may work in (Settings), and the 📁 switch that lets the next questions use them.
+let useFolders=false,folderList=[];
+function renderFolders(list){
+  folderList=list;$('folders-empty').hidden=list.length>0;
+  $('folder-list').replaceChildren(...list.map((f,i)=>{const li=document.createElement('li'),span=document.createElement('span'),x=document.createElement('button');span.textContent=`${f.name} — ${f.path}`;span.title=f.path;x.type='button';x.textContent='×';x.setAttribute('aria-label',`${f.name} papkasini olib tashlash`);x.onclick=async()=>{try{renderFolders(await call(window.nurim.folderRemove(i)));if(!folderList.length)setFolders(false);}catch(e){notice(e.message);}};li.append(span,x);return li;}));
+}
+function setFolders(on){useFolders=on&&folderList.length>0;$('files').setAttribute('aria-pressed',String(useFolders));$('files').title=useFolders?`Kompyuter fayllari yoqilgan: ${folderList.map(f=>f.name).join(', ')}`:'Kompyuter fayllari: tanlagan papkalaringiz bilan ishlash';$('question').placeholder=useFolders?'Fayllar bilan nima qilay? Masalan: «Maktab papkasidagi fayllarni ko‘rib, ro‘yxatini yoz»':'Istalgan savolingizni yozing…';}
+async function addFolder(){try{renderFolders(await call(window.nurim.folderAdd()));return folderList.length>0;}catch(e){notice(e.message);$('settings-error').textContent=e.message;return false;}}
+$('files').onclick=async()=>{if(useFolders)return setFolders(false);if(!folderList.length)renderFolders(await call(window.nurim.folders()));if(!folderList.length&&!await addFolder())return;setFolders(true);notice(`📁 NurimAI endi ${folderList.map(f=>f.name).join(', ')} papkasi bilan ishlay oladi. O‘zgartirishdan oldin ruxsat so‘raydi.`);};
+$('folder-add').onclick=addFolder;
+window.nurim.onFilesStep(text=>{$('waiting-text').textContent=text;});
 $('memory-on').onchange=async()=>{try{renderMemory(await call(window.nurim.memorySet($('memory-on').checked)));}catch(e){notice(e.message);}};
 $('memory-clear').onclick=async()=>{try{renderMemory(await call(window.nurim.memoryClear()));}catch(e){notice(e.message);}};
 function bubble(role,text,attached=[],doc=null,remembered=[]){
@@ -54,7 +65,7 @@ function bubble(role,text,attached=[],doc=null,remembered=[]){
   if(remembered?.length){const note=document.createElement('p');note.className='memory-note';note.textContent=`🧠 Eslab qoldim: ${remembered.join('; ')}`;el.append(note);}
   $('messages').append(el);scroll();return el;
 }
-function setBusy(value){busy=value;$('waiting').hidden=!value;$('stop').hidden=!value;$('send').hidden=value;$('question').readOnly=value;for(const id of ['new','history','settings','attach','capture','mic','side-new'])$(id).disabled=value;for(const b of document.querySelectorAll('.side-open'))b.disabled=value;$('file-actions').hidden=!files.length||value;$('status').textContent=value?'Javob tayyorlanmoqda…':state?.settings.usePersonalKeys?'Shaxsiy AI · avtomatik':'Yoningizdagi yordamchi';scroll();}
+function setBusy(value){busy=value;$('waiting').hidden=!value;$('waiting-text').textContent='O‘ylayapman';$('stop').hidden=!value;$('send').hidden=value;$('question').readOnly=value;for(const id of ['new','history','settings','attach','capture','mic','files','side-new'])$(id).disabled=value;for(const b of document.querySelectorAll('.side-open'))b.disabled=value;$('file-actions').hidden=!files.length||value;$('status').textContent=value?'Javob tayyorlanmoqda…':state?.settings.usePersonalKeys?'Shaxsiy AI · avtomatik':'Yoningizdagi yordamchi';scroll();}
 function updateView(value){$('update-status').textContent=value.text;$('install-update').hidden=value.phase!=='ready';$('check-update').disabled=['checking','downloading','ready'].includes(value.phase);}
 async function init(){
   state=await call(window.nurim.init());$('shortcut').textContent=(state.platform==='darwin'?'⌘ + ⌥ + Space · tez ochish':'Ctrl + Alt + Space · tez ochish')+(state.explainKey?`   ·   ${state.explainKey} · tushuntirish`:'');
@@ -76,7 +87,7 @@ function practiceCard(card,p){
 }
 async function ask(question){
   if(!question||busy)return;notice('');const fresh=files.filter(f=>!shown.has(f.id));fresh.forEach(f=>shown.add(f.id));bubble('user',question,fresh.map(({name,ext,kind})=>({name,ext,kind})));$('question').value='';setBusy(true);
-  try{const reply=await call(window.nurim.send(question));bubble('assistant',reply.text,[],reply.doc,reply.remembered);if(reply.incomplete)notice('Javob uzunligi chegarasiga yetdi. Davomini so‘rashingiz mumkin.');}
+  try{const reply=await call(window.nurim.send(question,{folders:useFolders}));bubble('assistant',reply.text,[],reply.doc,reply.remembered);if(reply.incomplete)notice('Javob uzunligi chegarasiga yetdi. Davomini so‘rashingiz mumkin.');}
   catch(error){notice(error.message);bubble('assistant','Javob olinmadi. Savolni qayta yuborishingiz mumkin.');$('question').value=question;}
   finally{setBusy(false);$('question').focus();renderSide();}
 }
@@ -144,24 +155,29 @@ async function showHistory(){
   $('history-empty').textContent=!data.available?'Bu kompyuterda tizim shifrlashi mavjud emas, shuning uchun tarix saqlanmaydi.':query?'Hech narsa topilmadi.':data.enabled?'Hali saqlangan suhbat yo‘q. Savol bersangiz, suhbat shu yerda paydo bo‘ladi.':'Tarix saqlash o‘chirilgan. Uni Sozlamalarda yoqishingiz mumkin.';
   $('history-empty').hidden=data.items.length>0;$('history-clear').hidden=!data.items.length||Boolean(query);$('history-note').textContent=data.warning||'';
 }
+$('live').onclick=()=>call(window.nurim.openLive()).catch(e=>notice(e.message));
 $('history').onclick=async()=>{$('history-search').value='';try{await showHistory();$('history-dialog').showModal();$('history-search').focus();}catch(e){notice(e.message);}};
 $('history-search').oninput=()=>{clearTimeout(historyTimer);historyTimer=setTimeout(()=>showHistory().catch(e=>$('history-note').textContent=e.message),150);};
 $('close-history').onclick=()=>$('history-dialog').close();
 $('history-clear').onclick=async()=>{if(!confirm('Barcha saqlangan suhbatlar o‘chirilsinmi? Buni qaytarib bo‘lmaydi.'))return;try{await call(window.nurim.historyClear());await showHistory();renderSide();}catch(e){$('history-note').textContent=e.message;}};
 
+// Keys the settings take: the user's own paid Claude/ChatGPT first (with the model they run), then the free ones.
+const PAID={Claude:'Claude Opus 5.5',ChatGPT:'GPT-6.1 Sol'},KEYED=[...Object.keys(PAID),'Gemini','Groq','OpenRouter'],FREE_TIER=['Gemini','Groq'];
 $('settings').onclick=async()=>{
  state=await call(window.nurim.settings());const s=state.settings;$('version').textContent=`NurimAI ${state.version}`;$('server-status').textContent=state.gatewayConfigured?'Umumiy AI serveri sozlangan.':'Server manzili hali sozlanmagan.';
- $('topmost').checked=s.topmost;$('save-history').checked=s.saveHistory;$('auto-speak').checked=s.autoSpeak!==false;$('auto-update').checked=s.autoUpdate;$('personal').checked=s.usePersonalKeys;$('fallback').checked=s.autoFallback;$('remember').checked=s.remember;$('settings-error').textContent='';updateView(state.update);NurimTheme.bind($('theme-choice'));renderMemory(await call(window.nurim.memory()));
- $('providers').replaceChildren();for(const provider of ['Gemini','Groq','OpenRouter']){
+ $('topmost').checked=s.topmost;$('save-history').checked=s.saveHistory;$('auto-speak').checked=s.autoSpeak!==false;$('auto-update').checked=s.autoUpdate;$('personal').checked=s.usePersonalKeys;$('fallback').checked=s.autoFallback;$('remember').checked=s.remember;$('settings-error').textContent='';updateView(state.update);NurimTheme.bind($('theme-choice'));renderMemory(await call(window.nurim.memory()));renderFolders(await call(window.nurim.folders()));
+ $('providers').replaceChildren();for(const provider of KEYED){
   const section=document.createElement('section');section.className='provider';const head=document.createElement('div');head.className='provider-head';const title=document.createElement('strong');title.textContent=provider;const link=document.createElement('button');link.type='button';link.textContent='Kalit olish ↗';link.onclick=()=>window.nurim.openLink(provider);head.append(title,link);
-  const key=document.createElement('input');key.type='password';key.id=`key-${provider}`;key.maxLength=512;key.autocomplete='off';key.placeholder=s.configured[provider]?'Kalit saqlangan — almashtirish uchun kiriting':'API kaliti';key.setAttribute('aria-label',`${provider} API kaliti`);section.append(head,key);
+  const key=document.createElement('input');key.type='password';key.id=`key-${provider}`;key.maxLength=512;key.autocomplete='off';key.placeholder=s.configured[provider]?'Kalit saqlangan — almashtirish uchun kiriting':'API kaliti';key.setAttribute('aria-label',`${provider} API kaliti`);section.append(head);
+  if(PAID[provider]){section.classList.add('paid');const note=document.createElement('small');note.textContent=`Pullik · ${PAID[provider]}. Kalit kiritilsa, savollarga avval shu AI javob beradi; to‘lov sizning hisobingizdan. Ishlamasa, bepul AI javob beradi.`;section.append(note);}
+  section.append(key);
   function check(id,text,checked){const label=document.createElement('label');label.className='check';const input=document.createElement('input');input.type='checkbox';input.id=id;input.checked=checked;label.append(input,document.createTextNode(text));section.append(label);}
-  if(provider!=='OpenRouter')check(`free-${provider}`,'Hisobim Free tarifda',s.free[provider]);check(`clear-${provider}`,'Saqlangan kalitni o‘chirish',false);$('providers').append(section);
+  if(FREE_TIER.includes(provider))check(`free-${provider}`,'Hisobim Free tarifda',s.free[provider]);check(`clear-${provider}`,'Saqlangan kalitni o‘chirish',false);$('providers').append(section);
  }
  $('route-status').textContent=state.routes.map(r=>`${r.provider}: ${r.status}${r.retrySeconds?' · '+r.retrySeconds+' soniya':''}`).join('\n');$('settings-dialog').showModal();
 };
 $('close-settings').onclick=()=>$('settings-dialog').close();$('quit').onclick=()=>window.nurim.quit();
-$('settings-form').onsubmit=async event=>{event.preventDefault();const keys={},clear={},free={};for(const p of ['Gemini','Groq','OpenRouter']){keys[p]=$(`key-${p}`).value;clear[p]=$(`clear-${p}`).checked;if(p!=='OpenRouter')free[p]=$(`free-${p}`).checked;}
+$('settings-form').onsubmit=async event=>{event.preventDefault();const keys={},clear={},free={};for(const p of KEYED){keys[p]=$(`key-${p}`).value;clear[p]=$(`clear-${p}`).checked;if(FREE_TIER.includes(p))free[p]=$(`free-${p}`).checked;}
  try{const saved=await call(window.nurim.saveSettings({keys,clear,free,topmost:$('topmost').checked,saveHistory:$('save-history').checked,autoSpeak:$('auto-speak').checked,autoUpdate:$('auto-update').checked,usePersonalKeys:$('personal').checked,autoFallback:$('fallback').checked,remember:$('remember').checked}));state.settings=saved;for(const p of Object.keys(keys))$(`key-${p}`).value='';$('settings-dialog').close();setBusy(false);notice('Sozlamalar saqlandi.');renderSide();}catch(error){$('settings-error').textContent=error.message;}
 };
 $('check-update').onclick=async()=>{try{updateView(await call(window.nurim.checkUpdate()));}catch(e){$('settings-error').textContent=e.message;}};

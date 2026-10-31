@@ -81,3 +81,15 @@ test('phone app: memory is noted under the answer, kept on the phone, shown in s
  expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('nurim.memory')).facts.length)).toBe(0);
  await page.locator('#settings-dialog .icon-btn').click();
 });
+test('phone app: the live conversation opens from the menu, shows who said what, keeps time, mutes and ends',async()=>{
+ await page.locator('#menu').click();await expect(page.locator('#live-link')).toHaveAttribute('href','live.html');await expect(page.locator('#live-top')).toHaveAttribute('href','live.html');
+ const home=page.url();await page.goto(home.replace('/app/?qa=1','/app/live.html?qa'));
+ await expect(page.locator('#talk')).toHaveText('Boshlash');await expect(page.locator('#back')).toBeVisible();
+ await page.locator('#talk').click();await expect(page.locator('#live')).toHaveAttribute('data-state','listening');
+ await expect(page.locator('#lines li.user')).toHaveText('Salom, kasr nima?');await expect(page.locator('#lines li.ai')).toContainText('Kasr — butunning bir qismi');
+ await expect(page.locator('#clock')).toBeVisible();await expect(page.locator('#talk')).toHaveText('Tugatish');
+ await page.locator('#mute').click();await expect(page.locator('#mute')).toHaveAttribute('aria-pressed','true');await expect(page.locator('#status')).toContainText('Mikrofon o‘chiq');
+ await page.screenshot({path:'test-results/mobile-live.png'});
+ await page.locator('#talk').click();await expect(page.locator('#live')).toHaveAttribute('data-state','idle');await expect(page.locator('#status')).toContainText('Suhbat tugadi');await expect(page.locator('#clock')).toBeHidden();await expect(page.locator('#mute')).toHaveText('Mikrofon');
+ await page.goto(home);await page.locator('#question').waitFor();
+});

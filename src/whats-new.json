@@ -1,4 +1,10 @@
 {
+  "0.8.5": [
+    "🎙 Jonli suhbat: sarlavhadagi to‘lqin tugmasini bosing — NurimAI bilan telefon qilgandek ovozda gaplashasiz (15 daqiqagacha). Telefonda va Telegram’da (/gaplash) ham bor.",
+    "📁 Kompyuter fayllari: Sozlamalarda papka tanlang va yozish maydonidagi 📁 tugmasini yoqing — NurimAI fayllarni ko‘radi, o‘qiydi va qidiradi. Fayl yaratish, o‘zgartirish yoki o‘chirishdan oldin har safar ruxsat so‘raydi; o‘chirilganlar Savatga tushadi.",
+    "🤖 Bepul GPT (OpenAI gpt-oss) qo‘shildi. O‘z Claude yoki ChatGPT kalitingiz bo‘lsa, Sozlamalar → Shaxsiy API kalitlari bo‘limida kiriting: savollarga avval shu AI javob beradi.",
+    "🧠 Xotira: siz haqingizda aytganlaringizni (ism, sinf, qiziqishlar) eslab qoladi. 📄 Referat va 📊 taqdimotni tayyor Word/PowerPoint fayl qilib beradi."
+  ],
   "0.8.4": [
     "🧠 Xotira: o‘zingiz haqingizda aytganlaringizni (ism, sinf, qiziqishlar) NurimAI eslab qoladi va keyingi javoblarda hisobga oladi. Sozlamalar → Xotira bo‘limida ko‘rish, o‘chirish yoki xotirani o‘chirib qo‘yish mumkin.",
     "📄 Referat va 📊 taqdimot: “Fotosintez haqida referat yozib ber” deb yozing — NurimAI tayyor Word yoki PowerPoint faylini Hujjatlar\\NurimAI papkasiga saqlaydi.",
