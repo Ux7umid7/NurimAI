@@ -6,13 +6,18 @@ export const LIVE_INSTRUCTION = 'Sen NurimAI — foydalanuvchining mehribon usto
 export function liveSetup() {
   return { model: `models/${LIVE.model}`, generationConfig: { responseModalities: ['AUDIO'], speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: LIVE.voice } } } }, systemInstruction: { parts: [{ text: LIVE_INSTRUCTION }] }, inputAudioTranscription: {}, outputAudioTranscription: {}, sessionResumption: {} };
 }
+// The fields the page cannot change (fieldMask: these come from the token's setup); sessionResumption stays the page's own,
+// so after Google's goAway it can resume the same conversation with its handle.
+export const LOCKED = 'model,generationConfig,systemInstruction,tools,inputAudioTranscription,outputAudioTranscription';
 // One session; it must start within a minute, and the token (also used to resume after the server's goAway) ends with the call.
-export function tokenRequest(now) {
-  const { model, generationConfig, ...rest } = liveSetup();
-  return { uses: 1, expireTime: new Date(now + (LIVE.minutes + 1) * 60000).toISOString(), newSessionExpireTime: new Date(now + 60000).toISOString(), liveConnectConstraints: { model, config: { ...generationConfig, ...rest } } };
+// Without the mask, Google uses the token's whole setup and ignores the page's (a resumed session then starts afresh).
+export function tokenRequest(now, masked = true) {
+  return { uses: 1, expireTime: new Date(now + (LIVE.minutes + 1) * 60000).toISOString(), newSessionExpireTime: new Date(now + 60000).toISOString(), bidiGenerateContentSetup: liveSetup(), ...(masked ? { fieldMask: LOCKED } : {}) };
 }
 export async function createLiveToken({ key, fetcher, now = Date.now(), signal }) {
-  const response = await fetcher(LIVE.tokens, { method: 'POST', redirect: 'manual', signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: JSON.stringify(tokenRequest(now)) });
+  const ask = masked => fetcher(LIVE.tokens, { method: 'POST', redirect: 'manual', signal, headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: JSON.stringify(tokenRequest(now, masked)) });
+  let response = await ask(true);
+  if (response.status === 400) response = await ask(false); // a mask Google does not take: the whole setup is locked instead
   let data = {}; try { data = await response.json(); } catch {}
   if (!response.ok || typeof data.name !== 'string' || !data.name) { const error = new Error('live token'); error.status = response.status; throw error; }
   return { token: data.name, socket: LIVE.socket, setup: liveSetup(), minutes: LIVE.minutes, expiresAt: now + LIVE.minutes * 60000 };

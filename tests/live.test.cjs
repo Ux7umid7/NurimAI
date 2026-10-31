@@ -6,11 +6,12 @@ function fakeState(){const map=new Map();const storage={get:async k=>structuredC
 function signed(fields,botToken){const check=Object.entries(fields).map(([k,v])=>`${k}=${v}`).sort().join('\n');const secret=crypto.createHmac('sha256','WebAppData').update(botToken).digest();return new URLSearchParams({...fields,hash:crypto.createHmac('sha256',secret).update(check).digest('hex')}).toString();}
 
 test('the token is locked to the live model, voice, instruction and transcripts, for one session within a minute, ending with the call',async()=>{
- const {tokenRequest,liveSetup,LIVE,LIVE_INSTRUCTION}=await import('../server/live.mjs');
+ const {tokenRequest,liveSetup,LIVE,LIVE_INSTRUCTION,LOCKED}=await import('../server/live.mjs');
  const now=Date.parse('2026-10-31T12:00:00Z');const body=tokenRequest(now);
  assert.deepEqual([body.uses,body.newSessionExpireTime,body.expireTime],[1,'2026-10-31T12:01:00.000Z','2026-10-31T12:16:00.000Z']);
- assert.equal(body.liveConnectConstraints.model,'models/gemini-3.8-live');
- assert.deepEqual(body.liveConnectConstraints.config,{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:'Sulafat'}}},systemInstruction:{parts:[{text:LIVE_INSTRUCTION}]},inputAudioTranscription:{},outputAudioTranscription:{},sessionResumption:{}});
+ assert.deepEqual(body.bidiGenerateContentSetup,{model:'models/gemini-3.8-live',generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:'Sulafat'}}}},systemInstruction:{parts:[{text:LIVE_INSTRUCTION}]},inputAudioTranscription:{},outputAudioTranscription:{},sessionResumption:{}});
+ assert.equal(body.fieldMask,LOCKED);assert.deepEqual(LOCKED.split(','),['model','generationConfig','systemInstruction','tools','inputAudioTranscription','outputAudioTranscription'],'the page keeps only its resumption handle');
+ assert.equal('fieldMask' in tokenRequest(now,false),false);
  const setup=liveSetup();assert.deepEqual(setup.generationConfig.responseModalities,['AUDIO']);assert.equal(setup.model,'models/gemini-3.8-live');assert.match(LIVE_INSTRUCTION,/O‘zbek tilida/);
  assert.match(LIVE.socket,/^wss:\/\/generativelanguage\.googleapis\.com\/ws\/.*BidiGenerateContentConstrained$/);
 });
@@ -19,6 +20,8 @@ test('createLiveToken sends the key only in a header and returns the token, sock
  const out=await createLiveToken({key:'gem-key',now:0,fetcher:async(url,o)=>{sent={url,o};return Response.json({name:'auth_tokens/abc'});}});
  assert.equal(sent.url,'https://generativelanguage.googleapis.com/v1beta/auth_tokens');assert.equal(sent.o.headers['x-goog-api-key'],'gem-key');assert.equal(sent.o.body.includes('gem-key'),false);assert.equal(sent.o.redirect,'manual');
  assert.deepEqual([out.token,out.minutes,out.expiresAt],['auth_tokens/abc',15,900000]);assert.equal(out.setup.model,'models/gemini-3.8-live');
+ const bodies=[];const plain=await createLiveToken({key:'k',now:0,fetcher:async(_u,o)=>{bodies.push(JSON.parse(o.body));return bodies.length===1?Response.json({error:{status:'INVALID_ARGUMENT'}},{status:400}):Response.json({name:'auth_tokens/plain'});}});
+ assert.equal(plain.token,'auth_tokens/plain');assert.deepEqual(bodies.map(b=>'fieldMask' in b),[true,false],'a mask Google refuses: the whole setup is locked instead');
  await assert.rejects(createLiveToken({key:'k',fetcher:async()=>Response.json({error:{}},{status:429})}),e=>e.status===429);
  await assert.rejects(createLiveToken({key:'k',fetcher:async()=>Response.json({})}),/live token/);
 });
