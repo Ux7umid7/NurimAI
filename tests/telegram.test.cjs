@@ -144,7 +144,7 @@ test('when Gemini and Groq are used up, Workers AI answers through the binding; 
  try{
   const gw=new AiGateway({storage:fakeState().storage},{...env,GROQ_API_KEY:'q',GROQ_FREE_TIER:'true',AI:ai,WORKERS_AI_FREE:'true'});const ask=async u=>{const item=parseUpdate(u);if(await gw.firstDelivery(item))await gw.telegram(item);};
   await ask(msg(60,'Kasr nima?'));assert.equal(net.sent().at(-1).text,'Zaxira <b>javob</b>');
-  assert.equal(runs[0].model,'@cf/google/gemma-4-26b-a4b-it');assert.equal('model' in runs[0].input||'stream' in runs[0].input,false);assert.deepEqual(runs[0].input.messages.at(-1),{role:'user',content:'Kasr nima?'});assert.equal(runs[0].input.messages[0].role,'system');
+  assert.equal(runs[0].model,'@cf/google/gemma-4-26b-a4b-it');assert.equal('model' in runs[0].input||'stream' in runs[0].input,false);assert.match(runs[0].input.messages.at(-1).content,/^Kasr nima\?\n\nAgar foydalanuvchi[\s\S]*«XOTIRA: …»/); // the question, then the memory requestassert.equal(runs[0].input.messages[0].role,'system');
   gw.router.reset('Gemini');gw.router.reset('Groq');await ask(msg(61,'Yana'));assert.equal(net.sent().at(-1).text,'Eski <b>javob</b> shakli');
   gw.router.reset('Gemini');gw.router.reset('Groq');await ask(msg(62,'Yana bir'));assert.match(net.sent().at(-1).text,/javob bera olmadim/);
   const without=new AiGateway({storage:fakeState().storage},{...env,AI:ai});runs.length=0;const item=parseUpdate(msg(63,'Salom'));await without.firstDelivery(item);await without.telegram(item);assert.equal(runs.length,0,'not offered unless WORKERS_AI_FREE is set');
@@ -190,4 +190,34 @@ test('in a group the bot runs the daily question game: the cron tick asks, an an
   await ask({update_id:74,message:{message_id:8,chat,from:{id:8,first_name:'Ali'},text:'<h1>'}});assert.equal(net.gemini().length,1,'an exact answer is not sent to the AI');
   assert.match(net.sent().at(-1).text,/To‘g‘ri!<\/b> <a href="tg:\/\/user\?id=8">Ali<\/a> birinchi topdi/);assert.deepEqual(map.get('tg:score:-1009'),{since:new Date(Date.now()+5*3600000).toISOString().slice(0,10),rows:{8:{name:'Ali',found:1,points:2}}}); // a medium question: 2 points
  }finally{globalThis.fetch=real;}
+});
+test('a voice question also gets a spoken answer (MP3 voice note), /ovoz changes when; memory notes leave the answer and go with the next question',async()=>{
+ const {AiGateway}=await import('../server/worker.mjs');const {parseUpdate}=await import('../server/telegram.mjs');
+ const pcm=Buffer.alloc(16000),h=Buffer.alloc(44);for(let i=0;i<8000;i++)pcm.writeInt16LE(Math.round(Math.sin(i/9)*6000),i*2);
+ h.write('RIFF',0);h.writeUInt32LE(36+pcm.length,4);h.write('WAVEfmt ',8);h.writeUInt32LE(16,16);h.writeUInt16LE(1,20);h.writeUInt16LE(1,22);h.writeUInt32LE(24000,24);h.writeUInt32LE(48000,28);h.writeUInt16LE(2,32);h.writeUInt16LE(16,34);h.write('data',36);h.writeUInt32LE(pcm.length,40);
+ const tts=Buffer.concat([h,pcm]).toString('base64');
+ let answer='Kasr — butunning qismi.\nXOTIRA: Ismi Ali; 8-sinfda o‘qiydi',ttsDown=false;const speech=[];const net=fakeNet(()=>answer);
+ const real=globalThis.fetch,realNow=Date.now;let shift=0;Date.now=()=>realNow()+shift; // a minute between questions (4 a minute per user)
+ globalThis.fetch=async(url,o)=>{if(String(url).includes('/interactions')){speech.push(JSON.parse(o.body));return ttsDown?Response.json({error:{message:'quota'}},{status:429}):Response.json({steps:[{type:'model_output',content:[{type:'audio',mime_type:'audio/wav',data:tts}]}]});}return net.fetch(url,o);};
+ const {storage,map}=fakeState();const voices=()=>net.calls.filter(c=>c.url.endsWith('/sendVoice'));
+ const voiceMsg=id=>msg(id,undefined,{text:undefined,voice:{file_id:'v'+id,duration:4,mime_type:'audio/ogg',file_size:7}});
+ try{
+  const gw=new AiGateway({storage},env);const ask=async u=>{shift+=61000;const item=parseUpdate(u);if(await gw.firstDelivery(item))await gw.telegram(item);};
+  await ask(msg(90,'Men Aliman, 8-sinfda o‘qiyman. Kasr nima?'));
+  assert.equal(net.sent().at(-1).text,'Kasr — butunning qismi.');assert.equal(speech.length,0,'a typed question: text only');
+  assert.deepEqual(map.get('tg:mem:7').facts.map(f=>f.text),['Ismi Ali','8-sinfda o‘qiydi']);assert.equal(map.get('tg:chat:42').history.at(-1).text,'Kasr — butunning qismi.');
+  answer='Javob: 12';await ask(msg(91,'3 ni 4 ga ko‘paytir'));
+  assert.match(net.gemini().at(-1).contents.at(-1).parts.at(-1).text,/^\[Foydalanuvchi haqida avval aytilganlar[^\]]*: Ismi Ali; 8-sinfda o‘qiydi\]\n\n3 ni 4 ga ko‘paytir\n\nAgar foydalanuvchi/);
+  answer='Savolingiz: «Fotosintez nima?»\nO‘simliklar quyoshdan **ozuqa** oladi.';await ask(voiceMsg(92));
+  assert.equal(net.sent().at(-1).text,'<i>🎤 Fotosintez nima?</i>\n\nO‘simliklar quyoshdan <b>ozuqa</b> oladi.');
+  assert.equal(speech.length,1);assert.equal(speech[0].input[0].content[0].text,'O‘simliklar quyoshdan ozuqa oladi.');
+  const voice=voices()[0].body;assert.deepEqual([voice.chat_id,voice.voice.type,voice.voice.name],['42','audio/mpeg','NurimAI.mp3']);assert.equal(new Uint8Array(await voice.voice.arrayBuffer())[0],0xFF);
+  assert.ok(net.calls.some(c=>c.url.endsWith('/sendChatAction')&&c.body.action==='record_voice'));
+  await ask(msg(93,'/ovoz yo‘q'));assert.match(net.sent().at(-1).text,/o‘chirilgan, faqat matn/);await ask(voiceMsg(94));assert.equal(speech.length,1,'voice off');
+  await ask(msg(95,'/ovoz doim'));answer='Ha.';await ask(msg(96,'Salom'));assert.equal(speech.length,2,'always: a typed question too');assert.equal(voices().length,2);
+  await ask(msg(97,'/ovoz'));assert.match(net.sent().at(-1).text,/^🔊 Ovozli javob: <b>har bir javobga ovoz ham<\/b>/);
+  ttsDown=true;await ask(msg(98,'Yana'));assert.equal(voices().length,2,'no voice when the TTS is down');assert.equal(net.sent().at(-1).text,'Ha.');
+  await ask(msg(99,'/xotira'));assert.match(net.sent().at(-1).text,/• Ismi Ali\n• 8-sinfda o‘qiydi/);
+  await ask(msg(100,'/unut'));assert.match(net.sent().at(-1).text,/Xotira tozalandi/);assert.equal(map.has('tg:mem:7'),false);
+ }finally{globalThis.fetch=real;Date.now=realNow;}
 });

@@ -1,6 +1,6 @@
 {
   "name": "nurimai-desktop",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "description": "NurimAI — yoningizdagi AI yordamchi",
   "main": "src/main.cjs",
   "author": "NurimAI",
@@ -21,6 +21,7 @@
     "electron-updater": "6.8.9"
   },
   "devDependencies": {
+    "@breezystack/lamejs": "1.2.7",
     "@playwright/test": "1.64.1",
     "electron": "44.9.0",
     "electron-builder": "26.15.3",

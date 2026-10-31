@@ -69,3 +69,15 @@ test('phone app: a presentation request makes a PowerPoint file to download, kep
  await page.evaluate(()=>{window.__download=null;HTMLAnchorElement.prototype.click=function(){window.__download={name:this.download};};});
  await page.locator('.doc-card button').last().click();expect(await page.evaluate(()=>window.__download)).toEqual({name:'Taqdimot - Sinov taqdimoti.pptx'}); // still there after a restart
 });
+test('phone app: memory is noted under the answer, kept on the phone, shown in settings and can be forgotten',async()=>{
+ await page.evaluate(()=>newChat());await page.locator('#question').fill('Men Sinovman /qa-xotira');await page.locator('#send').click();
+ await expect(page.locator('.bubble.assistant').last().locator('.memory-note')).toHaveText('🧠 Eslab qoldim: Ismi Sinov; 8-sinfda o‘qiydi');
+ expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('nurim.memory')).facts.map(f=>f.text))).toEqual(['Ismi Sinov','8-sinfda o‘qiydi']);
+ await page.locator('#menu').click();await page.locator('#settings').click();await expect(page.locator('#settings-dialog')).toBeVisible(); // the bottom bar is only on the home screen
+ await expect(page.locator('#memory-on')).toBeChecked();await expect(page.locator('#memory-list li')).toHaveCount(2);
+ await page.locator('#memory-list').scrollIntoViewIfNeeded();await page.screenshot({path:'test-results/mobile-memory.png'});
+ await page.locator('#memory-list li button').first().click();await expect(page.locator('#memory-list li span')).toHaveText(['8-sinfda o‘qiydi']);
+ await page.locator('#memory-clear').click();await expect(page.locator('#memory-empty')).toBeVisible();
+ expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('nurim.memory')).facts.length)).toBe(0);
+ await page.locator('#settings-dialog .icon-btn').click();
+});

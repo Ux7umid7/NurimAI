@@ -1,4 +1,9 @@
 {
+  "0.8.4": [
+    "🧠 Xotira: o‘zingiz haqingizda aytganlaringizni (ism, sinf, qiziqishlar) NurimAI eslab qoladi va keyingi javoblarda hisobga oladi. Sozlamalar → Xotira bo‘limida ko‘rish, o‘chirish yoki xotirani o‘chirib qo‘yish mumkin.",
+    "📄 Referat va 📊 taqdimot: “Fotosintez haqida referat yozib ber” deb yozing — NurimAI tayyor Word yoki PowerPoint faylini Hujjatlar\\NurimAI papkasiga saqlaydi.",
+    "👥 Telegram’dagi @NurimAI_bot sinf guruhida har kuni savol beradi, maslahat beradi va reyting yuritadi; ovozli xabarga endi ovoz bilan javob beradi."
+  ],
   "0.8.3": [
     "📄 Referat va 📊 taqdimot: “Fotosintez haqida referat yozib ber” deb yozing — NurimAI tayyor Word yoki PowerPoint faylini yasab, Hujjatlar\\NurimAI papkasiga saqlaydi. Chatdagi “Ochish” tugmasi bilan oching.",
     "Bosh sahifada “Referat yoz” va “Taqdimot tayyorla” tugmalari.",

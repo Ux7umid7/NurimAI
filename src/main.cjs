@@ -5,6 +5,7 @@ const {UpdateController} = require('./updater.cjs');const release = require('./r
 const {prepare,checkFits,forRequest,forView,LIMITS,PICKER_EXTENSIONS} = require('./attachments.cjs');const whatsNew = require('./whats-new.json');
 const {Chats} = require('./chats.cjs');const {grabSelection} = require('./selection.cjs');const practiceModule = require('./practice.cjs');const {Practice} = practiceModule;
 const Docs = require('./shared/office-write.js'); // referats (.docx) and presentations (.pptx) made from the AI's plan
+const {Memory} = require('./memory-store.cjs');let memory; // what the user told about themself, kept for later questions
 const qa = process.argv.includes('--qa');const root = path.join(__dirname,'..');
 app.setName('NurimAI');app.setAppUserModelId('com.nurimai.desktop');
 if(qa) {const profile = process.env.NURIMAI_QA_PROFILE;if(!profile || !path.isAbsolute(profile)) throw new Error('An isolated QA profile is required');app.setPath('userData',profile);}
@@ -96,11 +97,15 @@ async function explainSelection(qaText){
 }
 const VOICE_QUESTION='Bu ovozli xabar. Uni diqqat bilan tingla. Birinchi qatorda eshitganingni so‘zma-so‘z «Savolingiz: …» deb yoz, keyingi qatordan javob ber. Ovoz eshitilmasa yoki tushunarsiz bo‘lsa, shuni ayt.';
 const HEARD=/^\s*\**\s*Savolingiz\s*:?\s*\**\s*[«"]?(.+?)[»"]?\s*\**\s*$/i;
+// Memory (src/memory-store.cjs): remembered facts go with each chat question (not with referat/presentation plans); new ones
+// the AI noted come back as reply.facts, are kept, and are shown under the answer as `remembered`.
 async function ask(question,extraFiles=[],signal,voice=false,long=false){
-  const sent=[...forRequest(files),...extraFiles];
-  if(qa){if(question.endsWith('/qa-xato'))throw new UserError('Sinov xatosi.');return {text:`${voice?'Savolingiz: Kasr nima?\n':''}Bu avtomatik UI sinovi uchun tayyor javob. Jonli AI emas.${sent.length-extraFiles.length?` Biriktirilgan fayllar: ${sent.length-extraFiles.length}.`:''}`,incomplete:false};}
-  return store.value.usePersonalKeys?router.ask(store.value,history,question,signal,sent,long?{long,search:false}:{}).then(r=>({...r,text:withSources(r)})):askGateway({url:release.gateway,deviceId:store.value.deviceId,history,question,files:sent,signal,voice,long});
+  const sent=[...forRequest(files),...extraFiles],facts=long?undefined:memory.forQuestion();
+  if(qa){if(question.endsWith('/qa-xato'))throw new UserError('Sinov xatosi.');const reply=question.includes('/qa-xotira')?{text:'Tanishganimdan xursandman!',incomplete:false,facts:['Ismi Sinov','8-sinfda o‘qiydi']}:{text:`${voice?'Savolingiz: Kasr nima?\n':''}Bu avtomatik UI sinovi uchun tayyor javob. Jonli AI emas.${sent.length-extraFiles.length?` Biriktirilgan fayllar: ${sent.length-extraFiles.length}.`:''}`,incomplete:false,facts:[]};return remembered(facts?reply:{...reply,facts:[]});}
+  const reply=await(store.value.usePersonalKeys?router.ask(store.value,history,question,signal,sent,{...(long?{long,search:false}:{}),...(facts?{memory:facts}:{})}).then(r=>({...r,text:withSources(r)})):askGateway({url:release.gateway,deviceId:store.value.deviceId,history,question,files:sent,signal,voice,long,memory:facts}));
+  return remembered(reply);
 }
+function remembered(reply){const fresh=(reply.facts||[]).filter(Boolean);if(fresh.length)memory.add(fresh);return {...reply,remembered:fresh};}
 // Made files are saved in Documents\NurimAI (in QA mode: inside the test profile); only paths in there may be opened.
 const docsDir=()=>qa?path.join(app.getPath('userData'),'documents'):path.join(app.getPath('documents'),'NurimAI');
 function ownDoc(file){const dir=path.resolve(docsDir())+path.sep,full=path.resolve(String(file||''));if(!full.startsWith(dir)||!/\.(docx|pptx)$/i.test(full)||!fs.existsSync(full))throw new UserError('Fayl topilmadi: u o‘chirilgan yoki ko‘chirilgan bo‘lishi mumkin.');return full;}
@@ -213,6 +218,10 @@ function registerIPC(){
   register('save-settings',value=>{if(controller)throw new UserError('Javob tugashini kuting.');const old=store.value.keys;const result=store.update(value);for(const p of ORDER)if(old[p]!==store.value.keys[p])router.reset(p);chat.setAlwaysOnTop(store.value.topmost);pet.setAlwaysOnTop(store.value.topmost);updates.setEnabled(store.value.autoUpdate);return result;});
   register('hide',()=>chat.hide());register('toggle',toggle,true);register('quit',()=>app.quit(),true);
   register('copy',text=>{if(typeof text==='string'&&text.length<=100000)clipboard.writeText(text);});
+  register('memory',()=>memory.view());
+  register('memory-set',on=>{memory.setEnabled(on===true);return memory.view();});
+  register('memory-remove',index=>{memory.remove(index);return memory.view();});
+  register('memory-clear',()=>{memory.clear();return memory.view();});
   register('doc-open',async file=>{const full=ownDoc(file);if(qa)return true;const error=await shell.openPath(full);if(error)throw new UserError(`Faylni ochib bo‘lmadi: ${error}`);return true;});
   register('doc-show',file=>{const full=ownDoc(file);if(!qa)shell.showItemInFolder(full);return true;});
   register('export',async()=>{if(!visible.length)return;const result=await dialog.showSaveDialog(chat,{defaultPath:`NurimAI-suhbat-${new Date().toISOString().slice(0,10)}.txt`,filters:[{name:'Matn',extensions:['txt']}]});if(!result.canceled)await fs.promises.writeFile(result.filePath,'NurimAI\n\n'+visible.map(m=>`${m.role==='user'?'SIZ':'NurimAI'}:\n${m.files?.length?`[Fayllar: ${m.files.map(x=>x.name).join(', ')}]\n`:''}${m.text}`).join('\n\n'),'utf8');});
@@ -232,7 +241,7 @@ function registerIPC(){
 if(!app.requestSingleInstanceLock()){app.quit();}else{
   app.on('second-instance',showChat);app.on('activate',showChat);
   app.whenReady().then(()=>{
-    store=new Store(app.getPath('userData'),safeStorage);const existed=fs.existsSync(store.file);store.load();chats=new Chats(app.getPath('userData'),safeStorage);chats.load();practice=new Practice(app.getPath('userData'));practice.load();
+    store=new Store(app.getPath('userData'),safeStorage);const existed=fs.existsSync(store.file);store.load();chats=new Chats(app.getPath('userData'),safeStorage);chats.load();memory=new Memory(app.getPath('userData'),safeStorage);memory.load();practice=new Practice(app.getPath('userData'));practice.load();
     previousVersion=store.value.lastVersion||(existed?'0.3.0':''); // 0.3.0 did not record its version
     store.value.lastVersion=app.getVersion();try{store.save();}catch{}
     let info={macSigned:false};try{info=require('./build-info.json');}catch{}

@@ -34,7 +34,14 @@ function docCard(doc){
   const show=document.createElement('button');show.type='button';show.className='doc-show';show.textContent='Papkada ko‘rsatish';show.onclick=()=>call(window.nurim.docShow(doc.path)).catch(e=>notice(e.message));
   card.append(badge,name,open,show);return card;
 }
-function bubble(role,text,attached=[],doc=null){
+// Settings: memory on/off and what is remembered (each fact can be forgotten).
+function renderMemory(view){
+  $('memory-on').checked=view.enabled;$('memory-empty').hidden=view.facts.length>0;$('memory-clear').hidden=!view.facts.length;
+  $('memory-list').replaceChildren(...view.facts.map((text,i)=>{const li=document.createElement('li'),span=document.createElement('span'),x=document.createElement('button');span.textContent=text;x.type='button';x.textContent='×';x.setAttribute('aria-label',`«${text}» ni unutish`);x.onclick=async()=>{try{renderMemory(await call(window.nurim.memoryRemove(i)));}catch(e){notice(e.message);}};li.append(span,x);return li;}));
+}
+$('memory-on').onchange=async()=>{try{renderMemory(await call(window.nurim.memorySet($('memory-on').checked)));}catch(e){notice(e.message);}};
+$('memory-clear').onclick=async()=>{try{renderMemory(await call(window.nurim.memoryClear()));}catch(e){notice(e.message);}};
+function bubble(role,text,attached=[],doc=null,remembered=[]){
   if(role!=='user')text=NurimMath.plainMath(text); // LaTeX math ($\frac{1}{2}$ -> 1/2) is shown, copied and read aloud as plain text
   $('welcome').hidden=true;const el=document.createElement('article');el.className=`bubble ${role}`;const head=document.createElement('div');head.className='bubble-head';const label=document.createElement('span');label.textContent=role==='user'?'SIZ':'NurimAI';head.append(label);
   if(role!=='user'){const tools=document.createElement('span');tools.className='bubble-tools';const copy=document.createElement('button');copy.className='copy';copy.textContent='Nusxa';copy.onclick=async()=>{await call(window.nurim.copy(text));copy.textContent='Olindi ✓';};
@@ -44,6 +51,7 @@ function bubble(role,text,attached=[],doc=null){
   if(attached.length){const row=document.createElement('div');row.className='bubble-files';row.append(...attached.map(f=>chip(f,false)));el.append(row);}
   if(role==='user'){const p=document.createElement('p');p.textContent=text;el.append(p);}else{const body=document.createElement('div');body.className='rich';rich(body,text);el.append(body);}
   if(doc)el.append(docCard(doc));
+  if(remembered?.length){const note=document.createElement('p');note.className='memory-note';note.textContent=`🧠 Eslab qoldim: ${remembered.join('; ')}`;el.append(note);}
   $('messages').append(el);scroll();return el;
 }
 function setBusy(value){busy=value;$('waiting').hidden=!value;$('stop').hidden=!value;$('send').hidden=value;$('question').readOnly=value;for(const id of ['new','history','settings','attach','capture','mic','side-new'])$(id).disabled=value;for(const b of document.querySelectorAll('.side-open'))b.disabled=value;$('file-actions').hidden=!files.length||value;$('status').textContent=value?'Javob tayyorlanmoqda…':state?.settings.usePersonalKeys?'Shaxsiy AI · avtomatik':'Yoningizdagi yordamchi';scroll();}
@@ -68,7 +76,7 @@ function practiceCard(card,p){
 }
 async function ask(question){
   if(!question||busy)return;notice('');const fresh=files.filter(f=>!shown.has(f.id));fresh.forEach(f=>shown.add(f.id));bubble('user',question,fresh.map(({name,ext,kind})=>({name,ext,kind})));$('question').value='';setBusy(true);
-  try{const reply=await call(window.nurim.send(question));bubble('assistant',reply.text,[],reply.doc);if(reply.incomplete)notice('Javob uzunligi chegarasiga yetdi. Davomini so‘rashingiz mumkin.');}
+  try{const reply=await call(window.nurim.send(question));bubble('assistant',reply.text,[],reply.doc,reply.remembered);if(reply.incomplete)notice('Javob uzunligi chegarasiga yetdi. Davomini so‘rashingiz mumkin.');}
   catch(error){notice(error.message);bubble('assistant','Javob olinmadi. Savolni qayta yuborishingiz mumkin.');$('question').value=question;}
   finally{setBusy(false);$('question').focus();renderSide();}
 }
@@ -143,7 +151,7 @@ $('history-clear').onclick=async()=>{if(!confirm('Barcha saqlangan suhbatlar o�
 
 $('settings').onclick=async()=>{
  state=await call(window.nurim.settings());const s=state.settings;$('version').textContent=`NurimAI ${state.version}`;$('server-status').textContent=state.gatewayConfigured?'Umumiy AI serveri sozlangan.':'Server manzili hali sozlanmagan.';
- $('topmost').checked=s.topmost;$('save-history').checked=s.saveHistory;$('auto-speak').checked=s.autoSpeak!==false;$('auto-update').checked=s.autoUpdate;$('personal').checked=s.usePersonalKeys;$('fallback').checked=s.autoFallback;$('remember').checked=s.remember;$('settings-error').textContent='';updateView(state.update);NurimTheme.bind($('theme-choice'));
+ $('topmost').checked=s.topmost;$('save-history').checked=s.saveHistory;$('auto-speak').checked=s.autoSpeak!==false;$('auto-update').checked=s.autoUpdate;$('personal').checked=s.usePersonalKeys;$('fallback').checked=s.autoFallback;$('remember').checked=s.remember;$('settings-error').textContent='';updateView(state.update);NurimTheme.bind($('theme-choice'));renderMemory(await call(window.nurim.memory()));
  $('providers').replaceChildren();for(const provider of ['Gemini','Groq','OpenRouter']){
   const section=document.createElement('section');section.className='provider';const head=document.createElement('div');head.className='provider-head';const title=document.createElement('strong');title.textContent=provider;const link=document.createElement('button');link.type='button';link.textContent='Kalit olish ↗';link.onclick=()=>window.nurim.openLink(provider);head.append(title,link);
   const key=document.createElement('input');key.type='password';key.id=`key-${provider}`;key.maxLength=512;key.autocomplete='off';key.placeholder=s.configured[provider]?'Kalit saqlangan — almashtirish uchun kiriting':'API kaliti';key.setAttribute('aria-label',`${provider} API kaliti`);section.append(head,key);

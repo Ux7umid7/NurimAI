@@ -125,3 +125,14 @@ test('a referat or presentation request makes a Word/PowerPoint file in Document
  expect(await page.evaluate(()=>window.nurim.docOpen('C:\\Windows\\win.ini'))).toEqual({ok:false,error:'Fayl topilmadi: u o‘chirilgan yoki ko‘chirilgan bo‘lishi mumkin.'}); // only NurimAI's own files
  await page.locator('#history').click();await page.locator('#history-list .history-open').first().click();await expect(page.locator('.doc-card')).toHaveCount(3); // the cards come back with the chat
 });
+test('memory: what the user tells about themself is noted under the answer, listed in settings, and can be forgotten or switched off',async()=>{
+ await page.locator('#new').click();await page.locator('#question').fill('Men Sinovman, 8-sinfda o‘qiyman /qa-xotira');await page.locator('#send').click();
+ await expect(page.locator('.bubble.assistant').last().locator('.memory-note')).toHaveText('🧠 Eslab qoldim: Ismi Sinov; 8-sinfda o‘qiydi');
+ await page.locator('#settings').click();await expect(page.locator('#memory-on')).toBeChecked();await expect(page.locator('#memory-list li')).toHaveCount(2);await expect(page.locator('#memory-empty')).toBeHidden();
+ await page.locator('#memory-list').scrollIntoViewIfNeeded();await page.screenshot({path:'test-results/desktop-memory.png'});
+ await page.locator('#memory-list li button').first().click();await expect(page.locator('#memory-list li span')).toHaveText(['8-sinfda o‘qiydi']);
+ await page.locator('#memory-on').uncheck();await page.locator('#close-settings').click();
+ await page.locator('#question').fill('Yana /qa-xotira');await page.locator('#send').click();await expect(page.locator('.bubble.assistant')).toHaveCount(2);await expect(page.locator('.bubble.assistant').last().locator('.memory-note')).toHaveCount(0); // off: nothing sent, nothing noted
+ await page.locator('#settings').click();await expect(page.locator('#memory-list li')).toHaveCount(1);await page.locator('#memory-on').check();await page.locator('#memory-clear').click();
+ await expect(page.locator('#memory-list li')).toHaveCount(0);await expect(page.locator('#memory-empty')).toBeVisible();await page.locator('#close-settings').click();
+});

@@ -9,8 +9,8 @@ const HEARD = /^\s*\**\s*Savolingiz\s*:?\s*\**\s*[«"]?(.+?)[»"]?\s*\**\s*$/i;
 export const TEXTS = Object.freeze({
   description: 'Salom! Men NurimAI — o‘zbekcha gapiradigan AI ustoz. Savolingizni yozing, masalani rasmga olib yuboring yoki ovozli xabar qoldiring: mavzuni oddiy tilda, qadamma-qadam tushuntirib beraman. Bepul.',
   short: 'O‘zbekcha AI ustoz: savol, rasm va ovozli xabarga javob beradi.',
-  hello: '<b>Salom! Men NurimAI</b> — o‘zbekcha gapiradigan AI ustozingiz.\n\nMenga:\n• savolingizni <b>yozing</b>;\n• masala yoki matnni <b>rasmga olib</b> yuboring;\n• <b>ovozli xabar</b> qoldiring;\n• PDF yoki <b>stiker</b> yuboring.\n\nJavobni oddiy tilda, qadamma-qadam tushuntiraman. /referat va /taqdimot — Word va PowerPoint fayl, /yangiliklar — bugungi yangiliklar, /yangi — yangi suhbat, /yordam — yordam.',
-  help: '<b>NurimAI nima qila oladi</b>\n\n• Istalgan mavzuni misollar bilan tushuntiradi.\n• Rasmdagi masalani yechish yo‘lini ko‘rsatadi.\n• Ovozli xabarni tinglab, javob beradi.\n• PDF hujjatni qisqacha tushuntiradi.\n• Stikeringizni ko‘rib, unga javob qaytaradi.\n• <b>Referat</b> (Word) va <b>taqdimot</b> (PowerPoint) tayyorlab, faylni yuboradi: /referat Fotosintez, /taqdimot Quyosh tizimi.\n• Yangilik, valyuta kursi, ob-havo va sport savollarida internetdan (Kun.uz, Gazeta.uz, Daryo.uz, BBC, Markaziy bank, Open-Meteo) ma’lumot olib, manbalarini ko‘rsatadi. /yangiliklar — bugungi asosiy yangiliklar.\n• Suhbat davomini eslab qoladi: /yangi bilan yangisini boshlang.\n• <b>Guruhga qo‘shing</b>: har kuni tanlangan mavzuda (masalan, Tarix 8-sinf yoki JavaScript) savol beraman, javoblarni tekshiraman va reyting yuritaman.\n\nTest, kartochkalar, kunlik mashq va ovozli javoblar NurimAI ilovasida: ' + SITE,
+  hello: '<b>Salom! Men NurimAI</b> — o‘zbekcha gapiradigan AI ustozingiz.\n\nMenga:\n• savolingizni <b>yozing</b>;\n• masala yoki matnni <b>rasmga olib</b> yuboring;\n• <b>ovozli xabar</b> qoldiring — ovoz bilan javob beraman;\n• PDF yoki <b>stiker</b> yuboring.\n\nJavobni oddiy tilda, qadamma-qadam tushuntiraman. /referat va /taqdimot — Word va PowerPoint fayl, /yangiliklar — bugungi yangiliklar, /yangi — yangi suhbat, /yordam — yordam.',
+  help: '<b>NurimAI nima qila oladi</b>\n\n• Istalgan mavzuni misollar bilan tushuntiradi.\n• Rasmdagi masalani yechish yo‘lini ko‘rsatadi.\n• Ovozli xabarni tinglab, <b>ovoz bilan</b> javob beradi (/ovoz — sozlash).\n• Siz haqingizda aytganlaringizni eslab qoladi: ismingiz, sinfingiz, qiziqishlaringiz (/xotira — ko‘rish, /unut — o‘chirish).\n• PDF hujjatni qisqacha tushuntiradi.\n• Stikeringizni ko‘rib, unga javob qaytaradi.\n• <b>Referat</b> (Word) va <b>taqdimot</b> (PowerPoint) tayyorlab, faylni yuboradi: /referat Fotosintez, /taqdimot Quyosh tizimi.\n• Yangilik, valyuta kursi, ob-havo va sport savollarida internetdan (Kun.uz, Gazeta.uz, Daryo.uz, BBC, Markaziy bank, Open-Meteo) ma’lumot olib, manbalarini ko‘rsatadi. /yangiliklar — bugungi asosiy yangiliklar.\n• Suhbat davomini eslab qoladi: /yangi bilan yangisini boshlang.\n• <b>Guruhga qo‘shing</b>: har kuni tanlangan mavzuda (masalan, Tarix 8-sinf yoki JavaScript) savol beraman, javoblarni tekshiraman va reyting yuritaman.\n\nTest, kartochkalar, kunlik mashq va ovozli javoblar NurimAI ilovasida: ' + SITE,
   fresh: 'Yangi suhbat boshlandi. Savolingizni yozing 🙂',
   unsupported: 'Hozircha matn, rasm, stiker, PDF va ovozli xabarni tushunaman. Word, Excel va boshqa fayllar uchun NurimAI ilovasidan foydalaning: ' + SITE,
   limit: 'Bugungi bepul savollar tugadi. Ertaga yana yozing yoki NurimAI ilovasidan foydalaning: ' + SITE,
@@ -21,8 +21,16 @@ export const TEXTS = Object.freeze({
   long: 'Ovozli xabar 1 daqiqadan oshmasin.',
   rejected: 'Bu savolga javob bera olmayman. Boshqa savol bilan yordam beraman.',
   docUsage: { referat: 'Mavzuni ham yozing, masalan: /referat Fotosintez (yoki: /referat Amir Temur, 5 bet)', taqdimot: 'Mavzuni ham yozing, masalan: /taqdimot Quyosh tizimi (yoki: /taqdimot Suv aylanishi, 8 slayd)' },
-  docFailed: 'Faylni tayyorlay olmadim. Bir ozdan keyin qayta urinib ko‘ring yoki mavzuni boshqacha yozing.'
+  docFailed: 'Faylni tayyorlay olmadim. Bir ozdan keyin qayta urinib ko‘ring yoki mavzuni boshqacha yozing.',
+  voice: (mode, changed) => `${changed ? '✅ ' : '🔊 '}Ovozli javob: <b>${{ auto: 'ovozli xabaringizga ovoz bilan', always: 'har bir javobga ovoz ham', off: 'o‘chirilgan, faqat matn' }[mode]}</b>.\n\n/ovoz ovozga — faqat ovozli xabarga (standart)\n/ovoz doim — har bir javobga\n/ovoz yo‘q — ovozsiz`
 });
+// "/ovoz doim" -> 'always', "/ovoz yo‘q" -> 'off', "/ovoz ovozga" -> 'auto'; anything else -> null (just show the setting).
+export function voiceMode(args) {
+  const word = String(args || '').toLowerCase().replace(/[‘’'`ʻʼ\s]/g, '');
+  if (/^(doim|hardoim|always|on)$/.test(word)) return 'always';
+  if (/^(yoq|ochir|off|kerakmas)$/.test(word)) return 'off';
+  return /^(ovozga|standart|auto)$/.test(word) ? 'auto' : null;
+}
 export const MAX_FILE = 5 * 1024 * 1024;
 export const NEWS_QUESTION = 'Bugungi eng muhim yangiliklarni internetdan qidirib, qisqacha aytib ber: avval O‘zbekiston, keyin dunyo. Har biri 1–2 gap, sanasi bilan.';
 
@@ -142,16 +150,18 @@ export class TelegramBot {
     let binary = ''; for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
     return { data: btoa(binary), mime: { webp: 'image/webp', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', oga: 'audio/ogg', ogg: 'audio/ogg', mp3: 'audio/mpeg', m4a: 'audio/mp4', pdf: 'application/pdf' }[ext] || '' };
   }
-  // A file (a referat or presentation made by NurimAI) as a multipart upload, with an HTML caption.
-  async sendDocument(chatId, name, bytes, mime, caption = '', extra = {}) {
-    const form = new FormData(); form.append('chat_id', String(chatId)); form.append('document', new Blob([bytes], { type: mime }), name);
+  // A file as a multipart upload, with an HTML caption: a referat or presentation (sendDocument) or a spoken answer (sendVoice).
+  async sendFile(method, field, chatId, name, bytes, mime, caption = '', extra = {}) {
+    const form = new FormData(); form.append('chat_id', String(chatId)); form.append(field, new Blob([bytes], { type: mime }), name);
     if (caption) { form.append('caption', caption.slice(0, 1024)); form.append('parse_mode', 'HTML'); }
     for (const [key, value] of Object.entries(extra)) form.append(key, typeof value === 'string' ? value : JSON.stringify(value));
-    const response = await this.fetcher(`https://api.telegram.org/bot${this.token}/sendDocument`, { method: 'POST', body: form, signal: AbortSignal.timeout(30000) });
+    const response = await this.fetcher(`https://api.telegram.org/bot${this.token}/${method}`, { method: 'POST', body: form, signal: AbortSignal.timeout(30000) });
     const data = await response.json().catch(() => ({}));
-    if (!data.ok) throw Object.assign(new Error(`telegram sendDocument: ${String(data.description || response.status).slice(0, 160)}`), { status: response.status });
+    if (!data.ok) throw Object.assign(new Error(`telegram ${method}: ${String(data.description || response.status).slice(0, 160)}`), { status: response.status });
     return data.result;
   }
+  sendDocument(chatId, name, bytes, mime, caption = '', extra = {}) { return this.sendFile('sendDocument', 'document', chatId, name, bytes, mime, caption, extra); }
+  sendVoice(chatId, bytes, extra = {}) { return this.sendFile('sendVoice', 'voice', chatId, 'NurimAI.mp3', bytes, 'audio/mpeg', '', extra); }
   // HTML first; if Telegram cannot parse it, the same answer goes as plain text.
   async send(chatId, html, extra = {}) {
     try { return await this.call('sendMessage', { chat_id: chatId, text: html, parse_mode: 'HTML', link_preview_options: { is_disabled: true }, ...extra }); }

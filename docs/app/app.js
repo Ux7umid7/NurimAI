@@ -91,7 +91,7 @@ async function makeDoc(question, want, signal) {
   madeDocs.set(doc.id, bytes); keepDoc(doc, bytes);
   return { text: NurimDocs.summary(plan), incomplete: false, doc };
 }
-function bubble(role, text, attached = [], doc = null) {
+function bubble(role, text, attached = [], doc = null, remembered = []) {
   if (role !== 'user') text = NurimMath.plainMath(text); // LaTeX ($\frac{1}{2}$ -> 1/2): ko'rinishi, nusxasi va ovozi oddiy matn
   $('welcome').hidden = true; $('suggest').hidden = true; heroStop();
   const el = document.createElement('article'); el.className = `bubble ${role}`;
@@ -102,6 +102,7 @@ function bubble(role, text, attached = [], doc = null) {
     const avatar = document.createElement('img'); avatar.src = 'pufak/avatar.webp'; avatar.alt = '';
     const body = document.createElement('div'); body.className = 'rich'; rich(body, text); el.append(avatar, body);
     if (doc) body.append(docCard(doc));
+    if (remembered?.length) { const note = document.createElement('p'); note.className = 'memory-note'; note.textContent = `🧠 Eslab qoldim: ${remembered.join('; ')}`; body.append(note); }
     if (text.startsWith('Javob olinmadi')) el.classList.add('error');
     else {
       const actions = document.createElement('div'); actions.className = 'actions';
@@ -135,13 +136,18 @@ async function gateway(path, body, signal, ms) {
 }
 const recent = () => { const out = []; let count = 0; for (let i = history.length - 2; i >= 0 && out.length < 12; i -= 2) { const a = history[i], b = history[i + 1]; if (a.role !== 'user' || b.role !== 'assistant') continue; count += a.text.length + b.text.length; if (count > 12000) break; out.unshift(a, b); } return out; };
 const forRequest = list => list.map(f => f.kind === 'text' ? { kind: 'text', name: f.name, text: f.text } : { kind: f.kind, name: f.name, mime: f.mime, data: f.data });
-async function askAI(question, { extra = [], signal, voice = false, withHistory = true, withFiles = true, long = false } = {}) {
-  const sentFiles = [...(withFiles ? forRequest(files) : []), ...extra];
-  if (QA) { await new Promise(r => setTimeout(r, 200)); if (question.endsWith('/qa-xato')) throw new UserError('Sinov xatosi.'); const n = sentFiles.length - extra.length; return { text: `${voice ? 'Savolingiz: Kasr nima?\n' : ''}Bu avtomatik sinov uchun tayyor javob. Jonli AI emas.${n ? ` Biriktirilgan fayllar: ${n}.` : ''}`, incomplete: false }; }
-  const r = await gateway('/chat', { deviceId, history: withHistory ? recent() : [], question, ...(sentFiles.length ? { files: sentFiles } : {}), ...(long ? { long: true } : {}) }, signal, sentFiles.length || long ? 120000 : 90000); // long: a referat/presentation plan
+// --- Xotira: foydalanuvchi o'zi haqida aytgan qisqa faktlar faqat shu telefonda; har chat savoli bilan serverga boradi ---
+const memory = { get() { const m = saved.get('memory', {}); return { enabled: m.enabled !== false, facts: Array.isArray(m.facts) ? m.facts.filter(f => typeof f?.text === 'string') : [] }; }, set(m) { saved.set('memory', m); } };
+function keepFacts(texts) { const m = memory.get(); if (!m.enabled || !texts.length) return; memory.set({ ...m, facts: NurimMemory.mergeFacts(m.facts, texts) }); }
+// remember: a chat question (memory goes with it, new facts come back); quizzes, cards and documents do not use memory.
+async function askAI(question, { extra = [], signal, voice = false, withHistory = true, withFiles = true, long = false, remember = false } = {}) {
+  const sentFiles = [...(withFiles ? forRequest(files) : []), ...extra], mem = memory.get(), facts = remember && mem.enabled ? mem.facts.map(f => f.text) : null;
+  if (QA) { await new Promise(r => setTimeout(r, 200)); if (question.endsWith('/qa-xato')) throw new UserError('Sinov xatosi.'); const n = sentFiles.length - extra.length, noted = facts && question.includes('/qa-xotira') ? ['Ismi Sinov', '8-sinfda o‘qiydi'] : []; keepFacts(noted); return { text: noted.length ? 'Tanishganimdan xursandman!' : `${voice ? 'Savolingiz: Kasr nima?\n' : ''}Bu avtomatik sinov uchun tayyor javob. Jonli AI emas.${n ? ` Biriktirilgan fayllar: ${n}.` : ''}`, incomplete: false, remembered: noted }; }
+  const r = await gateway('/chat', { deviceId, history: withHistory ? recent() : [], question, ...(sentFiles.length ? { files: sentFiles } : {}), ...(long ? { long: true } : {}), ...(facts ? { memory: facts } : {}) }, signal, sentFiles.length || long ? 120000 : 90000); // long: a referat/presentation plan
   if (!r.ok) throw new UserError({ 429: 'Bugungi bepul limit tugadi. Ertaga yana yozing.', 413: 'Fayllar juda katta. Keraksizini olib tashlang.', 422: sentFiles.length ? 'AI bu fayl yoki savolni qabul qilmadi. Faylni olib tashlab ko‘ring.' : 'AI bu savolni qabul qilmadi. Matnni qisqartiring yoki yangi suhbat boshlang.', 400: voice ? 'Ovozli savolni server hali qabul qilmayapti. Savolni yozib yuboring.' : 'So‘rov noto‘g‘ri. Ilovani yangilang.', 403: 'Server bu ilovani tanimadi. Ilovani yangilang.' }[r.status] || 'AI serveri hozir javob bera olmadi. Keyinroq urinib ko‘ring.');
   if (typeof r.data.text !== 'string' || !r.data.text.trim()) throw new UserError('Server javobi o‘qilmadi.');
-  return { text: r.data.text, incomplete: r.data.incomplete === true };
+  const noted = facts && Array.isArray(r.data.facts) ? r.data.facts.filter(f => typeof f === 'string').slice(0, 15) : []; keepFacts(noted);
+  return { text: r.data.text, incomplete: r.data.incomplete === true, remembered: noted };
 }
 
 // --- Suhbat ---
@@ -159,7 +165,7 @@ async function converse(question, { display = question, voice = false, extra = [
     finally { controller = null; }
   }
   try {
-    const reply = await askAI(practice.state.teacher ? `${question}\n\n(${NurimPractice.TEACHER})` : question, { extra, signal: controller.signal, voice });
+    const reply = await askAI(practice.state.teacher ? `${question}\n\n(${NurimPractice.TEACHER})` : question, { extra, signal: controller.signal, voice, remember: true });
     let text = reply.text, transcript = '';
     if (voice) { const lines = text.split('\n'); const heard = HEARD.exec(lines[0] || ''); if (heard) { transcript = heard[1].trim().slice(0, 600); text = lines.slice(1).join('\n').trim() || text; asked.text = `🎤 ${transcript}`; } }
     history.push({ role: 'user', text: transcript || display }, { role: 'assistant', text }); history = history.slice(-24); visible.push({ role: 'assistant', text }); mood('happy'); remember();
@@ -170,7 +176,7 @@ async function converse(question, { display = question, voice = false, extra = [
 async function askText(question) {
   if (!question || busy) return; notice('');
   const fresh = files.filter(f => !shownFiles.has(f.id)); bubble('user', question, fresh.map(({ name, ext, kind }) => ({ name, ext, kind }))); $('question').value = ''; grow(); setBusy(true);
-  try { const reply = await call(window.nurim.send(question)); bubble('assistant', reply.text, [], reply.doc); if (reply.incomplete) notice('Javob uzunligi chegarasiga yetdi. Davomini so‘rashingiz mumkin.'); }
+  try { const reply = await call(window.nurim.send(question)); bubble('assistant', reply.text, [], reply.doc, reply.remembered); if (reply.incomplete) notice('Javob uzunligi chegarasiga yetdi. Davomini so‘rashingiz mumkin.'); }
   catch (error) { notice(error.message); bubble('assistant', 'Javob olinmadi. Savolni qayta yuborishingiz mumkin.'); $('question').value = question; grow(); }
   finally { setBusy(false); }
 }

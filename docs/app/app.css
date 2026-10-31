@@ -70,6 +70,11 @@ svg .leaf,.leaf{fill:var(--gold);stroke:none}
 .doc-card b{font:800 11px/1 Commissioner,sans-serif;letter-spacing:.06em;padding:8px 9px;border-radius:9px;background:#2B579A;color:#fff}.doc-card.pptx b{background:#C43E1C}
 .doc-card span{flex:1;min-width:0;font-weight:600;font-size:14px;overflow-wrap:break-word;color:var(--ink)}
 .doc-card button{height:38px;padding:0 16px;border-radius:999px;border:0;background:var(--gold);color:var(--on-gold);font-weight:700;font-size:14px}
+.memory-note{margin:10px 0 0;font-size:13px;color:var(--muted)}
+.memory-list{list-style:none;margin:10px 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.memory-list li{display:flex;align-items:center;gap:8px;padding:8px 8px 8px 12px;border-radius:12px;background:var(--soft);font-size:14px}.memory-list span{flex:1;overflow-wrap:break-word}
+.memory-list button{width:30px;height:30px;flex:none;display:grid;place-items:center;padding:0;border-radius:50%;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:17px;line-height:1}
+#memory-empty{font-size:13px;color:var(--faint)}#memory-clear{height:36px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--ink);font-size:13px}
 .bubble.assistant{display:grid;grid-template-columns:34px 1fr;gap:12px;align-items:start}
 .bubble.assistant>img{width:34px;height:34px;border-radius:50%;object-fit:cover;background:var(--warm);border:1.5px solid var(--warm-line)}
 .rich{font-size:16px;line-height:1.6;overflow-wrap:anywhere;user-select:text;min-width:0;padding-top:5px}.rich>*{margin:0}.rich>*+*{margin-top:10px}

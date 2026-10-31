@@ -1,4 +1,5 @@
 const { fresh } = require('./web.cjs');
+const { withMemory, splitMemory } = require('./shared/memory.js');
 const MODELS = Object.freeze({ Gemini: 'gemini-3.5-flash-lite', Groq: 'qwen/qwen3.8-27b', OpenRouter: 'openrouter/free', Cloudflare: '@cf/google/gemma-4-26b-a4b-it' });
 // Cloudflare Workers AI has no URL or key: the gateway answers this address through its AI binding (server/worker.mjs).
 const URLS = Object.freeze({ Gemini: `https://generativelanguage.googleapis.com/v1beta/models/${MODELS.Gemini}:generateContent`, Groq: 'https://api.groq.com/openai/v1/chat/completions', OpenRouter: 'https://openrouter.ai/api/v1/chat/completions', Cloudflare: 'https://workers-ai.binding/run' });
@@ -75,6 +76,8 @@ class Router {
     // options.search: true/false overrides the guess; a string is what to look up when the question itself is an instruction.
     const search = options.search ?? needsSearch(question);
     const web = search ? await fresh(typeof search === 'string' ? search : question, { fetcher: this.fetcher, signal, now: this.now, cache: this.web }) : null;
+    // options.memory: facts the user told before (shared/memory.js) go with the question; new ones come back as reply.facts.
+    const remembering = Array.isArray(options.memory), asked = remembering ? withMemory(question, options.memory) : question;
     if (web) files = [...files, web.file];
     if (hasMedia(files)) { routes = routes.filter(p => p === 'Gemini'); if (!routes.length) throw new UserError('Rasm, PDF va ovozni faqat Gemini o‘qiydi. Sozlamalarda Gemini kalitini ulang.'); }
     if (!settings.autoFallback) routes = routes.slice(0,1);
@@ -88,7 +91,7 @@ class Router {
         const headers = { 'Content-Type': 'application/json', 'User-Agent': 'NurimAI/0.6' };
         if (provider === 'Gemini') headers['x-goog-api-key'] = settings.keys[provider]; else headers.Authorization = `Bearer ${settings.keys[provider]}`;
         // 'manual' never follows a redirect (keys stay on the provider host) and works in Workers, unlike 'error'; a 3xx is handled as a failed route.
-        const response = await this.fetcher(URLS[provider], { method: 'POST', headers, body: JSON.stringify(body(provider, history, question, files, options.long === true)), signal: combined, redirect: 'manual' });
+        const response = await this.fetcher(URLS[provider], { method: 'POST', headers, body: JSON.stringify(body(provider, history, asked, files, options.long === true)), signal: combined, redirect: 'manual' });
         const raw = await response.text(); signal.throwIfAborted();
         let data; try { if(raw.length > 4 * 1024 * 1024) throw new Error(); data = JSON.parse(raw); } catch { data = {}; }
         if (!response.ok) {
@@ -98,7 +101,9 @@ class Router {
           mark([429,402].includes(response.status) ? 'Bepul limit cheklovi' : 'Xizmat vaqtincha ishlamayapti',retryDelay(response,data,this.now())); continue;
         }
         let reply; try { reply = parse(provider,data); } catch { mark('Matnli javob o‘qilmadi',30000); continue; }
-        mark('Ishlayapti'); this.last = { provider, model: reply.model }; return { ...reply, sources: web?.sources || [], queries: web?.queries || [] };
+        mark('Ishlayapti'); this.last = { provider, model: reply.model };
+        const noted = remembering ? splitMemory(reply.text) : { text: reply.text, facts: [] };
+        return { ...reply, text: noted.text, facts: noted.facts, sources: web?.sources || [], queries: web?.queries || [] };
       } catch(error) {
         signal.throwIfAborted(); if (error instanceof UserError) throw error;
         mark(attempt.signal.aborted ? 'Kutish vaqti tugadi' : 'Tarmoq xatosi',30000);

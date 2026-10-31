@@ -144,8 +144,10 @@
     <div class="theme-row" id="theme-choice"><span>Mavzu</span><div class="seg" role="radiogroup" aria-label="Mavzu"><label><input type="radio" name="theme" value="system">Tizim</label><label><input type="radio" name="theme" value="light">Yorug‘</label><label><input type="radio" name="theme" value="dark">Qorong‘i</label></div></div>
     <label class="row-switch"><span>Ovozli savolga javobni ovoz chiqarib o‘qish</span><input type="checkbox" id="auto-speak"></label>
     <label class="row-switch"><span>Suhbatlarni shu telefonda saqlash</span><input type="checkbox" id="save-history"></label>
+    <label class="row-switch"><span>🧠 Men haqimda aytganlarimni eslab qolsin (ism, sinf, qiziqishlar)</span><input type="checkbox" id="memory-on"></label>
+    <div class="card memory-card"><strong>Xotira</strong><ul id="memory-list" class="memory-list"></ul><p id="memory-empty">Hali hech narsa eslab qolinmagan. Masalan, «Men 8-sinfda o‘qiyman» deb yozing.</p><button type="button" id="memory-clear">Hammasini unutish</button></div>
     <div class="card" id="install-help"><strong>Bosh ekranga qo‘shish</strong><p id="install-text"></p></div>
-    <div class="card"><strong>Maxfiylik</strong><p>Savolingiz, fayllaringiz va suhbatning oxirgi qismi NurimAI serveri orqali Google Gemini, Groq yoki (ular band bo‘lsa) Cloudflare Workers AI’ga yuboriladi, server ularni saqlamaydi. Ovozli savol faqat mikrofon tugmasi bosilganda yoziladi. Suhbatlar tarixi, kartochkalar va eslatmalar faqat shu telefonda turadi. Parol, pasport, karta raqami yubormang.</p></div>
+    <div class="card"><strong>Maxfiylik</strong><p>Savolingiz, fayllaringiz va suhbatning oxirgi qismi NurimAI serveri orqali Google Gemini, Groq yoki (ular band bo‘lsa) Cloudflare Workers AI’ga yuboriladi, server ularni saqlamaydi. Ovozli savol faqat mikrofon tugmasi bosilganda yoziladi. Suhbatlar tarixi, xotira (siz aytgan ism, sinf kabi qisqa faktlar — har savol bilan AI’ga boradi), kartochkalar va eslatmalar faqat shu telefonda turadi. Parol, pasport, karta raqami yubormang.</p></div>
     <button type="button" class="danger" id="clear-data">Barcha ma’lumotlarni o‘chirish</button>
     <p class="muted center" id="version"></p>
   </div>
@@ -170,7 +172,7 @@
 
 <script src="config.js"></script>
 <script src="lib/cap/capacitor.js"></script><script src="lib/cap/app.js"></script><script src="lib/cap/local-notifications.js"></script>
-<script src="lib/math-text.js"></script><script src="lib/practice-core.js"></script><script src="lib/office-core.js"></script><script src="lib/office-write.js"></script>
+<script src="lib/math-text.js"></script><script src="lib/practice-core.js"></script><script src="lib/office-core.js"></script><script src="lib/office-write.js"></script><script src="lib/memory.js"></script>
 <script src="app.js"></script><script src="lib/voice.js"></script><script src="lib/ustoz.js"></script><script src="start.js"></script>
 </body>
 </html>

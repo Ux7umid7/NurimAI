@@ -1,5 +1,7 @@
 import routerModule from '../src/router.cjs';
-import { TelegramBot, webhookSecret, parseUpdate, questionFor, splitHeard, toTelegramHtml, splitAnswer, escape, sourcesHtml, keyboardFor, TEXTS, SITE, KEYBOARD, HELP_KEYBOARD } from './telegram.mjs';
+import { TelegramBot, webhookSecret, parseUpdate, questionFor, splitHeard, toTelegramHtml, splitAnswer, escape, sourcesHtml, keyboardFor, TEXTS, SITE, KEYBOARD, HELP_KEYBOARD, voiceMode } from './telegram.mjs';
+import { mergeFacts, cleanFacts, MEMORY_TEXTS } from './memory.mjs';
+import { speechText, wavToMp3 } from './voice.mjs';
 import { GroupGame, GROUP_COMMANDS, ADMIN_COMMANDS } from './group.mjs';
 import Docs from '../src/shared/office-write.js';
 const { Router, UserError, speak, SPEECH, withSources, URLS } = routerModule;
@@ -25,7 +27,8 @@ export function validatePayload(data) {
   if(!Array.isArray(data.history)||data.history.length>12||data.history.length%2)throw new Error('history');
   let count=0;for(let i=0;i<data.history.length;i++){const m=data.history[i];if(!m||m.role!==(i%2?'assistant':'user')||typeof m.text!=='string')throw new Error('history');count+=m.text.length;}
   if(count>12000)throw new Error('history');
-  return {question:data.question.trim(),deviceId:data.deviceId,history:data.history.map(m=>({role:m.role,text:m.text})),files:validateFiles(data.files),long:data.long===true}; // long: a referat/presentation plan
+  // long: a referat/presentation plan; memory: what the app remembers about its user (absent = the app does not use memory).
+  return {question:data.question.trim(),deviceId:data.deviceId,history:data.history.map(m=>({role:m.role,text:m.text})),files:validateFiles(data.files),long:data.long===true,...(data.memory!==undefined?{memory:cleanFacts(data.memory)}:{})};
 }
 export function validateSpeech(data) {
   if(!data||typeof data.text!=='string'||!data.text.trim()||data.text.length>SPEECH.maxChars)throw new Error('text');
@@ -117,7 +120,7 @@ async function setupBot(env,url,secret){
   try{
     const me=await bot.call('getMe');const hook=`${url.origin}/telegram`;
     await bot.call('setWebhook',{url:hook,secret_token:secret,allowed_updates:['message','callback_query','my_chat_member'],max_connections:10});
-    await bot.call('setMyCommands',{commands:[{command:'start',description:'Boshlash'},{command:'referat',description:'Referat (Word fayl)'},{command:'taqdimot',description:'Taqdimot (PowerPoint fayl)'},{command:'yangiliklar',description:'Bugungi yangiliklar'},{command:'yangi',description:'Yangi suhbat'},{command:'yordam',description:'Nima qila olaman'}]});
+    await bot.call('setMyCommands',{commands:[{command:'start',description:'Boshlash'},{command:'referat',description:'Referat (Word fayl)'},{command:'taqdimot',description:'Taqdimot (PowerPoint fayl)'},{command:'ovoz',description:'Ovozli javob sozlamasi'},{command:'xotira',description:'Siz haqingizda eslab qolganlarim'},{command:'yangiliklar',description:'Bugungi yangiliklar'},{command:'yangi',description:'Yangi suhbat'},{command:'yordam',description:'Nima qila olaman'}]});
     await bot.call('setMyCommands',{commands:GROUP_COMMANDS,scope:{type:'all_group_chats'}});await bot.call('setMyCommands',{commands:ADMIN_COMMANDS,scope:{type:'all_chat_administrators'}});
     await bot.call('setMyDescription',{description:TEXTS.description});await bot.call('setMyShortDescription',{short_description:TEXTS.short});
     return json({ok:true,bot:`@${me.username}`,webhook:hook});
@@ -141,8 +144,8 @@ export class AiGateway {
     const settings=this.settings(); // the apps get the same routes as the bot, Workers AI included
     this.active++;
     try{
-      const reply=await this.router.ask(settings,data.history,data.question,AbortSignal.timeout(data.long?110000:85000),data.files,data.long?{long:true,search:false}:{});
-      return json({text:withSources(reply),incomplete:reply.incomplete}); // news answers carry their sources
+      const reply=await this.router.ask(settings,data.history,data.question,AbortSignal.timeout(data.long?110000:85000),data.files,{...(data.long?{long:true,search:false}:{}),...(data.memory?{memory:data.memory}:{})});
+      return json({text:withSources(reply),incomplete:reply.incomplete,...(data.memory?{facts:reply.facts}:{})}); // news answers carry their sources; new facts go back to the app
     }catch(error){console.log(`chat failed: ${error instanceof UserError?error.message:error?.name||'Error'}; routes: ${this.router.diagnostics(settings).map(r=>`${r.provider}=${r.status}`).join(', ')}`);const rejected=error instanceof UserError&&error.code==='input';return json({error:rejected?'Input rejected':error instanceof UserError?'AI temporarily unavailable':'Service unavailable'},rejected?422:503);}finally{this.active--;}
   }
   // Gemini, then Groq, then OpenRouter's free models (if its key is set), then Workers AI.
@@ -162,7 +165,7 @@ export class AiGateway {
   // remembers the last few turns of each chat for three days; nothing else about the user is stored.
   async telegram(item){
     if(item.kind==='command'&&item.command==='yangiliklar')item={...item,kind:'news'}; // answered by the AI with Google Search
-    const bot=new TelegramBot(this.env.TELEGRAM_TOKEN,upstream),store=this.state.storage,chatKey=`tg:chat:${item.chatId}`;
+    const bot=new TelegramBot(this.env.TELEGRAM_TOKEN,upstream),store=this.state.storage,chatKey=`tg:chat:${item.chatId}`,memKey=`tg:mem:${item.userId}`;
     try{
       if(item.kind==='callback'){await bot.call('answerCallbackQuery',{callback_query_id:item.id}).catch(()=>{});if(item.data==='new'){await store.delete(chatKey);await bot.send(item.chatId,TEXTS.fresh);}return;}
       // Groups: the daily question game (server/group.mjs). A failure there is only logged, never posted to the group.
@@ -172,6 +175,9 @@ export class AiGateway {
       if(item.kind==='command'){
         if(item.command==='start'){await store.delete(chatKey);await bot.call('sendPhoto',{chat_id:item.chatId,photo:`${SITE}bot/hello.jpg`,caption:TEXTS.hello,parse_mode:'HTML'}).catch(()=>bot.send(item.chatId,TEXTS.hello));}
         else if(item.command==='yangi'){await store.delete(chatKey);await bot.send(item.chatId,TEXTS.fresh);}
+        else if(item.command==='ovoz'){const mode=voiceMode(item.args);if(mode)await store.put(`tg:pref:${item.chatId}`,{voice:mode});await bot.send(item.chatId,TEXTS.voice(mode||(await store.get(`tg:pref:${item.chatId}`))?.voice||'auto',Boolean(mode)));}
+        else if(item.command==='xotira')await bot.send(item.chatId,MEMORY_TEXTS.list((await store.get(memKey))?.facts||[]));
+        else if(item.command==='unut'){await store.delete(memKey);await bot.send(item.chatId,MEMORY_TEXTS.forgot);}
         else await bot.send(item.chatId,TEXTS.help,{reply_markup:HELP_KEYBOARD});
         return;
       }
@@ -183,25 +189,41 @@ export class AiGateway {
       if(this.active>=4){await bot.send(item.chatId,TEXTS.busy);return;}
       const want=item.kind==='text'?Docs.detect(item.text):null; // "Fotosintez haqida referat yozib ber" -> a Word file
       await bot.call('sendChatAction',{chat_id:item.chatId,action:want?'upload_document':'typing'}).catch(()=>{});
-      const saved=await store.get(chatKey);const history=saved&&Date.now()-saved.updated<3*86400000?saved.history:[];
+      const saved=await store.get(chatKey);const history=saved&&Date.now()-saved.updated<7*86400000?saved.history:[]; // the last 6 turns, for a week
       if(want){
         let reply;this.active++;try{reply=await this.router.ask(this.settings(),history,Docs.prompt(item.text,want),AbortSignal.timeout(110000),[],{search:false,long:true});}finally{this.active--;}
         const plan=Docs.parse(want.kind,reply.text);if(!plan){console.log(`telegram doc failed: unreadable plan (${reply.provider})`);await bot.send(item.chatId,TEXTS.docFailed);return;}
         await bot.sendDocument(item.chatId,Docs.fileName(plan),Docs.build(plan),Docs.MIME[plan.kind],toTelegramHtml(Docs.summary(plan)),{reply_markup:KEYBOARD});
-        await store.put(chatKey,{updated:Date.now(),history:[...history,{role:'user',text:item.text.slice(0,1000)},{role:'assistant',text:Docs.summary(plan).slice(0,2000)}].slice(-8)});
+        await store.put(chatKey,{updated:Date.now(),history:[...history,{role:'user',text:item.text.slice(0,1000)},{role:'assistant',text:Docs.summary(plan).slice(0,2000)}].slice(-12)});
         return;
       }
       const {question,remember}=questionFor(item);
       const files=[];if(item.fileId){const file=await bot.download(item.fileId);files.push({kind:item.kind==='voice'?'audio':item.kind==='pdf'?'pdf':'image',name:item.kind==='voice'?'Ovozli xabar':item.kind==='sticker'?'stiker':item.name||'rasm.jpg',mime:file.mime&&file.mime.split('/')[0]===item.mime.split('/')[0]?file.mime:item.mime,data:file.data});}
-      let reply;this.active++;try{reply=await this.router.ask(this.settings(),history,question,AbortSignal.timeout(85000),files,{search:item.kind==='news'?'Bugungi yangiliklar':item.kind==='text'?undefined:false});}finally{this.active--;}
+      // Long-term memory (src/shared/memory.js): what the user told about themself goes with the question; news needs none.
+      const facts=(await store.get(memKey))?.facts||[];
+      let reply;this.active++;try{reply=await this.router.ask(this.settings(),history,question,AbortSignal.timeout(85000),files,{search:item.kind==='news'?'Bugungi yangiliklar':item.kind==='text'?undefined:false,...(item.kind==='news'?{}:{memory:facts})});}finally{this.active--;}
+      if(reply.facts?.length)await store.put(memKey,{facts:mergeFacts(facts,reply.facts)});
       const {heard,text}=item.kind==='voice'?splitHeard(reply.text):{heard:'',text:reply.text};
-      await store.put(chatKey,{updated:Date.now(),history:[...history,{role:'user',text:(heard?`🎤 ${heard}`:remember).slice(0,1000)},{role:'assistant',text:text.slice(0,2000)}].slice(-8)});
+      await store.put(chatKey,{updated:Date.now(),history:[...history,{role:'user',text:(heard?`🎤 ${heard}`:remember).slice(0,1000)},{role:'assistant',text:text.slice(0,2000)}].slice(-12)});
       const parts=splitAnswer(text);
       for(const [i,part] of parts.entries()){const last=i===parts.length-1;await bot.send(item.chatId,(i===0&&heard?`<i>🎤 ${escape(heard)}</i>\n\n`:'')+toTelegramHtml(part)+(last?sourcesHtml(reply):''),last?{reply_markup:keyboardFor(reply)}:{});}
+      const mode=(await store.get(`tg:pref:${item.chatId}`))?.voice||'auto';
+      if(mode==='always'||(mode==='auto'&&item.kind==='voice'))await this.voiceReply(bot,item,text); // the answer read aloud, after the text
     }catch(error){
       console.log(`telegram failed: ${error?.code==='big'?'file too big':error instanceof UserError?error.message:error?.name||'Error'}`);
       await bot.send(item.chatId,error?.code==='big'?TEXTS.big:error instanceof UserError&&error.code==='input'?TEXTS.rejected:TEXTS.failed).catch(()=>{});
     }
+  }
+  // The bot's spoken answer: Gemini TTS -> MP3 voice note. Its own daily budget; if anything fails the text answer is enough.
+  async voiceReply(bot,item,answer){
+    const words=speechText(answer);if(!words||!this.env.GEMINI_API_KEY||this.env.GEMINI_FREE_TIER!=='true')return;
+    const day=Math.floor(Date.now()/86400000),who=await hash(`${this.env.RATE_SALT}:${day}:tg-voice:${item.userId}`);
+    const each=Math.min(200,Math.max(1,Number(this.env.TG_VOICE_USER)||30)),limits={total:Math.min(3000,Math.max(1,Number(this.env.TG_VOICE_TOTAL)||300)),ip:each,device:each,minute:6};
+    const allowed=await this.state.storage.transaction(async tx=>{const next=budget(await tx.get('tg-voice'),Date.now(),who,who,limits);if(next.allowed)await tx.put('tg-voice',next.data);return next;});
+    if(!allowed.allowed)return;
+    await bot.call('sendChatAction',{chat_id:item.chatId,action:'record_voice'}).catch(()=>{});
+    try{const audio=await speak({key:this.env.GEMINI_API_KEY,text:words,signal:AbortSignal.timeout(60000),fetcher:upstream});await bot.sendVoice(item.chatId,wavToMp3(audio.data));}
+    catch(error){console.log(`telegram voice failed: ${String(error?.message||error?.name||'Error').slice(0,120)}`);}
   }
   // Voice answers have their own daily budget, so listening never eats the chat limit.
   async speech(data,identities){

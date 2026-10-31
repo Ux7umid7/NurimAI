@@ -9,7 +9,14 @@ $('new').onclick = newChat; $('drawer-new').onclick = () => { closeDrawer(); new
 $('menu').onclick = openDrawer; $('scrim').onclick = closeDrawer;
 $('history-search').oninput = renderHistory;
 $('ustoz').addEventListener('click', closeDrawer); // ustoz.js o'zi Ustoz sahifasini ochadi
-$('settings').onclick = () => { closeDrawer(); $('auto-speak').checked = state.settings.autoSpeak !== false; $('save-history').checked = state.settings.saveHistory !== false; $('version').textContent = `NurimAI ${state.version} · ${NATIVE ? 'Android ilova' : 'veb-ilova'}`; NurimTheme.bind($('theme-choice')); $('settings-dialog').showModal(); };
+$('settings').onclick = () => { closeDrawer(); $('auto-speak').checked = state.settings.autoSpeak !== false; $('save-history').checked = state.settings.saveHistory !== false; $('version').textContent = `NurimAI ${state.version} · ${NATIVE ? 'Android ilova' : 'veb-ilova'}`; NurimTheme.bind($('theme-choice')); renderMemory(); $('settings-dialog').showModal(); };
+// Xotira: yoqish/o'chirish, eslab qolinganlar ro'yxati (har birini unutish mumkin).
+function renderMemory() {
+  const m = memory.get(); $('memory-on').checked = m.enabled; $('memory-empty').hidden = m.facts.length > 0; $('memory-clear').hidden = !m.facts.length;
+  $('memory-list').replaceChildren(...m.facts.map((f, i) => { const li = document.createElement('li'), span = document.createElement('span'), x = document.createElement('button'); span.textContent = f.text; x.type = 'button'; x.textContent = '×'; x.setAttribute('aria-label', `«${f.text}» ni unutish`); x.onclick = () => { const now = memory.get(); now.facts.splice(i, 1); memory.set(now); renderMemory(); }; li.append(span, x); return li; }));
+}
+$('memory-on').onchange = () => { memory.set({ ...memory.get(), enabled: $('memory-on').checked }); renderMemory(); };
+$('memory-clear').onclick = () => { memory.set({ ...memory.get(), facts: [] }); renderMemory(); };
 for (const id of ['auto-speak', 'save-history']) $(id).onchange = () => { state.settings = { ...state.settings, autoSpeak: $('auto-speak').checked, saveHistory: $('save-history').checked }; saved.set('settings', state.settings); renderHistory(); };
 $('clear-data').onclick = () => {
   if (!confirm('Suhbatlar tarixi, kartochkalar, natijalar va eslatmalar shu telefondan o‘chirilsinmi? Buni qaytarib bo‘lmaydi.')) return;
