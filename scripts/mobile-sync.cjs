@@ -5,10 +5,10 @@ const path = require('node:path');
 const root = path.join(__dirname, '..');
 const app = path.join(root, 'docs', 'app');
 const copies = [
-  ['src/shared/theme.js', 'lib/theme.js'], ['src/shared/math-text.js', 'lib/math-text.js'],['src/shared/practice-core.js', 'lib/practice-core.js'], ['src/shared/office-core.js', 'lib/office-core.js'], ['src/shared/office-write.js', 'lib/office-write.js'], ['src/shared/memory.js', 'lib/memory.js'],
+  ['src/shared/theme.js', 'lib/theme.js'], ['src/shared/character.js', 'lib/character.js'], ['src/shared/math-text.js', 'lib/math-text.js'],['src/shared/practice-core.js', 'lib/practice-core.js'], ['src/shared/office-core.js', 'lib/office-core.js'], ['src/shared/office-write.js', 'lib/office-write.js'], ['src/shared/memory.js', 'lib/memory.js'],
   ['src/voice.js', 'lib/voice.js'], ['src/ustoz.js', 'lib/ustoz.js'],
   // Ustozim Nurim brand: 2D Pufak for every mood, the brand fonts and logos.
-  ...['pufak', 'fonts', 'brand'].flatMap(dir => fs.readdirSync(path.join(root, 'assets', dir)).filter(f => /\.(webp|woff2|svg)$/.test(f)).map(f => [`assets/${dir}/${f}`, `${dir}/${f}`])),
+  ...['pufak', 'ustoz', 'fonts', 'brand'].flatMap(dir => fs.readdirSync(path.join(root, 'assets', dir)).filter(f => /\.(webp|woff2|svg)$/.test(f)).map(f => [`assets/${dir}/${f}`, `${dir}/${f}`])),
   // Capacitor's browser bundles (IIFE globals: capacitorExports, capacitorApp, capacitorLocalNotifications); on the web they stay idle.
   ['mobile/node_modules/@capacitor/core/dist/capacitor.js', 'lib/cap/capacitor.js'], ['mobile/node_modules/@capacitor/app/dist/plugin.js', 'lib/cap/app.js'],
   ['mobile/node_modules/@capacitor/local-notifications/dist/plugin.js', 'lib/cap/local-notifications.js']

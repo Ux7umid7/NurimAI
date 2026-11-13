@@ -93,3 +93,13 @@ test('phone app: the live conversation opens from the menu, shows who said what,
  await page.locator('#talk').click();await expect(page.locator('#live')).toHaveAttribute('data-state','idle');await expect(page.locator('#status')).toContainText('Suhbat tugadi');await expect(page.locator('#clock')).toBeHidden();await expect(page.locator('#mute')).toHaveText('Mikrofon');
  await page.goto(home);await page.locator('#question').waitFor();
 });
+test('phone app: the hero can be switched to Nur: home picture, answer avatars and the live page follow',async()=>{
+ await page.evaluate(()=>newChat());await page.locator('#menu').click();await page.locator('#settings').click();await expect(page.locator('#settings-dialog')).toBeVisible();
+ await page.locator('#character-choice label:has(input[value=ustoz])').click();await expect(page.locator('#character-choice input[value=ustoz]')).toBeChecked();
+ await page.screenshot({path:'test-results/mobile-hero-picker.png'});await page.keyboard.press('Escape');
+ await expect(page.locator('#hero-still')).toHaveAttribute('src','ustoz/ustoz.webp');
+ await page.locator('#question').fill('Salom');await page.locator('#send').click();await expect(page.locator('.bubble.assistant img').last()).toHaveAttribute('src','ustoz/avatar.webp');
+ const home=page.url();await page.goto(home.replace(/\/app\/.*$/,'/app/live.html?qa'));await expect(page.locator('#nur')).toHaveAttribute('src','ustoz/ustoz.webp');
+ await page.screenshot({path:'test-results/mobile-live-nur.png'});
+ await page.evaluate(()=>localStorage.setItem('nurim.character','pufak'));await page.goto(home);await page.locator('#question').waitFor();await expect(page.locator('#hero-still')).toHaveAttribute('src','pufak/pufak.webp');
+});

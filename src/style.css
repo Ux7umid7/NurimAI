@@ -74,7 +74,7 @@ svg .leaf{fill:var(--gold);stroke:none}
 .bubble.user .bubble-head{display:none}
 .bubble p{white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.6;font-size:14.5px;margin:0;user-select:text}
 .bubble.assistant{padding-left:48px}
-.bubble.assistant::before{content:'';position:absolute;left:0;top:0;width:36px;height:36px;border-radius:50%;background:var(--warm) url(../assets/pufak/avatar.webp) center/cover;border:1.5px solid var(--warm-line)}
+.bubble.assistant::before{content:'';position:absolute;left:0;top:0;width:36px;height:36px;border-radius:50%;background:var(--warm) var(--char-avatar,url(../assets/pufak/avatar.webp)) center/cover;border:1.5px solid var(--warm-line)}
 .bubble-head{display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:36px;margin-bottom:4px}
 .bubble-head>span:first-child{font:700 13.5px Commissioner,sans-serif}
 .bubble-tools{display:flex;gap:6px}.bubble-head button{display:flex;align-items:center;gap:5px;height:30px;padding:0 11px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--muted);font-size:12px}
@@ -149,6 +149,13 @@ dialog::backdrop{background:rgba(8,9,11,.6)}
 .check input::after{content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;background:var(--faint);transition:transform .15s,background .15s}
 .check input:checked{background:var(--gold);border-color:var(--gold)}.check input:checked::after{transform:translateX(18px);background:#121317}
 .theme-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:4px 0 6px;font-size:13px}
+.char-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:6px 0 8px;font-size:13px}
+.chars{display:flex;gap:8px}
+.char{position:relative;display:grid;grid-template-columns:40px auto;grid-template-rows:auto auto;column-gap:9px;align-items:center;padding:6px 14px 6px 6px;border-radius:16px;background:var(--soft);border:1.5px solid var(--line);cursor:pointer;transition:border-color .15s,background .15s}
+.char img{grid-row:1/3;width:40px;height:40px;border-radius:50%;object-fit:cover;background:var(--warm)}
+.char b{font-size:13px;line-height:1.1}.char small{font-size:11px;color:var(--muted);line-height:1.2}
+.char input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
+.char:has(input:checked){border-color:var(--gold);background:var(--warm)}.char:has(input:focus-visible){outline:2px solid var(--gold);outline-offset:2px}
 .seg{display:inline-flex;padding:3px;border-radius:999px;background:var(--soft);border:1px solid var(--line)}
 .seg label{position:relative;padding:6px 13px;border-radius:999px;font-size:12.5px;color:var(--muted);cursor:pointer;white-space:nowrap;transition:background .15s,color .15s}
 .seg input{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:pointer}
@@ -195,7 +202,7 @@ pre{white-space:pre-wrap;font:11px/1.6 inherit;color:var(--muted)}
 .option{text-align:left;background:var(--surface);border:1px solid var(--line);line-height:1.45;font-size:14px;padding:12px 14px;border-radius:16px}.option:hover:not(:disabled){border-color:var(--warm-line);background:var(--surface)}.option:disabled{opacity:1;cursor:default}
 .option.right{background:var(--good);border:1.5px solid var(--good-line);color:var(--good-ink)}.option.wrong{background:var(--bad);border:1.5px solid var(--bad-line);color:var(--bad-ink)}
 .explain{font-size:13px;line-height:1.6;margin:0;padding:10px 13px;border-radius:14px}.explain.good{background:var(--good);color:var(--good-ink)}.explain.bad{background:var(--bad);color:var(--bad-ink)}
-.result{text-align:center;padding:18px 10px;background:var(--surface);border:1px solid var(--warm-line);border-radius:20px}.result::before{content:'';display:block;width:84px;height:84px;margin:0 auto 4px;background:url(../assets/pufak/happy.webp) center/contain no-repeat}
+.result{text-align:center;padding:18px 10px;background:var(--surface);border:1px solid var(--warm-line);border-radius:20px}.result::before{content:'';display:block;width:84px;height:84px;margin:0 auto 4px;background:var(--char-happy,url(../assets/pufak/happy.webp)) center/contain no-repeat}
 .result strong{font-size:36px;color:var(--accent-text)}.result p{margin:6px 0;font-size:14px}.result small{color:var(--muted)}
 .flashcard{min-height:150px;display:grid;place-content:center;gap:12px;text-align:center;padding:20px;border-radius:20px;background:var(--surface);border:1px solid var(--warm-line);box-shadow:var(--shadow)}
 .card-front{font:800 19px/1.4 Commissioner,sans-serif;margin:0}.card-back{font-size:14px;margin:0;color:var(--muted);line-height:1.55;border-top:1px dashed var(--line);padding-top:12px}

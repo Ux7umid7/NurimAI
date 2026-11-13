@@ -28,7 +28,7 @@ if (TELEGRAM || params.get('from') === 'desktop') $('back').hidden = true;
 
 function setState(state, text) {
   $('live').dataset.state = state; $('status').textContent = text || STATUS[state] || '';
-  $('nur').src = `pufak/${POSES[state] || 'wave'}.webp`;
+  $('nur').src = NurimCharacter.src(POSES[state] || 'hero'); // tanlangan qahramon (lib/character.js); rasmi yo'q holatda asosiy rasmi
   const active = ['connecting', 'listening', 'speaking'].includes(state);
   $('talk').textContent = active ? 'Tugatish' : 'Boshlash'; $('mute').hidden = !active || state === 'connecting'; $('clock').hidden = !active;
   if (!active) document.documentElement.style.setProperty('--level', 0);

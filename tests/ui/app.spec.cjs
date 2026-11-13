@@ -154,3 +154,17 @@ test('computer files: a chosen folder, the 📁 switch, a change made with a yes
 test('the live conversation button asks the app to open its window',async()=>{
  await expect(page.locator('#live')).toHaveAttribute('aria-label','Jonli suhbat');await page.locator('#live').click();await expect(page.locator('#notice')).not.toContainText('Xato');
 });
+test('the hero can be switched to Nur and back: chat avatar, home picture and the pet follow',async()=>{
+ await page.locator('#new').click();await expect(page.locator('#hero-nur')).toHaveAttribute('src','../assets/pufak/pufak.webp');
+ await page.locator('#settings').click();await expect(page.locator('#character-choice input[value=pufak]')).toBeChecked();
+ await page.locator('#character-choice label:has(input[value=ustoz])').click();await expect(page.locator('#notice')).toContainText('Nur endi siz bilan');
+ await expect(page.locator('#hero-nur')).toHaveAttribute('src','../assets/ustoz/ustoz.webp');await expect(page.locator('#waiting img')).toHaveAttribute('src','../assets/ustoz/ustoz.webp');
+ expect(await page.evaluate(()=>getComputedStyle(document.documentElement).getPropertyValue('--char-avatar'))).toContain('ustoz/avatar.webp');
+ await page.locator('#character-choice').scrollIntoViewIfNeeded();await page.screenshot({path:'test-results/desktop-hero-picker.png'});await page.locator('#close-settings').click();
+ await page.screenshot({path:'test-results/desktop-hero-nur.png'});
+ const pet=app.windows().find(w=>w.url().endsWith('/pet.html'));
+ if(pet){await expect.poll(()=>pet.evaluate(()=>document.getElementById('still').getAttribute('src'))).toBe('../assets/ustoz/ustoz.webp');expect(await pet.evaluate(()=>document.querySelectorAll('video').length)).toBe(0);}
+ await page.locator('#settings').click();await page.locator('#character-choice label:has(input[value=pufak])').click();await page.locator('#close-settings').click();
+ await expect(page.locator('#hero-nur')).toHaveAttribute('src','../assets/pufak/pufak.webp');
+ if(pet)await expect.poll(()=>pet.evaluate(()=>document.querySelectorAll('video').length)).toBe(9);
+});

@@ -11,7 +11,7 @@ contextBridge.exposeInMainWorld('nurim',Object.freeze({
   docOpen:file=>ipcRenderer.invoke('doc-open',file), docShow:file=>ipcRenderer.invoke('doc-show',file),
   memory:()=>ipcRenderer.invoke('memory'), memorySet:on=>ipcRenderer.invoke('memory-set',on), memoryRemove:index=>ipcRenderer.invoke('memory-remove',index), memoryClear:()=>ipcRenderer.invoke('memory-clear'),
   checkUpdate:()=>ipcRenderer.invoke('check-update'), installUpdate:()=>ipcRenderer.invoke('install-update'),
-  openLink:name=>ipcRenderer.invoke('open-link',name), openLive:()=>ipcRenderer.invoke('open-live'),
+  openLink:name=>ipcRenderer.invoke('open-link',name), openLive:()=>ipcRenderer.invoke('open-live'), characterChanged:()=>ipcRenderer.invoke('character-changed'),
   movePet:point=>ipcRenderer.invoke('move-pet',point), petActive:()=>ipcRenderer.invoke('pet-active'),
   historyList:query=>ipcRenderer.invoke('history-list',query), historyOpen:id=>ipcRenderer.invoke('history-open',id),
   historyDelete:id=>ipcRenderer.invoke('history-delete',id), historyClear:()=>ipcRenderer.invoke('history-clear'),

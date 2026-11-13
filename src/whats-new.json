@@ -1,5 +1,6 @@
 {
-  "0.8.5": [
+  "0.8.6": [
+    "📖 Yangi qahramon — Nur ustoz: Sozlamalar → Qahramon bo‘limida Pufak (shogirt) yoki Nur (ustoz)ni tanlang.",
     "🎙 Jonli suhbat: sarlavhadagi to‘lqin tugmasini bosing — NurimAI bilan telefon qilgandek ovozda gaplashasiz (15 daqiqagacha). Telefonda va Telegram’da (/gaplash) ham bor.",
     "📁 Kompyuter fayllari: Sozlamalarda papka tanlang va yozish maydonidagi 📁 tugmasini yoqing — NurimAI fayllarni ko‘radi, o‘qiydi va qidiradi. Fayl yaratish, o‘zgartirish yoki o‘chirishdan oldin har safar ruxsat so‘raydi; o‘chirilganlar Savatga tushadi.",
     "🤖 Bepul GPT (OpenAI gpt-oss) qo‘shildi. O‘z Claude yoki ChatGPT kalitingiz bo‘lsa, Sozlamalar → Shaxsiy API kalitlari bo‘limida kiriting: savollarga avval shu AI javob beradi.",

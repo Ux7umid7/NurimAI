@@ -274,6 +274,7 @@ function registerIPC(){
   register('doc-show',file=>{const full=ownDoc(file);if(!qa)shell.showItemInFolder(full);return true;});
   register('export',async()=>{if(!visible.length)return;const result=await dialog.showSaveDialog(chat,{defaultPath:`NurimAI-suhbat-${new Date().toISOString().slice(0,10)}.txt`,filters:[{name:'Matn',extensions:['txt']}]});if(!result.canceled)await fs.promises.writeFile(result.filePath,'NurimAI\n\n'+visible.map(m=>`${m.role==='user'?'SIZ':'NurimAI'}:\n${m.files?.length?`[Fayllar: ${m.files.map(x=>x.name).join(', ')}]\n`:''}${m.text}`).join('\n\n'),'utf8');});
   register('check-update',()=>updates.check(true));register('install-update',()=>{if(controller)throw new UserError('Avval javob tugashini kuting.');exiting=true;const result=updates.install();if(!result)exiting=false;return result;});
+  register('character-changed',()=>{if(pet&&!pet.isDestroyed())pet.webContents.reload();return true;}); // the pet reads the new hero on load
   register('open-live',()=>{if(qa)return {opened:false};openLive();return {opened:true};});
   register('open-link',name=>{const urls={Claude:'https://platform.claude.com/settings/keys',ChatGPT:'https://platform.openai.com/api-keys',Gemini:'https://aistudio.google.com/apikey',Groq:'https://console.groq.com/keys',OpenRouter:'https://openrouter.ai/keys',releases:`https://github.com/${release.owner}/${release.repo}/releases/latest`};if(!qa&&Object.hasOwn(urls,name))return shell.openExternal(urls[name]);});
   register('attach-pick',async()=>{

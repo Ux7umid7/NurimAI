@@ -4,6 +4,7 @@
 const CONFIG = window.NURIM_CONFIG || {};
 const QA = new URLSearchParams(location.search).has('qa'); // avtomatik sinovlar: jonli AI o'rniga tayyor javob
 const $ = id => document.getElementById(id);
+NurimCharacter.apply(); // Sozlamalarda tanlangan qahramon (Pufak yoki Nur) rasmlari: lib/character.js
 const Cap = window.capacitorExports?.Capacitor;
 const NATIVE = Boolean(Cap?.isNativePlatform?.());
 const IOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -99,7 +100,7 @@ function bubble(role, text, attached = [], doc = null, remembered = []) {
     if (attached.length) { const row = document.createElement('div'); row.className = 'bubble-files'; row.append(...attached.map(f => chip(f, false))); el.append(row); }
     const p = document.createElement('p'); p.textContent = text; el.append(p);
   } else {
-    const avatar = document.createElement('img'); avatar.src = 'pufak/avatar.webp'; avatar.alt = '';
+    const avatar = document.createElement('img'); avatar.src = NurimCharacter.src('avatar'); avatar.alt = '';
     const body = document.createElement('div'); body.className = 'rich'; rich(body, text); el.append(avatar, body);
     if (doc) body.append(docCard(doc));
     if (remembered?.length) { const note = document.createElement('p'); note.className = 'memory-note'; note.textContent = `🧠 Eslab qoldim: ${remembered.join('; ')}`; body.append(note); }
@@ -286,10 +287,10 @@ async function addFiles(list) {
 // --- Qahramon: 2D Pufak (Ustozim Nurim brendi). Bo'sh ekranda katta, suhbatda pastdagi kichik "dock"da; har holatga o'z rasmi. ---
 const ONCE = new Set(['happy', 'wave', 'sad', 'catch']);
 const DOCK_TEXT = { think: 'O‘ylayapman…', talk: 'Gapiryapman…', listen: 'Tinglayapman…', happy: 'Tayyor!', sad: 'Afsus…', catch: 'Oldim!', wave: 'Salom!' };
-const ART = { idle: 'pufak', listen: 'pufak', wave: 'pufak', think: 'think', talk: 'talk', happy: 'happy', sad: 'sad', catch: 'catch', sleep: 'sleep' }; // asosiy rasmda Pufak qo'l silkitib turibdi
+const ART = { idle: 'hero', listen: 'hero', wave: 'hero', think: 'think', talk: 'talk', happy: 'happy', sad: 'sad', catch: 'catch', sleep: 'sleep' }; // asosiy rasmda Pufak qo'l silkitadi; rasmi yo'q holatda qahramonning asosiy rasmi (lib/character.js)
 let moodBase = 'idle', moodTicket = 0;
 function show(img, name, onDone) {
-  const ticket = ++moodTicket; img.src = `pufak/${ART[name] || 'pufak'}.webp`; img.dataset.mood = name;
+  const ticket = ++moodTicket; img.src = NurimCharacter.src(ART[name] || 'hero'); img.dataset.mood = name;
   img.classList.remove('pop'); void img.offsetWidth; if (name !== 'idle') img.classList.add('pop'); // bir martalik sakrash
   if (onDone) setTimeout(() => { if (ticket === moodTicket) onDone(); }, 1600);
 }

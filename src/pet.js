@@ -22,7 +22,16 @@ for(const name of ONCE)clips[name].onended=()=>show(base);
 const pause={idle:[6000,8000],sleep:[3000,6000]};
 for(const name of ['idle','sleep'])clips[name].onended=()=>{clearTimeout(rest);rest=setTimeout(()=>{if(base===name&&shown===name)show(name);},pause[name][0]+Math.random()*pause[name][1]);};
 document.getElementById('pet').onpointerenter=()=>{if(base==='sleep'){window.nurim.petActive();return;}if(base==='idle'&&shown==='idle'&&clips.idle.paused)show('idle');}; // hovering wakes a sleeping Nur
-if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
+// The hero picked in Settings (shared/character.js; the chat window shares this localStorage): Pufak plays its 3D clips,
+// a hero without clips (Nur, for now) shows its pictures, one per mood where it has one. Picking another hero reloads the pet (main.cjs).
+const hero=NurimCharacter.info();
+if(!hero.clips){
+  for(const video of Object.values(clips)){video.removeAttribute('src');video.remove();}
+  const ART={idle:'hero',listen:'hero',wave:'wave',think:'think',talk:'talk',happy:'happy',sad:'sad',catch:'catch',sleep:'sleep'};
+  let back=null;const picture=mood=>{still.src=NurimCharacter.src(ART[mood]||'hero','../assets/');};
+  picture('idle');document.getElementById('pet').setAttribute('aria-label',`${hero.name} — NurimAI suhbatini ochish`);
+  window.nurim.onMood(mood=>{clearTimeout(back);picture(mood);if(ONCE.has(mood))back=setTimeout(()=>picture(base==='sleep'?'sleep':'idle'),1600);else base=mood;});
+}else if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
   show('idle');
   window.nurim.onMood(mood=>{
     if(!clips[mood])return;

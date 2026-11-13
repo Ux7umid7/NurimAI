@@ -9,6 +9,7 @@
 <meta name="theme-color" content="#121317" media="(prefers-color-scheme: dark)">
 <meta name="theme-color" content="#F6F1E7" media="(prefers-color-scheme: light)">
 <script src="lib/theme.js"></script>
+<script src="lib/character.js"></script>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -63,7 +64,7 @@
           <h1>Bugun nimani oʻrganamiz?</h1>
           <p class="lede">Yozing, rasmga oling yoki ovoz bilan ayting.</p>
         </div>
-        <div class="hero-nur"><span class="glow" aria-hidden="true"></span><img id="hero-still" src="pufak/pufak.webp" alt="NurimAI qahramoni Pufak"></div>
+        <div class="hero-nur"><span class="glow" aria-hidden="true"></span><img id="hero-still" data-art="hero" src="pufak/pufak.webp" alt="NurimAI qahramoni"></div>
       </div>
       <button type="button" id="streak-chip" class="practice" hidden></button>
       <section id="whats-new" class="whats-new" hidden><strong id="whats-new-title"></strong><ul id="whats-new-list"></ul><button type="button" id="whats-new-close">Tushunarli</button></section>
@@ -109,7 +110,7 @@
 
 <div class="voice" id="voice" role="dialog" aria-modal="true" aria-labelledby="voice-status" hidden>
   <p class="voice-title">Ovozli savol</p>
-  <div class="voice-stage" aria-hidden="true"><span class="ring r3"></span><span class="ring r2"></span><span class="ring r1"></span><img src="pufak/pufak.webp" alt=""></div>
+  <div class="voice-stage" aria-hidden="true"><span class="ring r3"></span><span class="ring r2"></span><span class="ring r1"></span><img data-art="hero" src="pufak/pufak.webp" alt=""></div>
   <p class="voice-time"><i></i><span id="voice-time">0:00</span></p>
   <h2 id="voice-status">Tinglayapman…</h2>
   <p class="voice-hint">Savolingizni ayting, keyin “Yuborish”ni bosing.</p>
@@ -144,6 +145,7 @@
 <dialog id="settings-dialog" class="page"><form method="dialog" class="page-box">
   <div class="page-head"><button class="icon-btn" value="close" aria-label="Orqaga"><svg><use href="#i-back"/></svg></button><h2>Sozlamalar</h2><span></span></div>
   <div class="page-scroll">
+    <div class="char-row" id="character-choice"><span>Qahramon</span><div class="chars" role="radiogroup" aria-label="Qahramon"><label class="char"><input type="radio" name="character" value="pufak"><img src="pufak/avatar.webp" alt=""><b>Pufak</b><small>shogirt</small></label><label class="char"><input type="radio" name="character" value="ustoz"><img src="ustoz/avatar.webp" alt=""><b>Nur</b><small>ustoz</small></label></div></div>
     <div class="theme-row" id="theme-choice"><span>Mavzu</span><div class="seg" role="radiogroup" aria-label="Mavzu"><label><input type="radio" name="theme" value="system">Tizim</label><label><input type="radio" name="theme" value="light">Yorug‘</label><label><input type="radio" name="theme" value="dark">Qorong‘i</label></div></div>
     <label class="row-switch"><span>Ovozli savolga javobni ovoz chiqarib o‘qish</span><input type="checkbox" id="auto-speak"></label>
     <label class="row-switch"><span>Suhbatlarni shu telefonda saqlash</span><input type="checkbox" id="save-history"></label>
