@@ -14,5 +14,9 @@ test('every picture a hero lists exists in the desktop assets and in the phone a
  const {C}=load();const root=path.join(__dirname,'..');const sw=fs.readFileSync(path.join(root,'docs/app/sw.js'),'utf8');
  for(const h of Object.values(C.LIST))for(const m of [...h.moods,'hero']){const rel=C.src(m,'',h.id);assert.ok(fs.existsSync(path.join(root,'assets',rel)),rel);assert.ok(fs.existsSync(path.join(root,'docs/app',rel)),rel);}
  for(const f of ['lib/character.js','ustoz/ustoz.webp','ustoz/avatar.webp'])assert.ok(sw.includes(`'${f}'`),f);
- assert.equal(C.info('pufak').clips,'nur');assert.ok(fs.existsSync(path.join(root,'assets/nur/idle.webm')));
+ for(const h of Object.values(C.LIST))for(const f of ['still.png',...['idle','think','happy','wave','sleep','sad','catch','talk','listen'].map(m=>`${m}.webm`)])assert.ok(fs.existsSync(path.join(root,'assets',h.clips,f)),`${h.clips}/${f}`); // the pet's 3D clips
+});
+test('every hero\'s pictures and clips are packed into the desktop app',()=>{
+ const {C}=load();const builder=fs.readFileSync(path.join(__dirname,'../electron-builder.cjs'),'utf8');
+ for(const h of Object.values(C.LIST))for(const dir of [h.art,h.clips].filter(Boolean))assert.ok(builder.includes(`'assets/${dir}/**/*'`),`assets/${dir} must be in electron-builder files`);
 });

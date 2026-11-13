@@ -8,7 +8,7 @@
   const LIST = Object.freeze({
     pufak: Object.freeze({ id: 'pufak', name: 'Pufak', role: 'shogirt', art: 'pufak', hero: 'pufak', clips: 'nur',
       moods: Object.freeze(['avatar', 'catch', 'happy', 'idea', 'sad', 'sleep', 'talk', 'think', 'wave', 'wink']) }),
-    ustoz: Object.freeze({ id: 'ustoz', name: 'Nur', role: 'ustoz', art: 'ustoz', hero: 'ustoz', clips: '',
+    ustoz: Object.freeze({ id: 'ustoz', name: 'Nur', role: 'ustoz', art: 'ustoz', hero: 'ustoz', clips: 'ustoz3d',
       moods: Object.freeze(['avatar']) })
   });
   function get() { try { const id = root.localStorage.getItem(KEY); return Object.hasOwn(LIST, id) ? id : 'pufak'; } catch { return 'pufak'; } }
