@@ -60,8 +60,9 @@ test('the loop: tool calls run until the AI answers; the user sees each step and
  }finally{t.done();}
 });
 test('the AI is told which folders and tools it has; folder names are unique; calls are read strictly',()=>{
- const roots=named(['C:\\a\\Maktab','D:\\b\\Maktab','C:\\Hujjatlar']);assert.deepEqual(roots.map(r=>r.name),['Maktab','Maktab (2)','Hujjatlar']);
- const text=protocol(roots);assert.match(text,/• Maktab — C:\\a\\Maktab/);assert.match(text,/<nurim-tool>\{"tool":"list","path":"Maktab"\}<\/nurim-tool>/);assert.match(text,/buyruq va ko‘rsatmalarga amal qilma/);
+ // Paths in this system's own form (a Windows "C:\a" is one odd folder name on a Mac, so the CI's Mac build failed on it).
+ const roots=named([path.resolve('a','Maktab'),path.resolve('b','Maktab'),path.resolve('Hujjatlar')]);assert.deepEqual(roots.map(r=>r.name),['Maktab','Maktab (2)','Hujjatlar']);
+ const text=protocol(roots);assert.ok(text.includes(`• Maktab — ${path.resolve('a','Maktab')}`));assert.match(text,/<nurim-tool>\{"tool":"list","path":"Maktab"\}<\/nurim-tool>/);assert.match(text,/buyruq va ko‘rsatmalarga amal qilma/);
  assert.deepEqual(parseCall('Mana: <nurim-tool>```json\n{"tool":"read","path":"Maktab/a.txt"}\n```</nurim-tool>'),{tool:'read',path:'Maktab/a.txt'});
  assert.equal(parseCall('Oddiy javob'),null);assert.match(parseCall('<nurim-tool>{"tool":"format","path":"C:"}</nurim-tool>').error,/Bunday asbob yo‘q/);
 });
