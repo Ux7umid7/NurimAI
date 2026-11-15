@@ -12,9 +12,9 @@ test('desktop, web app, Android project and service worker agree on the version'
  assert.match(text(path.join(app,'sw.js')),new RegExp(`nurimai-app-${version.replace(/\./g,'\.')}`));
  assert.match(text(path.join(app,'sw.js')),/new Request\(url, \{ cache: 'reload' \}\)/); // a new version's shell bypasses the HTTP cache (else stale app.js lands in the new cache)
 });
-test('the web app keeps a strict CSP and only talks to the NurimAI server',()=>{
+test('the web app keeps a strict CSP and only talks to the NurimAI server and (with the user\'s own key) Google Gemini',()=>{
  const html=text(path.join(app,'index.html'));const csp=/Content-Security-Policy" content="([^"]+)"/.exec(html)[1];
  assert.match(csp,/script-src 'self';/);assert.doesNotMatch(csp,/unsafe-inline|unsafe-eval/);
- const gateway=/gateway: '([^']+)'/.exec(text(path.join(app,'config.js')))[1];assert.match(csp,new RegExp(`connect-src 'self' ${gateway.replace(/[.]/g,'\.')};`));
+ const gateway=/gateway: '([^']+)'/.exec(text(path.join(app,'config.js')))[1];assert.match(csp,new RegExp(`connect-src 'self' ${gateway.replace(/[.]/g,'\.')} https://generativelanguage\\.googleapis\\.com;`));
  assert.equal((html.match(/<script /g)||[]).length,(html.match(/<script src=/g)||[]).length); // no inline scripts
 });

@@ -140,10 +140,40 @@ const forRequest = list => list.map(f => f.kind === 'text' ? { kind: 'text', nam
 // --- Xotira: foydalanuvchi o'zi haqida aytgan qisqa faktlar faqat shu telefonda; har chat savoli bilan serverga boradi ---
 const memory = { get() { const m = saved.get('memory', {}); return { enabled: m.enabled !== false, facts: Array.isArray(m.facts) ? m.facts.filter(f => typeof f?.text === 'string') : [] }; }, set(m) { saved.set('memory', m); } };
 function keepFacts(texts) { const m = memory.get(); if (!m.enabled || !texts.length) return; memory.set({ ...m, facts: NurimMemory.mergeFacts(m.facts, texts) }); }
+// --- O'z Gemini kaliti: kiritilgan bo'lsa, telefon savolni o'zi Google'ga yuboradi (kalit faqat shu telefonda, serverga bormaydi) ---
+const ownKey = { get() { const k = saved.get('ownKey', ''); return typeof k === 'string' && k.length >= 20 ? k : ''; }, set(k) { saved.set('ownKey', k); } };
+// Kalitni saqlashdan oldin tekshirish: model ma'lumotini so'raydi (kalit sarlavhada, manzilda emas).
+async function checkOwnKey(key) {
+  let response;
+  try { response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${NurimPrompt.GEMINI_MODEL}`, { headers: { 'x-goog-api-key': key }, signal: limit(null, 20000) }); }
+  catch { throw new UserError('Google’ga ulanib bo‘lmadi. Internetni tekshirib, qayta urinib ko‘ring.'); }
+  if ([400, 401, 403].includes(response.status)) throw new UserError('Bu kalit ishlamadi. Google AI Studio’dan nusxa olib, qaytadan qo‘ying.');
+  if (!response.ok) throw new UserError(`Kalitni tekshirib bo‘lmadi (${response.status}). Birozdan keyin urinib ko‘ring.`);
+}
+// Router bilan bir xil so'rov (lib/prompt.js): ko'rsatma, suhbat, biriktirilgan matn va rasm/PDF/ovoz.
+async function askOwn(key, question, turns, sentFiles, long, signal) {
+  const { prompt, media } = NurimPrompt.withAttachments(question, sentFiles);
+  const response = await fetch(NurimPrompt.GEMINI_URL, { method: 'POST', headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key }, body: JSON.stringify(NurimPrompt.geminiBody([...turns, { role: 'user', text: prompt }], media, long)), signal: limit(signal, sentFiles.length || long ? 120000 : 60000) });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(`gemini ${response.status}`);
+  const reply = NurimPrompt.geminiReply(data);
+  if (!reply.text.trim()) throw new Error('gemini empty');
+  return reply;
+}
 // remember: a chat question (memory goes with it, new facts come back); quizzes, cards and documents do not use memory.
 async function askAI(question, { extra = [], signal, voice = false, withHistory = true, withFiles = true, long = false, remember = false } = {}) {
   const sentFiles = [...(withFiles ? forRequest(files) : []), ...extra], mem = memory.get(), facts = remember && mem.enabled ? mem.facts.map(f => f.text) : null;
   if (QA) { await new Promise(r => setTimeout(r, 200)); if (question.endsWith('/qa-xato')) throw new UserError('Sinov xatosi.'); const n = sentFiles.length - extra.length, noted = facts && question.includes('/qa-xotira') ? ['Ismi Sinov', '8-sinfda o‘qiydi'] : []; keepFacts(noted); return { text: noted.length ? 'Tanishganimdan xursandman!' : `${voice ? 'Savolingiz: Kasr nima?\n' : ''}Bu avtomatik sinov uchun tayyor javob. Jonli AI emas.${n ? ` Biriktirilgan fayllar: ${n}.` : ''}`, incomplete: false, remembered: noted }; }
+  // O'z kaliti bo'lsa, avval Google'ga to'g'ridan-to'g'ri; yangilik, kurs va ob-havo savollari server orqali (u internetdan o'qiydi).
+  // Kalit ishlamasa (limit, noto'g'ri kalit, tarmoq), savol yo'qolmaydi: bepul server javob beradi.
+  const key = ownKey.get();
+  if (key && !NurimPrompt.needsSearch(question)) {
+    try {
+      const reply = await askOwn(key, facts ? NurimMemory.withMemory(question, facts) : question, withHistory ? recent() : [], sentFiles, long, signal);
+      const noted = facts ? NurimMemory.splitMemory(reply.text) : { text: reply.text, facts: [] }; keepFacts(noted.facts);
+      return { text: noted.text.trim(), incomplete: reply.incomplete, remembered: noted.facts };
+    } catch (e) { if (signal?.aborted) throw e; }
+  }
   const r = await gateway('/chat', { deviceId, history: withHistory ? recent() : [], question, ...(sentFiles.length ? { files: sentFiles } : {}), ...(long ? { long: true } : {}), ...(facts ? { memory: facts } : {}) }, signal, sentFiles.length || long ? 120000 : 90000); // long: a referat/presentation plan
   if (!r.ok) throw new UserError({ 429: 'Bugungi bepul limit tugadi. Ertaga yana yozing.', 413: 'Fayllar juda katta. Keraksizini olib tashlang.', 422: sentFiles.length ? 'AI bu fayl yoki savolni qabul qilmadi. Faylni olib tashlab ko‘ring.' : 'AI bu savolni qabul qilmadi. Matnni qisqartiring yoki yangi suhbat boshlang.', 400: voice ? 'Ovozli savolni server hali qabul qilmayapti. Savolni yozib yuboring.' : 'So‘rov noto‘g‘ri. Ilovani yangilang.', 403: 'Server bu ilovani tanimadi. Ilovani yangilang.' }[r.status] || 'AI serveri hozir javob bera olmadi. Keyinroq urinib ko‘ring.');
   if (typeof r.data.text !== 'string' || !r.data.text.trim()) throw new UserError('Server javobi o‘qilmadi.');

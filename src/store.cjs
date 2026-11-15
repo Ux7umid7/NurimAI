@@ -4,7 +4,7 @@ const { ORDER, PAID, UserError } = require('./router.cjs');
 // Every key the settings keep: the user's own paid Claude/ChatGPT keys and the free ones.
 const KEYS = [...PAID, ...ORDER];
 const PREFIX = { Claude: 'sk-ant-', ChatGPT: 'sk-' };
-const defaults = () => ({ keys: { Claude:'',ChatGPT:'',Gemini:'',Groq:'',OpenRouter:'' }, free: { Gemini:false,Groq:false }, autoFallback:true, topmost:true, autoUpdate:true, remember:true, usePersonalKeys:false, saveHistory:true, autoSpeak:true, petPosition:null, folders:[], lastVersion:'', deviceId:require('node:crypto').randomUUID() });
+const defaults = () => ({ keys: { Claude:'',ChatGPT:'',Gemini:'',Groq:'',OpenRouter:'' }, free: { Gemini:false,Groq:false }, autoFallback:true, topmost:true, autoUpdate:true, remember:true, usePersonalKeys:false, saveHistory:true, autoSpeak:true, onboarded:false, petPosition:null, folders:[], lastVersion:'', deviceId:require('node:crypto').randomUUID() });
 // Folders the user let the AI work in (folders.cjs): absolute paths, no repeats, ten at most.
 const cleanFolders = list => [...new Set(list.filter(p => typeof p === 'string' && p.length < 1000 && path.isAbsolute(p)).map(p => path.resolve(p)))].slice(0, 10);
 class Store {
@@ -14,7 +14,7 @@ class Store {
     if (!fs.existsSync(this.file)) return;
     try {
       const data = JSON.parse(fs.readFileSync(this.file,'utf8'));
-      for (const field of ['autoFallback','topmost','autoUpdate','remember','usePersonalKeys','saveHistory','autoSpeak']) if(typeof data[field] === 'boolean') this.value[field] = data[field];
+      for (const field of ['autoFallback','topmost','autoUpdate','remember','usePersonalKeys','saveHistory','autoSpeak','onboarded']) if(typeof data[field] === 'boolean') this.value[field] = data[field];
       if(typeof data.lastVersion === 'string' && /^\d+\.\d+\.\d+$/.test(data.lastVersion)) this.value.lastVersion = data.lastVersion;
       if(typeof data.deviceId === 'string' && /^[a-f0-9-]{36}$/i.test(data.deviceId)) this.value.deviceId = data.deviceId;
       for(const p of ['Gemini','Groq']) this.value.free[p] = data.free?.[p] === true;
@@ -41,7 +41,7 @@ class Store {
   update(input) {
     if(!input || typeof input !== 'object') throw new UserError('Sozlamalar noto‘g‘ri.');
     const next = { ...this.value, keys:{...this.value.keys}, free:{...this.value.free} };
-    for(const field of ['autoFallback','topmost','autoUpdate','remember','usePersonalKeys','saveHistory','autoSpeak']) if(typeof input[field] === 'boolean') next[field] = input[field];
+    for(const field of ['autoFallback','topmost','autoUpdate','remember','usePersonalKeys','saveHistory','autoSpeak','onboarded']) if(typeof input[field] === 'boolean') next[field] = input[field];
     for(const p of KEYS) {
       if(input.clear?.[p] === true) next.keys[p] = '';
       const key = input.keys?.[p];

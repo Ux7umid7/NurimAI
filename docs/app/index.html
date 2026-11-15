@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://nurimai-api.ux7umidjon7.workers.dev; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://nurimai-api.ux7umidjon7.workers.dev https://generativelanguage.googleapis.com; manifest-src 'self'; worker-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
 <title>NurimAI</title>
 <meta name="description" content="NurimAI — telefoningizdagi o‘zbekcha AI ustoz: savol, rasm, fayl, ovoz, test va kartochkalar.">
 <meta name="theme-color" content="#121317" media="(prefers-color-scheme: dark)">
@@ -142,6 +142,7 @@
 <input type="file" id="pick-image" accept="image/*" multiple hidden>
 <input type="file" id="pick-file" accept=".pdf,.docx,.xlsx,.pptx,.txt,.md,.csv,.json,image/*,application/pdf" multiple hidden>
 
+<dialog id="onboard-sheet" class="sheet onboard"><form id="onboard-form"><div class="sheet-grip"></div><img data-art="hero" src="pufak/pufak.webp" alt="" class="onboard-hero"><h2>NurimAI’ga xush kelibsiz!</h2><p class="muted">Qanday ishlatamiz? Keyin Sozlamalarda o‘zgartirsa bo‘ladi.</p><div class="onboard-choices" role="radiogroup" aria-label="Ishlatish usuli"><label class="choice"><input type="radio" name="mode" value="free" checked><b>Bepul</b><small>NurimAI serveri orqali, kalit kerak emas. Kuniga bepul limit bor.</small></label><label class="choice"><input type="radio" name="mode" value="own"><b>O‘z Gemini kalitim</b><small>Telefon savolni o‘zi Google’ga yuboradi, limit — sizning hisobingizdan.</small></label></div><div id="own-key" class="own-key" hidden><input type="password" id="own-key-input" maxlength="200" autocomplete="off" spellcheck="false" placeholder="Gemini API kaliti" aria-label="Gemini API kaliti"><a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">Kalitni bepul olish: Google AI Studio ↗</a><small class="muted">Kalit faqat shu telefonda saqlanadi. Ishlamasa yoki limiti tugasa, NurimAI bepul server orqali javob beradi. Bepul tarifda Google savollarni xizmatni yaxshilashda ishlatishi mumkin.</small></div><p id="onboard-error" role="alert"></p><button class="primary" type="submit" id="onboard-go">Bepul boshlash</button></form></dialog>
 <dialog id="settings-dialog" class="page"><form method="dialog" class="page-box">
   <div class="page-head"><button class="icon-btn" value="close" aria-label="Orqaga"><svg><use href="#i-back"/></svg></button><h2>Sozlamalar</h2><span></span></div>
   <div class="page-scroll">
@@ -151,6 +152,7 @@
     <label class="row-switch"><span>Suhbatlarni shu telefonda saqlash</span><input type="checkbox" id="save-history"></label>
     <label class="row-switch"><span>🧠 Men haqimda aytganlarimni eslab qolsin (ism, sinf, qiziqishlar)</span><input type="checkbox" id="memory-on"></label>
     <div class="card memory-card"><strong>Xotira</strong><ul id="memory-list" class="memory-list"></ul><p id="memory-empty">Hali hech narsa eslab qolinmagan. Masalan, «Men 8-sinfda o‘qiyman» deb yozing.</p><button type="button" id="memory-clear">Hammasini unutish</button></div>
+    <div class="card" id="own-key-card"><strong>🔑 O‘z Gemini kalitim</strong><p id="own-key-status"></p><div class="row own-key-row"><button type="button" id="own-key-set">Kalit kiritish</button><button type="button" id="own-key-remove" hidden>O‘chirish</button></div></div>
     <div class="card" id="install-help"><strong>Bosh ekranga qo‘shish</strong><p id="install-text"></p></div>
     <div class="card"><strong>Maxfiylik</strong><p>Savolingiz, fayllaringiz va suhbatning oxirgi qismi NurimAI serveri orqali Google Gemini, Groq yoki (ular band bo‘lsa) Cloudflare Workers AI’ga yuboriladi, server ularni saqlamaydi. Ovozli savol faqat mikrofon tugmasi bosilganda yoziladi. Suhbatlar tarixi, xotira (siz aytgan ism, sinf kabi qisqa faktlar — har savol bilan AI’ga boradi), kartochkalar va eslatmalar faqat shu telefonda turadi. Parol, pasport, karta raqami yubormang.</p></div>
     <button type="button" class="danger" id="clear-data">Barcha ma’lumotlarni o‘chirish</button>
@@ -177,7 +179,7 @@
 
 <script src="config.js"></script>
 <script src="lib/cap/capacitor.js"></script><script src="lib/cap/app.js"></script><script src="lib/cap/local-notifications.js"></script>
-<script src="lib/math-text.js"></script><script src="lib/practice-core.js"></script><script src="lib/office-core.js"></script><script src="lib/office-write.js"></script><script src="lib/memory.js"></script>
+<script src="lib/math-text.js"></script><script src="lib/practice-core.js"></script><script src="lib/office-core.js"></script><script src="lib/office-write.js"></script><script src="lib/memory.js"></script><script src="lib/prompt.js"></script>
 <script src="app.js"></script><script src="lib/voice.js"></script><script src="lib/ustoz.js"></script><script src="start.js"></script>
 </body>
 </html>

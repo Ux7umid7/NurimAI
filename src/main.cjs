@@ -23,7 +23,8 @@ const SLEEP_AFTER=3*60*1000;let lastActive=Date.now(),sleeping=false,sleepTimer;
 function activity(){lastActive=Date.now();if(sleeping){sleeping=false;mood('wave');}}
 function drowse(){if(!sleeping&&!controller&&!chat?.isFocused()&&Date.now()-lastActive>SLEEP_AFTER){sleeping=true;mood('sleep');}}
 const explainLabel=()=>process.platform==='darwin'?'⌘ + ⌥ + E':'Ctrl + Alt + E';
-function summary(){return {version:app.getVersion(),platform:process.platform,settings:store.public(),routes:router.diagnostics(store.value),last:router.last,update:updates.state,gatewayConfigured:Boolean(release.gateway),history:visible,busy:Boolean(controller),files:forView(files),sentIds:[...sentIds],whatsNew:previousVersion&&previousVersion!==app.getVersion()?whatsNew[app.getVersion()]||[]:[],explainKey:explainKey?explainLabel():'',historyAvailable:chats.available,historyWarning:chats.warning};}
+// onboard: the first-run choice (free or own key) is still to be made; QA shows it only when a test asks (NURIMAI_QA_ONBOARD).
+function summary(){return {version:app.getVersion(),platform:process.platform,settings:store.public(),onboard:!store.value.onboarded&&(!qa||process.env.NURIMAI_QA_ONBOARD==='1'),routes:router.diagnostics(store.value),last:router.last,update:updates.state,gatewayConfigured:Boolean(release.gateway),history:visible,busy:Boolean(controller),files:forView(files),sentIds:[...sentIds],whatsNew:previousVersion&&previousVersion!==app.getVersion()?whatsNew[app.getVersion()]||[]:[],explainKey:explainKey?explainLabel():'',historyAvailable:chats.available,historyWarning:chats.warning};}
 function clamp(point,width,height){const area=screen.getDisplayNearestPoint(point).workArea;return {x:Math.max(area.x,Math.min(Math.round(point.x),area.x+area.width-width)),y:Math.max(area.y,Math.min(Math.round(point.y),area.y+area.height-height))};}
 function showChat(){if(!chat || chat.isDestroyed())return;activity();if(!chat.isVisible()){const p=pet.getBounds(),[w,h]=chat.getSize();const next=clamp({x:p.x-w-10,y:p.y+p.height-h},w,h);chat.setPosition(next.x,next.y);}chat.show();chat.focus();} // opens beside Nur, whatever size the window has
 function toggle(){activity();if(chat.isVisible())chat.hide();else showChat();}
@@ -115,12 +116,13 @@ async function ask(question,extraFiles=[],signal,voice=false,long=false){
   if(qa){if(question.endsWith('/qa-xato'))throw new UserError('Sinov xatosi.');const reply=question.includes('/qa-xotira')?{text:'Tanishganimdan xursandman!',incomplete:false,facts:['Ismi Sinov','8-sinfda o‘qiydi']}:{text:`${voice?'Savolingiz: Kasr nima?\n':''}Bu avtomatik UI sinovi uchun tayyor javob. Jonli AI emas.${sent.length-extraFiles.length?` Biriktirilgan fayllar: ${sent.length-extraFiles.length}.`:''}`,incomplete:false,facts:[]};return remembered(facts?reply:{...reply,facts:[]});}
   return remembered(await askAI({history,question,signal,sent,options:{...(long?{long,search:false}:{}),...(facts?{memory:facts}:{})},voice,long,facts}));
 }
-// The user's own paid keys (Claude, ChatGPT) answer first. When they cannot, the free routes answer as before: the personal
-// free keys when "O‘z API kalitlarim" is on, otherwise the NurimAI server.
+// The user's own keys answer first: paid ones (Claude, ChatGPT) always, free ones (Gemini, Groq, OpenRouter) when
+// "O‘z bepul kalitlarim" is on. When they cannot (a limit, a wrong key, no internet to that service), the free NurimAI
+// server answers, so a question is never lost for a key. A question the AI rejected is not sent again.
 async function askAI({history,question,signal,sent,options={},voice=false,long=false,facts}){
   const personal=settings=>router.ask(settings,history,question,signal,sent,options).then(r=>({...r,text:withSources(r)}));
-  if(store.value.usePersonalKeys)return personal(store.value);
-  if(PAID.some(p=>store.value.keys[p])){try{return await personal({...store.value,keys:Object.fromEntries(PAID.map(p=>[p,store.value.keys[p]])),free:{}});}catch(e){signal.throwIfAborted();}}
+  const own=store.value.usePersonalKeys?store.value:PAID.some(p=>store.value.keys[p])?{...store.value,keys:Object.fromEntries(PAID.map(p=>[p,store.value.keys[p]])),free:{}}:null;
+  if(own){try{return await personal(own);}catch(e){signal.throwIfAborted();if(e?.code==='input'||!release.gateway)throw e;}}
   return askGateway({url:release.gateway,deviceId:store.value.deviceId,history,question,files:sent,signal,voice,long,memory:facts});
 }
 function remembered(reply){const fresh=(reply.facts||[]).filter(Boolean);if(fresh.length)memory.add(fresh);return {...reply,remembered:fresh};}

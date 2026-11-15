@@ -9,7 +9,35 @@ $('new').onclick = newChat; $('drawer-new').onclick = () => { closeDrawer(); new
 $('menu').onclick = openDrawer; $('scrim').onclick = closeDrawer;
 $('history-search').oninput = renderHistory;
 $('ustoz').addEventListener('click', closeDrawer); // ustoz.js o'zi Ustoz sahifasini ochadi
-$('settings').onclick = () => { closeDrawer(); $('auto-speak').checked = state.settings.autoSpeak !== false; $('save-history').checked = state.settings.saveHistory !== false; $('version').textContent = `NurimAI ${state.version} · ${NATIVE ? 'Android ilova' : 'veb-ilova'}`; NurimTheme.bind($('theme-choice')); NurimCharacter.bind($('character-choice'), c => { NurimCharacter.apply(); heroIdle(); notice(`${c.name} endi siz bilan 🙂`); }); renderMemory(); $('settings-dialog').showModal(); };
+$('settings').onclick = () => { closeDrawer(); $('auto-speak').checked = state.settings.autoSpeak !== false; $('save-history').checked = state.settings.saveHistory !== false; $('version').textContent = `NurimAI ${state.version} · ${NATIVE ? 'Android ilova' : 'veb-ilova'}`; NurimTheme.bind($('theme-choice')); NurimCharacter.bind($('character-choice'), c => { NurimCharacter.apply(); heroIdle(); notice(`${c.name} endi siz bilan 🙂`); }); renderMemory(); renderOwnKey(); $('settings-dialog').showModal(); };
+// Birinchi kirish: bepul (NurimAI serveri) yoki o'z Gemini kaliti; Sozlamalarda kalitni almashtirish yoki o'chirish.
+function openOnboard(own = false) {
+  $('onboard-form').elements.mode.value = own ? 'own' : 'free'; onboardMode(); $('onboard-error').textContent = ''; $('own-key-input').value = '';
+  NurimCharacter.apply(); $('onboard-sheet').showModal(); if (own) $('own-key-input').focus();
+}
+function onboardMode() { const own = $('onboard-form').elements.mode.value === 'own'; $('own-key').hidden = !own; $('onboard-go').textContent = own ? 'Saqlash va boshlash' : 'Bepul boshlash'; $('onboard-error').textContent = ''; }
+for (const radio of $('onboard-form').elements.mode) radio.onchange = () => { onboardMode(); if ($('onboard-form').elements.mode.value === 'own') $('own-key-input').focus(); };
+$('onboard-sheet').oncancel = event => { if (!saved.get('onboarded', false)) event.preventDefault(); }; // birinchi marta tanlov kerak; "Bepul" - odatiy
+$('onboard-form').onsubmit = async event => {
+  event.preventDefault(); $('onboard-error').textContent = '';
+  const own = $('onboard-form').elements.mode.value === 'own', key = $('own-key-input').value.trim();
+  if (own) {
+    if (!key) { $('onboard-error').textContent = 'Gemini kalitini qo‘ying yoki «Bepul»ni tanlang.'; return; }
+    if (/\s/.test(key) || key.length < 20) { $('onboard-error').textContent = 'Bu Gemini kalitiga o‘xshamaydi. Google AI Studio’dan to‘liq nusxa oling.'; return; }
+    $('onboard-go').disabled = true;
+    try { if (!QA) await checkOwnKey(key); } catch (e) { $('onboard-error').textContent = e.message; return; } finally { $('onboard-go').disabled = false; }
+    ownKey.set(key);
+  }
+  saved.set('onboarded', true); $('own-key-input').value = ''; $('onboard-sheet').close(); renderOwnKey();
+  notice(own ? 'Kalit saqlandi: savollar endi to‘g‘ridan-to‘g‘ri Google Gemini’ga boradi.' : 'Bepul rejim: savollarga NurimAI serveri orqali javob beraman 🙂');
+};
+function renderOwnKey() {
+  const key = ownKey.get();
+  $('own-key-status').textContent = key ? `Kalit saqlangan (…${key.slice(-4)}). Savollar to‘g‘ridan-to‘g‘ri Google Gemini’ga boradi; ishlamasa — NurimAI bepul serveri.` : 'Kalit kiritilmagan: NurimAI bepul server orqali ishlaydi.';
+  $('own-key-set').textContent = key ? 'Kalitni almashtirish' : 'Kalit kiritish'; $('own-key-remove').hidden = !key;
+}
+$('own-key-set').onclick = () => { $('settings-dialog').close(); openOnboard(true); };
+$('own-key-remove').onclick = () => { if (!confirm('Gemini kaliti shu telefondan o‘chirilsinmi? NurimAI bepul server orqali ishlaydi.')) return; ownKey.set(''); renderOwnKey(); notice('Kalit o‘chirildi: bepul server orqali ishlayman.'); };
 // Xotira: yoqish/o'chirish, eslab qolinganlar ro'yxati (har birini unutish mumkin).
 function renderMemory() {
   const m = memory.get(); $('memory-on').checked = m.enabled; $('memory-empty').hidden = m.facts.length > 0; $('memory-clear').hidden = !m.facts.length;
@@ -55,6 +83,7 @@ async function start() {
   if (last && last !== state.version && CONFIG.whatsNew?.length) { $('whats-new-title').textContent = `NurimAI ${state.version} — nima yangi`; $('whats-new-list').replaceChildren(...CONFIG.whatsNew.map(t => { const li = document.createElement('li'); li.textContent = t; return li; })); $('whats-new').hidden = false; }
   saved.set('lastVersion', state.version);
   mood('wave'); checkDueReminders();
+  if (!saved.get('onboarded', false) && (!QA || new URLSearchParams(location.search).has('onboard'))) openOnboard();
   if (NATIVE) {
     const App = window.capacitorApp?.App;
     App?.addListener('backButton', () => { const open = document.querySelector('dialog[open]'); if (open) open.close(); else if (!$('drawer').hidden) closeDrawer(); else if (recorder) stopRecording(false); else App.minimizeApp(); });

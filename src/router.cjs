@@ -1,9 +1,10 @@
 const { fresh } = require('./web.cjs');
 const { withMemory, splitMemory } = require('./shared/memory.js');
-const MODELS = Object.freeze({ Gemini: 'gemini-3.5-flash-lite', GPT: 'openai/gpt-oss-120b', Groq: 'qwen/qwen3.8-27b', OpenRouter: 'openrouter/free', Cloudflare: '@cf/google/gemma-4-26b-a4b-it', ChatGPT: 'gpt-6.1-sol' });
+const P = require('./shared/prompt.js'); // the instruction and Gemini's request format, shared with the phone app
+const MODELS = Object.freeze({ Gemini: P.GEMINI_MODEL, GPT: 'openai/gpt-oss-120b', Groq: 'qwen/qwen3.8-27b', OpenRouter: 'openrouter/free', Cloudflare: '@cf/google/gemma-4-26b-a4b-it', ChatGPT: 'gpt-6.1-sol' });
 // Cloudflare Workers AI has no URL or key: the gateway answers this address through its AI binding (server/worker.mjs).
 // GPT is OpenAI's open gpt-oss model served by Groq: the Groq key and free tier, with limits of its own.
-const URLS = Object.freeze({ Gemini: `https://generativelanguage.googleapis.com/v1beta/models/${MODELS.Gemini}:generateContent`, GPT: 'https://api.groq.com/openai/v1/chat/completions', Groq: 'https://api.groq.com/openai/v1/chat/completions', OpenRouter: 'https://openrouter.ai/api/v1/chat/completions', Cloudflare: 'https://workers-ai.binding/run', ChatGPT: 'https://api.openai.com/v1/responses' });
+const URLS = Object.freeze({ Gemini: P.GEMINI_URL, GPT: 'https://api.groq.com/openai/v1/chat/completions', Groq: 'https://api.groq.com/openai/v1/chat/completions', OpenRouter: 'https://openrouter.ai/api/v1/chat/completions', Cloudflare: 'https://workers-ai.binding/run', ChatGPT: 'https://api.openai.com/v1/responses' });
 // ORDER is the free keys the apps' settings show; PAID are the user's own paid keys (desktop only), tried before the free ones.
 // Claude has no URL here: the desktop adds it as an extra route (claude.cjs, the Anthropic SDK). The gateway falls back to Workers AI last.
 const ORDER = ['Gemini', 'Groq', 'OpenRouter'];
@@ -12,10 +13,7 @@ const KEY_OF = Object.freeze({ GPT: 'Groq' });
 const ROUTES = [...PAID, 'Gemini', 'GPT', 'Groq', 'OpenRouter', 'Cloudflare'];
 // Attachments other than text each route reads (an extra route says so itself with accepts()).
 const MEDIA = Object.freeze({ Gemini: ['image', 'pdf', 'audio'], ChatGPT: ['image', 'pdf'] });
-const INSTRUCTION = "Sen NurimAI — ekran chetida yashaydigan momiq qahramon, foydalanuvchining mehribon ustozi va do‘sti. Foydalanuvchi tilida, odatda o‘zbek lotin yozuvida qisqa va tushunarli javob ber. Savollar, o‘qish, yozish, tarjima va rejalashda yordam ber. Faqat javob berib qo‘ymay, tushunishga yordam ber: kerak bo‘lsa misollar bilan tushuntir, murakkab mavzuda keyingi qadamni taklif qil. Iliq, samimiy ohangda yoz, lekin ortiqcha maqtov va uzun kirish so‘zlarisiz. Oddiy matn, qisqa ro‘yxat, kerak bo‘lsa **qalin** so‘z va kod bloki ishlat. Matematikani LaTeX’siz, oddiy belgilar bilan yoz: 1/2, x², √9, 3 × 4, 90°; $ belgisi va LaTeX buyruqlarini ishlatma. Bilmagan narsangni ayt, manbalarni to‘qima. Foydalanuvchi o‘zi biriktirgan rasm, skrinshot, fayl, stiker va ovozli xabarlarni ko‘ra va eshita olasan: ularni diqqat bilan o‘qib, javobni shularga tayanib ber. Savolga «Internetdan olingan ma’lumot» biriktirilgan bo‘lsa, uni NurimAI hozirgina yangilik saytlari, Markaziy bank va ob-havo xizmatidan olgan: yangilik, kurs yoki ob-havo haqida shunga tayan, eng muhimini qisqa ayt, manba nomi va sanasini ko‘rsat, unda yo‘q narsani to‘qima; savolga aloqasi bo‘lmasa, e’tibor berma. Bunday ma’lumot berilmagan bo‘lsa, eng so‘nggi yangilik va kurslarni bilmasligingni ochiq ayt. Boshqa fayllar, ekran yoki kompyuterga o‘zing kira olmaysan; kirayotganingni aytma. Faqat NurimAI dasturi «kompyuter fayllari asboblari»ni biriktirgan bo‘lsa, foydalanuvchi ruxsat bergan papkalar bilan o‘sha asboblar orqali ishlaysan.";
-// Questions about fresh facts (news, rates, weather, results) get what NurimAI reads from the internet (web.cjs); homework does not.
-const FRESH = /yangilik|news|новост|ob-?havo|havo (qanday|necha|issiq|sovuq)|weather|погод|valyuta|(dollar|evro|yevro|rubl) kursi|(dollar|evro|yevro|rubl) (qancha|necha)|kurs(i)? (qancha|necha|qanday)|курс (доллар|валют|рубл|евро)|bugun(gi)? nima (gap|bo)|hozir(gi)? (nima gap|vaziyat|holat)|dunyoda nima|so['‘’`]?nggi (yangilik|voqea|xabar|natija)|oxirgi (yangilik|voqea|xabar|natija)|kim yutdi|hisob(i)? qanday|internet(dan|da)|qidirib (ber|top)|today|latest|this week|current news|сегодня|последн(ие|яя) (новост|событ)/i;
-function needsSearch(question) { return FRESH.test(String(question || '')); }
+const { INSTRUCTION, needsSearch } = P;
 class UserError extends Error { constructor(message, code = 'user') { super(message); this.code = code; } }
 // Thrown by an extra route when it cannot answer now: the router notes the status and tries the next route.
 class RouteError extends Error { constructor(message, delay = 30000, disabled = false) { super(message); this.delay = delay; this.disabled = disabled; } }
@@ -34,15 +32,14 @@ const hasMedia = files => files.some(f => f.kind !== 'text');
 // The turns to send: text files are inlined into the last question; media is returned for the provider to attach to it.
 function conversation(history, question, files = []) {
   const turns = context(history, question);
-  const media = files.filter(f => f.kind !== 'text');
-  const prompt = [...files.filter(f => f.kind === 'text').map(f => `Biriktirilgan fayl: ${f.name}\n"""\n${f.text}\n"""`), ...(media.length ? [`Biriktirilgan: ${media.map(f => f.name).join(', ')}`] : []), question].join('\n\n');
+  const { prompt, media } = P.withAttachments(question, files);
   turns[turns.length - 1] = { role: 'user', text: prompt };
   return { turns, media };
 }
 // long: a referat or presentation plan, so the reply may be several times longer than a chat answer.
 function body(provider, history, question, files = [], long = false) {
   const { turns, media } = conversation(history, question, files);
-  if (provider === 'Gemini') return { systemInstruction: { parts: [{ text: INSTRUCTION }] }, contents: turns.map((t, i) => ({ role: t.role === 'assistant' ? 'model' : 'user', parts: [...(i === turns.length - 1 ? media.map(f => ({ inlineData: { mimeType: f.mime, data: f.data } })) : []), { text: t.text }] })), generationConfig: { maxOutputTokens: long ? 8192 : 3200 } };
+  if (provider === 'Gemini') return P.geminiBody(turns, media, long);
   // OpenAI Responses API; reasoning tokens count against max_output_tokens, so it is roomy.
   if (provider === 'ChatGPT') return { model: MODELS.ChatGPT, instructions: INSTRUCTION, input: turns.map((t, i) => i === turns.length - 1 && media.length ? { role: 'user', content: [...media.map(f => f.kind === 'pdf' ? { type: 'input_file', filename: f.name, file_data: `data:${f.mime};base64,${f.data}` } : { type: 'input_image', image_url: `data:${f.mime};base64,${f.data}` }), { type: 'input_text', text: t.text }] } : { role: t.role, content: t.text }), max_output_tokens: long ? 32000 : 16000, reasoning: { effort: long ? 'medium' : 'low' }, store: false };
   const common = { model: MODELS[provider], messages: [{ role: 'system', content: INSTRUCTION }, ...turns.map(t => ({ role: t.role, content: t.text }))], stream: false };
@@ -54,12 +51,9 @@ function body(provider, history, question, files = [], long = false) {
   throw new Error('Unknown provider');
 }
 function parse(provider, data) {
-  let text = '', incomplete = false; const refusal = 'Bu so‘rovga javob bera olmayman. Boshqa savol bilan yordam beraman.';
-  if (provider === 'Gemini') {
-    const candidate = data.candidates?.[0];
-    if (data.promptFeedback?.blockReason || ['SAFETY','RECITATION','PROHIBITED_CONTENT','BLOCKLIST','SPII','IMAGE_SAFETY'].includes(candidate?.finishReason)) text = refusal;
-    else { text = (candidate?.content?.parts || []).filter(p => !p.thought && typeof p.text === 'string').map(p => p.text).join('\n'); incomplete = candidate?.finishReason === 'MAX_TOKENS'; }
-  } else if (provider === 'ChatGPT') {
+  let text = '', incomplete = false; const refusal = P.REFUSAL;
+  if (provider === 'Gemini') ({ text, incomplete } = P.geminiReply(data));
+  else if (provider === 'ChatGPT') {
     const parts = (Array.isArray(data.output) ? data.output : []).filter(o => o?.type === 'message').flatMap(o => Array.isArray(o.content) ? o.content : []);
     const refused = parts.find(p => p?.type === 'refusal');
     if (refused || data.incomplete_details?.reason === 'content_filter') text = typeof refused?.refusal === 'string' && refused.refusal.trim() ? refused.refusal : refusal;

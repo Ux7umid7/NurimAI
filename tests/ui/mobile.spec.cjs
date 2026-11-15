@@ -103,3 +103,18 @@ test('phone app: the hero can be switched to Nur: home picture, answer avatars a
  await page.screenshot({path:'test-results/mobile-live-nur.png'});
  await page.evaluate(()=>localStorage.setItem('nurim.character','pufak'));await page.goto(home);await page.locator('#question').waitFor();await expect(page.locator('#hero-still')).toHaveAttribute('src','pufak/pufak.webp');
 });
+test('phone app: first run asks free or own Gemini key; a key is kept on the phone and can be removed in settings',async()=>{
+ const home=page.url();await page.evaluate(()=>{localStorage.removeItem('nurim.onboarded');localStorage.removeItem('nurim.ownKey');});
+ await page.goto(home.replace('?qa=1','?qa=1&onboard=1'));await expect(page.locator('#onboard-sheet')).toBeVisible();await expect(page.locator('#onboard-go')).toHaveText('Bepul boshlash');
+ await page.screenshot({path:'test-results/mobile-onboard.png'});
+ await page.locator('.choice:has(input[value=own])').click();await expect(page.locator('#own-key')).toBeVisible();
+ await page.locator('#onboard-go').click();await expect(page.locator('#onboard-error')).toContainText('Gemini kalitini qo‘ying');
+ await page.locator('#own-key-input').fill('short');await page.locator('#onboard-go').click();await expect(page.locator('#onboard-error')).toContainText('o‘xshamaydi');
+ await page.locator('#own-key-input').fill('AIzaSyTEST-key-for-the-ui-test-1234');await page.locator('#onboard-go').click();
+ await expect(page.locator('#onboard-sheet')).toBeHidden();await expect(page.locator('#notice')).toContainText('Kalit saqlandi');
+ expect(await page.evaluate(()=>JSON.parse(localStorage.getItem('nurim.ownKey')))).toBe('AIzaSyTEST-key-for-the-ui-test-1234');
+ await page.locator('#menu').click();await page.locator('#settings').click();await expect(page.locator('#own-key-status')).toContainText('…1234');
+ page.once('dialog',d=>d.accept());await page.locator('#own-key-remove').click();await expect(page.locator('#own-key-status')).toContainText('Kalit kiritilmagan');await page.keyboard.press('Escape');
+ await page.goto(home.replace('?qa=1','?qa=1&onboard=1'));await page.locator('#question').waitFor();await page.waitForTimeout(300);await expect(page.locator('#onboard-sheet')).toBeHidden(); // asked once
+ await page.goto(home);await page.locator('#question').waitFor();
+});

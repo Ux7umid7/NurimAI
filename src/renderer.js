@@ -73,7 +73,22 @@ async function init(){
   for(const m of state.history)bubble(m.role,m.text,m.files||[],m.doc);renderFiles(state.files||[]);for(const id of state.sentIds||[])shown.add(id);
   if(state.whatsNew?.length){$('whats-new-title').textContent=`NurimAI ${state.version} versiyasiga yangilandi`;$('whats-new-list').replaceChildren(...state.whatsNew.map(t=>{const li=document.createElement('li');li.textContent=t;return li;}));$('whats-new').hidden=false;}
   if(state.settings.warning)notice(state.settings.warning);setBusy(state.busy);greet();
+  if(state.onboard){NurimCharacter.apply('../assets/');$('onboard-dialog').showModal();}
 }
+// First run: free through the NurimAI server, or the user's own key (saved encrypted like the keys in Settings).
+// A free key (Gemini, Groq, OpenRouter) turns on "O‘z bepul kalitlarim"; a paid one (Claude, ChatGPT) always answers first.
+$('onboard-dialog').oncancel=event=>event.preventDefault(); // a choice is needed; "Bepul" is the default
+for(const radio of document.querySelectorAll('#onboard-form input[name=mode]'))radio.onchange=()=>{const own=$('onboard-form').elements.mode.value==='own';$('own-key').hidden=!own;$('onboard-go').textContent=own?'Saqlash va boshlash':'Bepul boshlash';$('onboard-error').textContent='';if(own)$('own-key-input').focus();};
+$('own-provider').onchange=()=>{$('own-free-row').hidden=!FREE_TIER.includes($('own-provider').value);$('onboard-error').textContent='';};
+$('own-link').onclick=()=>window.nurim.openLink($('own-provider').value);
+$('onboard-form').onsubmit=async event=>{
+  event.preventDefault();$('onboard-error').textContent='';
+  const own=$('onboard-form').elements.mode.value==='own',provider=$('own-provider').value,key=$('own-key-input').value.trim();
+  if(own&&!key){$('onboard-error').textContent='API kalitini kiriting yoki «Bepul»ni tanlang.';$('own-key-input').focus();return;}
+  const value=own?{keys:{[provider]:key},free:FREE_TIER.includes(provider)?{[provider]:$('own-free').checked}:{},usePersonalKeys:PAID[provider]?state.settings.usePersonalKeys:true,onboarded:true}:{onboarded:true};
+  try{state.settings=await call(window.nurim.saveSettings(value));$('own-key-input').value='';$('onboard-dialog').close();notice(own?`${provider} kaliti saqlandi: savollarga endi o‘z hisobingizdan javob beriladi.`:'Bepul rejim: savollarga NurimAI serveri orqali javob beraman 🙂');renderSide();}
+  catch(error){$('onboard-error').textContent=error.message;}
+};
 // Welcome: greeting by time of day and the gold "Kunlik mashq" card (streak, cards waiting); the sidebar's Ustoz card says the same.
 async function greet(){
   const h=new Date().getHours();$('greet').textContent=h>=5&&h<11?'Xayrli tong!':h<17?'Xayrli kun!':h<22?'Xayrli kech!':'Tun ham bo‘lsa, shu yerdaman.';
