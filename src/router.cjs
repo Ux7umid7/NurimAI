@@ -1,6 +1,7 @@
 const { fresh } = require('./web.cjs');
 const { withMemory, splitMemory } = require('./shared/memory.js');
 const P = require('./shared/prompt.js'); // the instruction and Gemini's request format, shared with the phone app
+const G = require('./shared/guard.js'); // protection: personal data, hidden instructions, a child in danger (shared with the phone app)
 const MODELS = Object.freeze({ Gemini: P.GEMINI_MODEL, GPT: 'openai/gpt-oss-120b', Groq: 'qwen/qwen3.8-27b', OpenRouter: 'openrouter/free', Cloudflare: '@cf/google/gemma-4-26b-a4b-it', ChatGPT: 'gpt-6.1-sol' });
 // Cloudflare Workers AI has no URL or key: the gateway answers this address through its AI binding (server/worker.mjs).
 // GPT is OpenAI's open gpt-oss model served by Groq: the Groq key and free tier, with limits of its own.
@@ -81,10 +82,63 @@ function retryDelay(response, data, now) {
 const keyOf = (settings, provider) => settings.keys[KEY_OF[provider] || provider];
 // Paid routes need only the key; free ones need the user to confirm the free tier (OpenRouter is free by its model choice).
 function ready(settings, provider) { const owner = KEY_OF[provider] || provider; return Boolean(settings.keys[owner] && (PAID.includes(provider) || owner === 'OpenRouter' || settings.free?.[owner])); }
+// How much thinking a question needs. A greeting or thanks goes to a quick model first (Gemini's daily limit stays for real
+// questions, pictures and voice); maths, proofs and code go first to GPT-OSS, which reasons; the rest keep the usual order.
+const SIMPLE = /^\s*(assalomu?\s+alaykum|salom(\s+nurim(ai)?)?|qalays[ai]n|yaxshimis(an|iz)|rahmat|raxmat|katta\s+rahmat|xayr|ok(ey)?|xo(['‘’`ʻ])?p|ha|yo(['‘’`ʻ])?q|hi|hello|hey|thanks|thank you|bye|привет|спасибо|пока)[\s!.,)?😊🙂👋🙏❤️]*$/i;
+const HARD = /\d\s*[+*/×÷^=]\s*\(?\s*[\dx]|\d\s+-\s+\d|\b(yech|isbotla|isbot\s+qil|tenglama|tengsizlik|masala|hisobla|integral|hosila|logarifm|kod\s+yoz|dastur(ini)?\s+yoz|algoritm|funksiya\s+yoz|решить|реши|уравнен|неравенств|докаж|задач[аиу]|вычисли|solve|prove|equation|calculate|algorithm|write\s+(a\s+)?(code|program|function))/i;
+// A short "ha" or "rahmat" in the middle of a conversation may continue it, so only a first message can be simple.
+function difficulty(question, files = [], long = false, history = []) {
+  if (long || files.length) return 'normal';
+  if (SIMPLE.test(question)) return history.length ? 'normal' : 'simple';
+  return HARD.test(question) ? 'hard' : 'normal';
+}
+const FIRST = Object.freeze({ simple: ['Groq'], hard: ['GPT'] });
+// Paid routes stay first (the user pays for them); the free route that suits this question moves to the front of the free ones.
+function ordered(routes, level) {
+  const first = (FIRST[level] || []).filter(p => routes.includes(p));
+  if (!first.length) return routes;
+  const paid = routes.filter(p => PAID.includes(p)), free = routes.filter(p => !PAID.includes(p) && !first.includes(p));
+  return [...paid, ...first, ...free];
+}
+// Kesh (answer cache): the same first question, asked by anyone, is answered once. The key covers the instruction too, so a
+// new instruction starts a new cache. Never cached: follow-ups, files, fresh facts (news, rates, weather), long documents,
+// questions with personal data or from a child in danger, and paid routes.
+const normalize = question => String(question).toLowerCase().replace(/[‘’`ʻʼ]/g, "'").replace(/\s+/g, ' ').replace(/[\s?!.,;:…]+$/g, '').trim();
+async function answerKey(question) {
+  const bytes = new TextEncoder().encode(`${INSTRUCTION}\u0000${normalize(question)}`);
+  const digest = await crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+}
+// A small in-memory cache for one app (the server keeps its own in Durable Object storage).
+function memoryAnswers({ size = 200, ttl = 3 * 86400000, now = Date.now } = {}) {
+  const map = new Map();
+  return {
+    async get(key) { const hit = map.get(key); if (!hit) return null; if (now() - hit.at > ttl) { map.delete(key); return null; } return hit.value; },
+    async put(key, value) { map.delete(key); map.set(key, { at: now(), value }); while (map.size > size) map.delete(map.keys().next().value); }
+  };
+}
+// One line for the server log and the app's Settings: route, time, cache and what the guard did (never the question).
+function traceLine(trace) {
+  if (!trace?.steps) return '';
+  const LEVELS = { simple: 'oddiy savol', normal: 'odatiy savol', hard: 'qiyin savol' };
+  const parts = trace.steps.map(s => {
+    if (s.step === 'route') return `${s.route} ${s.ok ? '✓' : s.skipped ? '⏭' : '✗'}`;
+    if (s.step === 'cache') return s.hit ? 'kesh ✓' : s.stored ? 'keshga yozildi' : 'keshda yo‘q';
+    if (s.step === 'level') return LEVELS[s.level] || s.level;
+    if (s.step === 'search') return `internet (${s.sources})`;
+    if (s.blocked) return 'himoya: buyruq to‘xtatildi';
+    if (s.masked) return `himoya: ${s.masked.join(', ')} yashirildi`;
+    if (s.crisis) return 'himoya: yordam eslatmasi';
+    if (s.untrusted) return 'himoya: faylda buyruq bor';
+    return s.step;
+  });
+  return `${parts.join(' → ')} · ${trace.ms} ms${trace.error ? ' · javob yo‘q' : ''}`;
+}
 class Router {
   // Workers reject fetch called as a method ("Illegal invocation"), so the default must not bind `this`.
   // extra: routes the desktop adds by name, e.g. { Claude: claude() } — { model, accepts(file), ask({ key, history, question, files, long, signal }) → { text, incomplete, model } }.
-  constructor({ fetcher = (...args) => fetch(...args), now = Date.now, timeout = 40000, extra = {} } = {}) { this.fetcher = fetcher; this.now = now; this.timeout = timeout; this.extra = extra; this.states = {}; this.last = null; this.web = new Map(); }
+  // answers: the answer cache, { get(key) → value|null, put(key, value) } (memoryAnswers() or the server's storage); none by default.
+  constructor({ fetcher = (...args) => fetch(...args), now = Date.now, timeout = 40000, extra = {}, answers = null } = {}) { this.fetcher = fetcher; this.now = now; this.timeout = timeout; this.extra = extra; this.answers = answers; this.states = {}; this.last = null; this.lastTrace = null; this.web = new Map(); }
   reset(provider) { for (const p of ROUTES) if (p === provider || KEY_OF[p] === provider) delete this.states[p]; }
   usable(settings, provider) { return ready(settings, provider) && Boolean(URLS[provider] || this.extra[provider]); }
   reads(provider, file) { return file.kind === 'text' || (this.extra[provider] ? this.extra[provider].accepts(file) : (MEDIA[provider] || []).includes(file.kind)); }
@@ -93,22 +147,46 @@ class Router {
     signal.throwIfAborted();
     let routes = ROUTES.filter(p => this.usable(settings, p));
     if (!routes.length) throw new UserError('Sozlamalarda kamida bitta bepul AI xizmatini ulang.');
+    // Treys: what happened to this question, step by step and without its text, for the server log and the app's Settings.
+    const started = this.now(), trace = { steps: [] };
+    const step = (name, info = {}) => { trace.steps.push({ step: name, ms: this.now() - started, ...info }); };
+    const finish = (reply, error = false) => { trace.ms = this.now() - started; if (error) trace.error = true; this.lastTrace = trace; return { ...reply, trace }; };
+    // Himoya: personal data is masked before any AI sees it; "forget your instructions" is answered here; text from files,
+    // pages and tools is marked when it hides an instruction; a child in danger gets a caring answer that says where to get help.
+    const guard = G.scan(question);
+    if (guard.pii.length) step('guard', { masked: guard.pii });
+    if (guard.crisis) step('guard', { crisis: true });
+    if (guard.blocked) { step('guard', { blocked: 'injection' }); return finish({ text: G.BLOCKED_REPLY, incomplete: false, provider: 'NurimAI', model: 'himoya', facts: [], sources: [], queries: [], guarded: true }); }
+    question = guard.text;
+    files = files.map(f => f.kind === 'text' ? { ...f, text: G.untrusted(f.text).text } : f);
+    if (files.some(f => f.kind === 'text' && f.text.startsWith(G.UNTRUSTED_NOTE))) step('guard', { untrusted: true });
     // Fresh facts go with the question as a text attachment, so every provider (not only Gemini) can use them.
     // options.search: true/false overrides the guess; a string is what to look up when the question itself is an instruction.
     const search = options.search ?? needsSearch(question);
+    const level = difficulty(question, files, options.long === true, history);
+    // Kesh: options.cache asks for it (chat questions only; a bot's game or a document plan never comes from the cache).
+    const key = this.answers && options.cache && !history.length && !files.length && !search && !options.long && !guard.pii.length && !guard.crisis && question.length <= 400 && !routes.some(p => PAID.includes(p)) ? await answerKey(question) : null;
+    if (key) {
+      const hit = await this.answers.get(key).catch(() => null);
+      step('cache', { hit: Boolean(hit?.text) });
+      if (hit?.text) return finish({ text: hit.text, incomplete: false, provider: hit.provider || 'NurimAI', model: hit.model || '', facts: [], sources: [], queries: [], cached: true });
+    }
     const web = search ? await fresh(typeof search === 'string' ? search : question, { fetcher: this.fetcher, signal, now: this.now, cache: this.web }) : null;
+    if (search) step('search', { sources: web?.sources?.length || 0 });
     // options.memory: facts the user told before (shared/memory.js) go with the question; new ones come back as reply.facts.
-    const remembering = Array.isArray(options.memory), asked = remembering ? withMemory(question, options.memory) : question;
+    const remembering = Array.isArray(options.memory), asked = G.forAI({ crisis: guard.crisis, text: remembering ? withMemory(question, options.memory) : question });
     if (web) files = [...files, web.file];
     if (hasMedia(files)) { routes = routes.filter(p => files.every(f => this.reads(p, f))); if (!routes.length) throw new UserError('Rasm, PDF va ovozni faqat Gemini o‘qiydi. Sozlamalarda Gemini kalitini ulang.'); }
-    if (!settings.autoFallback) routes = routes.slice(0,1);
+    // Arzon model: a greeting goes to a quick model first, maths and code to one that reasons; one chosen route stays as it is.
+    routes = settings.autoFallback ? ordered(routes, level) : routes.slice(0,1);
+    step('level', { level });
     for (const provider of routes) {
       signal.throwIfAborted(); const state = this.states[provider];
-      if (state?.disabled || state?.retryAt > this.now()) continue;
+      if (state?.disabled || state?.retryAt > this.now()) { step('route', { route: provider, skipped: state.status }); continue; }
       const paid = PAID.includes(provider); // paid models think longer before answering; PDFs, images and long documents take longer too
       const attempt = new AbortController(); const timer = setTimeout(() => attempt.abort(), paid ? Math.max(this.timeout, 120000) : hasMedia(files) || options.long ? Math.max(this.timeout, 75000) : this.timeout);
       const combined = AbortSignal.any([signal, attempt.signal]);
-      const mark = (status, delay = 0, disabled = false) => { this.states[provider] = { status, retryAt: this.now() + delay, disabled }; };
+      const mark = (status, delay = 0, disabled = false) => { this.states[provider] = { status, retryAt: this.now() + delay, disabled }; step('route', status === 'Ishlayapti' ? { route: provider, ok: true } : { route: provider, status }); };
       try {
         let reply;
         if (this.extra[provider]) reply = { ...(await this.extra[provider].ask({ key: keyOf(settings, provider), history, question: asked, files, long: options.long === true, signal: combined })), provider };
@@ -131,14 +209,16 @@ class Router {
         }
         mark('Ishlayapti'); this.last = { provider, model: reply.model };
         const noted = remembering ? splitMemory(reply.text) : { text: reply.text, facts: [] };
-        return { ...reply, text: noted.text, facts: noted.facts, sources: web?.sources || [], queries: web?.queries || [] };
+        // Only an answer made without the user's remembered facts is kept: it holds no name or class of anyone.
+        if (key && !options.memory?.length && !reply.incomplete && noted.text !== P.REFUSAL && !paid) { await this.answers.put(key, { text: noted.text, provider, model: reply.model }).catch(() => {}); step('cache', { stored: true }); }
+        return finish({ ...reply, text: G.reply(noted.text, guard), facts: noted.facts, sources: web?.sources || [], queries: web?.queries || [] });
       } catch(error) {
-        signal.throwIfAborted(); if (error instanceof UserError) throw error;
+        signal.throwIfAborted(); if (error instanceof UserError) { finish({}, true); throw error; }
         if (error instanceof RouteError) mark(error.message, error.delay, error.disabled);
         else mark(attempt.signal.aborted ? 'Kutish vaqti tugadi' : 'Tarmoq xatosi',30000);
       } finally { clearTimeout(timer); }
     }
-    signal.throwIfAborted(); throw new UserError(hasMedia(files) ? 'Rasm, PDF yoki ovozli savolga hozir javob berib bo‘lmadi: Gemini limiti tugagan yoki internet uzilgan. Birozdan keyin qayta urinib ko‘ring.' : 'Ulangan AI xizmatlari hozir javob bera olmadi. Limit, internet yoki kalitni tekshiring. Tafsilotlar Sozlamalarda.');
+    signal.throwIfAborted(); finish({}, true); throw new UserError(hasMedia(files) ? 'Rasm, PDF yoki ovozli savolga hozir javob berib bo‘lmadi: Gemini limiti tugagan yoki internet uzilgan. Birozdan keyin qayta urinib ko‘ring.' : 'Ulangan AI xizmatlari hozir javob bera olmadi. Limit, internet yoki kalitni tekshiring. Tafsilotlar Sozlamalarda.');
   }
 }
 // Text to speech (Gemini TTS, Interactions API): one request returns a 24 kHz mono WAV. Uzbek is supported by the 3.8 TTS models.
@@ -168,4 +248,4 @@ async function speak({ key, text, signal, fetcher = (...args) => fetch(...args) 
   let data; try { if (raw.length > 12 * 1024 * 1024) throw new Error(); data = JSON.parse(raw); } catch { throw new UserError('Ovozli javob o‘qilmadi.', 'speech'); }
   try { return speechAudio(data); } catch { throw new UserError('Ovozli javob o‘qilmadi.', 'speech'); }
 }
-module.exports = { Router, UserError, RouteError, MODELS, ORDER, PAID, URLS, INSTRUCTION, ready, conversation, body, parse, retryDelay, needsSearch, withSources, SPEECH, speechBody, speechAudio, speak };
+module.exports = { Router, UserError, RouteError, MODELS, ORDER, PAID, URLS, INSTRUCTION, ready, conversation, body, parse, retryDelay, needsSearch, withSources, difficulty, ordered, answerKey, normalize, memoryAnswers, traceLine, SPEECH, speechBody, speechAudio, speak };

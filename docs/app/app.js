@@ -168,13 +168,17 @@ async function askAI(question, { extra = [], signal, voice = false, withHistory 
   // Kalit ishlamasa (limit, noto'g'ri kalit, tarmoq), savol yo'qolmaydi: bepul server javob beradi.
   const key = ownKey.get();
   if (key && !NurimPrompt.needsSearch(question)) {
+    // Himoya (lib/guard.js), as on the server: personal data masked, "forget your instructions" answered here, care for a child in danger.
+    const guard = NurimGuard.scan(question);
+    if (guard.blocked) return { text: NurimGuard.BLOCKED_REPLY, incomplete: false, remembered: [] };
     try {
-      const reply = await askOwn(key, facts ? NurimMemory.withMemory(question, facts) : question, withHistory ? recent() : [], sentFiles, long, signal);
+      const asked = NurimGuard.forAI({ crisis: guard.crisis, text: facts ? NurimMemory.withMemory(guard.text, facts) : guard.text });
+      const reply = await askOwn(key, asked, withHistory ? recent() : [], sentFiles.map(f => f.kind === 'text' ? { ...f, text: NurimGuard.untrusted(f.text).text } : f), long, signal);
       const noted = facts ? NurimMemory.splitMemory(reply.text) : { text: reply.text, facts: [] }; keepFacts(noted.facts);
-      return { text: noted.text.trim(), incomplete: reply.incomplete, remembered: noted.facts };
+      return { text: NurimGuard.reply(noted.text.trim(), guard), incomplete: reply.incomplete, remembered: noted.facts };
     } catch (e) { if (signal?.aborted) throw e; }
   }
-  const r = await gateway('/chat', { deviceId, history: withHistory ? recent() : [], question, ...(sentFiles.length ? { files: sentFiles } : {}), ...(long ? { long: true } : {}), ...(facts ? { memory: facts } : {}) }, signal, sentFiles.length || long ? 120000 : 90000); // long: a referat/presentation plan
+  const r = await gateway('/chat', { deviceId, history: withHistory ? recent() : [], question, ...(sentFiles.length ? { files: sentFiles } : {}), ...(long ? { long: true } : {}), ...(remember && !sentFiles.length ? { cache: true } : {}), ...(facts ? { memory: facts } : {}) }, signal, sentFiles.length || long ? 120000 : 90000); // long: a referat/presentation plan
   if (!r.ok) throw new UserError({ 429: 'Bugungi bepul limit tugadi. Ertaga yana yozing.', 413: 'Fayllar juda katta. Keraksizini olib tashlang.', 422: sentFiles.length ? 'AI bu fayl yoki savolni qabul qilmadi. Faylni olib tashlab ko‘ring.' : 'AI bu savolni qabul qilmadi. Matnni qisqartiring yoki yangi suhbat boshlang.', 400: voice ? 'Ovozli savolni server hali qabul qilmayapti. Savolni yozib yuboring.' : 'So‘rov noto‘g‘ri. Ilovani yangilang.', 403: 'Server bu ilovani tanimadi. Ilovani yangilang.' }[r.status] || 'AI serveri hozir javob bera olmadi. Keyinroq urinib ko‘ring.');
   if (typeof r.data.text !== 'string' || !r.data.text.trim()) throw new UserError('Server javobi o‘qilmadi.');
   const noted = facts && Array.isArray(r.data.facts) ? r.data.facts.filter(f => typeof f === 'string').slice(0, 15) : []; keepFacts(noted);

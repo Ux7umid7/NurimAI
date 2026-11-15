@@ -4,7 +4,9 @@ const macCertificate = Boolean(process.env.CSC_LINK);
 module.exports = {
   appId: 'com.nurimai.desktop', productName: 'NurimAI',
   asar: true, directories: { output: 'dist' },
-  files: ['src/**/*', 'assets/Nuri.ico', 'assets/trayTemplate.png', 'assets/trayTemplate@2x.png', 'assets/nur/**/*', 'assets/pufak/**/*', 'assets/ustoz/**/*', 'assets/ustoz3d/**/*', 'assets/fonts/**/*', 'assets/brand/**/*', 'package.json'],
+  files: ['src/**/*', 'assets/Nuri.ico', 'assets/trayTemplate.png', 'assets/trayTemplate@2x.png', 'assets/nur/**/*', 'assets/pufak/**/*', 'assets/ustoz/**/*', 'assets/ustoz3d/**/*', 'assets/fonts/**/*', 'assets/brand/**/*', 'package.json',
+    // Dependencies' type declarations, source maps and TypeScript sources are never loaded at run time (most of the Claude SDK's files).
+    '!**/node_modules/**/*.{map,d.ts,d.mts,d.cts}', '!**/node_modules/@anthropic-ai/sdk/src/**'],
   artifactName: 'NurimAI-${version}-${os}-${arch}.${ext}',
   publish: release.owner && release.repo ? [{ provider: 'github', owner: release.owner, repo: release.repo, releaseType: 'release' }] : null,
   win: { target: ['nsis'], icon: 'assets/Nuri.ico' },

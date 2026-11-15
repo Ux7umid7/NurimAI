@@ -5,18 +5,18 @@ function validateGateway(value) {
   if(url.protocol !== 'https:' || url.username || url.password || url.search || url.hash || url.pathname !== '/') throw new Error('Gateway must be an HTTPS origin');
   return url.origin;
 }
-// long: a referat or presentation plan (a longer reply, so a longer wait); memory: remembered facts (strings), when it is on.
-async function askGateway({ url, deviceId, history, question, signal, files = [], voice = false, long = false, memory, fetcher = fetch }) {
+// cache: a chat question the server may answer from its cache (never a test, card or plan). long: a referat or presentation plan (a longer reply, so a longer wait); memory: remembered facts (strings), when it is on.
+async function askGateway({ url, deviceId, history, question, signal, files = [], voice = false, long = false, cache = false, memory, fetcher = fetch }) {
   const origin = validateGateway(url);
   if(!origin) throw new UserError('NurimAI serveri hali ulanmagan. Yangi versiya tayyor bo‘lishini kuting.');
   const recent=[];let count=0;for(let i=history.length-2;i>=0&&recent.length<12;i-=2){const a=history[i],b=history[i+1];if(a.role!=='user'||b.role!=='assistant')continue;count+=a.text.length+b.text.length;if(count>12000)break;recent.unshift(a,b);}
-  const response = await fetcher(`${origin}/chat`,{ method:'POST',redirect:'error',signal:AbortSignal.any([signal,AbortSignal.timeout(files.length || long ? 120000 : 90000)]),headers:{'Content-Type':'application/json'},body:JSON.stringify({deviceId,history:recent,question,...(files.length ? { files } : {}),...(long ? { long: true } : {}),...(Array.isArray(memory) ? { memory } : {})}) });
+  const response = await fetcher(`${origin}/chat`,{ method:'POST',redirect:'error',signal:AbortSignal.any([signal,AbortSignal.timeout(files.length || long ? 120000 : 90000)]),headers:{'Content-Type':'application/json'},body:JSON.stringify({deviceId,history:recent,question,...(files.length ? { files } : {}),...(long ? { long: true } : {}),...(cache ? { cache: true } : {}),...(Array.isArray(memory) ? { memory } : {})}) });
   let data;try{data = await response.json();}catch{throw new UserError('Server javobi o‘qilmadi.');}
   // retry: seconds until the limit lets the next request through (a minute's limit is short, the day's is long).
   if(response.status===429){const wait=Number(response.headers.get('retry-after'));throw Object.assign(new UserError('Bepul foydalanish limiti tugadi. Keyinroq qayta urinib ko‘ring.','limit'),{retry:Number.isFinite(wait)?wait:0});}
   if(!response.ok) throw new UserError({ 429: 'Bepul foydalanish limiti tugadi. Keyinroq qayta urinib ko‘ring.', 413: 'Fayllar juda katta. Keraksizini olib tashlang yoki kichikroq fayl yuboring.', 422: files.length ? 'AI bu fayl yoki savolni qabul qilmadi. Faylni olib tashlang yoki boshqasini yuboring.' : 'AI bu savolni qabul qilmadi. Matnni qisqartiring yoki yangi suhbat boshlang.', 400: voice ? 'Ovozli savolni NurimAI serveri hali qabul qilmayapti (server yangilanishi kerak). Hozircha savolni yozib yuboring.' : files.length ? 'Server bu faylni qabul qilmadi. NurimAI’ni yangilang yoki boshqa fayl yuboring.' : 'So‘rov noto‘g‘ri. NurimAI’ni yangilang.' }[response.status] || 'AI serveri hozir javob bera olmadi. Keyinroq urinib ko‘ring.');
   if(typeof data.text !== 'string' || !data.text.trim() || data.text.length > 40000) throw new UserError('Server javobi o‘qilmadi.');
-  return { text:data.text, incomplete:data.incomplete === true, facts:Array.isArray(data.facts) ? data.facts.filter(f => typeof f === 'string').slice(0, 15) : [], provider:'NurimAI',model:'' };
+  return { text:data.text, incomplete:data.incomplete === true, facts:Array.isArray(data.facts) ? data.facts.filter(f => typeof f === 'string').slice(0, 15) : [], provider:'NurimAI',model:'',trace:typeof data.trace==='string'?data.trace.slice(0,300):'' };
 }
 // Voice answer for a piece of text; the server keeps a separate daily limit for it.
 async function speakGateway({ url, deviceId, text, signal, fetcher = fetch }) {

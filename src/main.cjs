@@ -1,6 +1,6 @@
 const {app,BrowserWindow,ipcMain,screen,Menu,Tray,nativeImage,globalShortcut,safeStorage,dialog,clipboard,ClipboardItem,shell,desktopCapturer,systemPreferences,Notification} = require('electron');
 const fs = require('node:fs');const path = require('node:path');const {pathToFileURL} = require('node:url');
-const {Router,UserError,PAID,speak,withSources} = require('./router.cjs');const {Store,KEYS} = require('./store.cjs');const {claude} = require('./claude.cjs');const {Folders,work,named} = require('./folders.cjs');const {askGateway,speakGateway} = require('./gateway.cjs');
+const {Router,UserError,PAID,speak,withSources,memoryAnswers,traceLine} = require('./router.cjs');const {Store,KEYS} = require('./store.cjs');const {claude} = require('./claude.cjs');const {Folders,work,named} = require('./folders.cjs');const {askGateway,speakGateway} = require('./gateway.cjs');
 const {UpdateController} = require('./updater.cjs');const release = require('./release-config.json');
 const {prepare,checkFits,forRequest,forView,LIMITS,PICKER_EXTENSIONS} = require('./attachments.cjs');const whatsNew = require('./whats-new.json');
 const {Chats} = require('./chats.cjs');const {grabSelection} = require('./selection.cjs');const practiceModule = require('./practice.cjs');const {Practice} = practiceModule;
@@ -13,7 +13,9 @@ let chat,pet,live,tray,store,updates,controller;let history=[],visible=[],exitin
 let files=[],fileSeq=0,previousVersion='';const sentIds=new Set(); // attachments already shown on a sent message
 let chats,chatId=Chats.newId(),explainKey=false,explaining=false; // chatId: the conversation on screen, as saved in history
 let practice,generating=null,remindTimer; // Ustoz rejimi: testlar, kartochkalar, eslatmalar
-const router = new Router({extra:{Claude:claude()}});
+const router = new Router({extra:{Claude:claude()},answers:memoryAnswers()}); // kesh: the same first chat question is answered once
+const {Library} = require('./rag.cjs');
+let lastTrace=''; // treys: how the last answer was made (Settings shows it)
 const asset = name=>path.join(root,'assets',name);
 const PET={width:144,height:180};
 // The 3D mascot loops idle / think / sleep and plays happy / wave / sad / catch once; the pet window only reacts to these moods.
@@ -24,7 +26,7 @@ function activity(){lastActive=Date.now();if(sleeping){sleeping=false;mood('wave
 function drowse(){if(!sleeping&&!controller&&!chat?.isFocused()&&Date.now()-lastActive>SLEEP_AFTER){sleeping=true;mood('sleep');}}
 const explainLabel=()=>process.platform==='darwin'?'⌘ + ⌥ + E':'Ctrl + Alt + E';
 // onboard: the first-run choice (free or own key) is still to be made; QA shows it only when a test asks (NURIMAI_QA_ONBOARD).
-function summary(){return {version:app.getVersion(),platform:process.platform,settings:store.public(),onboard:!store.value.onboarded&&(!qa||process.env.NURIMAI_QA_ONBOARD==='1'),routes:router.diagnostics(store.value),last:router.last,update:updates.state,gatewayConfigured:Boolean(release.gateway),history:visible,busy:Boolean(controller),files:forView(files),sentIds:[...sentIds],whatsNew:previousVersion&&previousVersion!==app.getVersion()?whatsNew[app.getVersion()]||[]:[],explainKey:explainKey?explainLabel():'',historyAvailable:chats.available,historyWarning:chats.warning};}
+function summary(){return {version:app.getVersion(),platform:process.platform,settings:store.public(),onboard:!store.value.onboarded&&(!qa||process.env.NURIMAI_QA_ONBOARD==='1'),routes:router.diagnostics(store.value),last:router.last,trace:lastTrace,update:updates.state,gatewayConfigured:Boolean(release.gateway),history:visible,busy:Boolean(controller),files:forView(files),sentIds:[...sentIds],whatsNew:previousVersion&&previousVersion!==app.getVersion()?whatsNew[app.getVersion()]||[]:[],explainKey:explainKey?explainLabel():'',historyAvailable:chats.available,historyWarning:chats.warning};}
 function clamp(point,width,height){const area=screen.getDisplayNearestPoint(point).workArea;return {x:Math.max(area.x,Math.min(Math.round(point.x),area.x+area.width-width)),y:Math.max(area.y,Math.min(Math.round(point.y),area.y+area.height-height))};}
 function showChat(){if(!chat || chat.isDestroyed())return;activity();if(!chat.isVisible()){const p=pet.getBounds(),[w,h]=chat.getSize();const next=clamp({x:p.x-w-10,y:p.y+p.height-h},w,h);chat.setPosition(next.x,next.y);}chat.show();chat.focus();} // opens beside Nur, whatever size the window has
 function toggle(){activity();if(chat.isVisible())chat.hide();else showChat();}
@@ -111,19 +113,20 @@ const VOICE_QUESTION='Bu ovozli xabar. Uni diqqat bilan tingla. Birinchi qatorda
 const HEARD=/^\s*\**\s*Savolingiz\s*:?\s*\**\s*[«"]?(.+?)[»"]?\s*\**\s*$/i;
 // Memory (src/memory-store.cjs): remembered facts go with each chat question (not with referat/presentation plans); new ones
 // the AI noted come back as reply.facts, are kept, and are shown under the answer as `remembered`.
-async function ask(question,extraFiles=[],signal,voice=false,long=false){
+async function ask(question,extraFiles=[],signal,voice=false,long=false,cache=false){
   const sent=[...forRequest(files),...extraFiles],facts=long?undefined:memory.forQuestion();
   if(qa){if(question.endsWith('/qa-xato'))throw new UserError('Sinov xatosi.');const reply=question.includes('/qa-xotira')?{text:'Tanishganimdan xursandman!',incomplete:false,facts:['Ismi Sinov','8-sinfda o‘qiydi']}:{text:`${voice?'Savolingiz: Kasr nima?\n':''}Bu avtomatik UI sinovi uchun tayyor javob. Jonli AI emas.${sent.length-extraFiles.length?` Biriktirilgan fayllar: ${sent.length-extraFiles.length}.`:''}`,incomplete:false,facts:[]};return remembered(facts?reply:{...reply,facts:[]});}
-  return remembered(await askAI({history,question,signal,sent,options:{...(long?{long,search:false}:{}),...(facts?{memory:facts}:{})},voice,long,facts}));
+  return remembered(await askAI({history,question,signal,sent,options:{...(long?{long,search:false}:{}),...(cache?{cache}:{}),...(facts?{memory:facts}:{})},voice,long,cache,facts}));
 }
 // The user's own keys answer first: paid ones (Claude, ChatGPT) always, free ones (Gemini, Groq, OpenRouter) when
 // "O‘z bepul kalitlarim" is on. When they cannot (a limit, a wrong key, no internet to that service), the free NurimAI
 // server answers, so a question is never lost for a key. A question the AI rejected is not sent again.
-async function askAI({history,question,signal,sent,options={},voice=false,long=false,facts}){
-  const personal=settings=>router.ask(settings,history,question,signal,sent,options).then(r=>({...r,text:withSources(r)}));
+async function askAI({history,question,signal,sent,options={},voice=false,long=false,cache=false,facts}){
+  const personal=settings=>router.ask(settings,history,question,signal,sent,options).then(r=>{lastTrace=traceLine(r.trace);return {...r,text:withSources(r)};});
   const own=store.value.usePersonalKeys?store.value:PAID.some(p=>store.value.keys[p])?{...store.value,keys:Object.fromEntries(PAID.map(p=>[p,store.value.keys[p]])),free:{}}:null;
   if(own){try{return await personal(own);}catch(e){signal.throwIfAborted();if(e?.code==='input'||!release.gateway)throw e;}}
-  return askGateway({url:release.gateway,deviceId:store.value.deviceId,history,question,files:sent,signal,voice,long,memory:facts});
+  const reply=await askGateway({url:release.gateway,deviceId:store.value.deviceId,history,question,files:sent,signal,voice,long,cache,memory:facts});
+  lastTrace=reply.trace?`NurimAI serveri: ${reply.trace}`:'NurimAI serveri';return reply;
 }
 function remembered(reply){const fresh=(reply.facts||[]).filter(Boolean);if(fresh.length)memory.add(fresh);return {...reply,remembered:fresh};}
 // Made files are saved in Documents\NurimAI (in QA mode: inside the test profile); only paths in there may be opened.
@@ -156,7 +159,13 @@ async function fileWork(question,signal){
     if(qa)return {text:FILE_QA[qaStep++]||'Tayyor.',incomplete:false,facts:[]};
     try{return await once(step);}catch(e){if(e?.code!=='limit'||!(e.retry>0&&e.retry<=65))throw e;onStep(`⏳ Daqiqalik limit: ${e.retry} soniya kutyapman`);await require('node:timers/promises').setTimeout(e.retry*1000,undefined,{signal});return once(step);}
   };
-  return remembered(await work({folders,question,history,files:forRequest(files),signal,askStep,onStep}));
+  // RAG (rag.cjs): passages from the user's own documents in these folders go with the first step, and the answer names them.
+  const found=qa?null:await new Library({roots:named(store.value.folders)}).find(question).catch(()=>null);
+  if(found)onStep(`📄 Hujjatlardan ${found.sources.length} ta mos joy topildi`);
+  const reply=await work({folders,question,history,files:[...forRequest(files),...(found?[found.file]:[])],signal,askStep,onStep});
+  return remembered(found?{...reply,text:`${reply.text}
+
+📄 Hujjatlar: ${found.sources.join(' · ')}`}:reply);
 }
 async function converse(question,{display=question,voice=false,extra=[],useFolders=false}){
   if(controller||generating)throw new UserError('Avvalgi javobni kuting.');
@@ -170,7 +179,7 @@ async function converse(question,{display=question,voice=false,extra=[],useFolde
     catch(e){visible.push({role:'assistant',text:'Javob olinmadi. Savolni qayta yuborishingiz mumkin.',error:true});mood(e?.name==='AbortError'?'idle':'sad');remember();throw e;}finally{controller=null;lastActive=Date.now();}
   }
   try{
-    const reply=inFolders?await fileWork(question,controller.signal):await ask(practice.state.teacher?`${question}\n\n(${practiceModule.TEACHER})`:question,extra,controller.signal,voice);
+    const reply=inFolders?await fileWork(question,controller.signal):await ask(practice.state.teacher?`${question}\n\n(${practiceModule.TEACHER})`:question,extra,controller.signal,voice,false,!voice&&!extra.length);
     let text=reply.text,transcript='';
     if(voice){const lines=text.split('\n');const heard=HEARD.exec(lines[0]||'');if(heard){transcript=heard[1].trim().slice(0,600);text=lines.slice(1).join('\n').trim()||text;asked.text=`🎤 ${transcript}`;}}
     history.push({role:'user',text:transcript||display},{role:'assistant',text});history=history.slice(-24);visible.push({role:'assistant',text});mood('happy');remember();

@@ -189,7 +189,7 @@ $('settings').onclick=async()=>{
   function check(id,text,checked){const label=document.createElement('label');label.className='check';const input=document.createElement('input');input.type='checkbox';input.id=id;input.checked=checked;label.append(input,document.createTextNode(text));section.append(label);}
   if(FREE_TIER.includes(provider))check(`free-${provider}`,'Hisobim Free tarifda',s.free[provider]);check(`clear-${provider}`,'Saqlangan kalitni o‘chirish',false);$('providers').append(section);
  }
- $('route-status').textContent=state.routes.map(r=>`${r.provider}: ${r.status}${r.retrySeconds?' · '+r.retrySeconds+' soniya':''}`).join('\n');$('settings-dialog').showModal();
+ $('route-status').textContent=state.routes.map(r=>`${r.provider}: ${r.status}${r.retrySeconds?' · '+r.retrySeconds+' soniya':''}`).join('\n')+(state.trace?`\n\nOxirgi javob qanday tayyorlandi:\n${state.trace}`:'');$('settings-dialog').showModal();
 };
 $('close-settings').onclick=()=>$('settings-dialog').close();$('quit').onclick=()=>window.nurim.quit();
 $('settings-form').onsubmit=async event=>{event.preventDefault();const keys={},clear={},free={};for(const p of KEYED){keys[p]=$(`key-${p}`).value;clear[p]=$(`clear-${p}`).checked;if(FREE_TIER.includes(p))free[p]=$(`free-${p}`).checked;}

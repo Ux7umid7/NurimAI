@@ -5,7 +5,9 @@ import { speechText, wavToMp3 } from './voice.mjs';
 import { GroupGame, GROUP_COMMANDS, ADMIN_COMMANDS } from './group.mjs';
 import { createLiveToken, telegramUser, validateLive } from './live.mjs';
 import Docs from '../src/shared/office-write.js';
-const { Router, UserError, speak, SPEECH, withSources, URLS } = routerModule;
+const { Router, UserError, speak, SPEECH, withSources, URLS, traceLine } = routerModule;
+// Kesh: answers to the same first question are kept three days in this Durable Object's storage (src/router.cjs decides what may be kept).
+const ANSWER_TTL = 3 * 86400000;
 const json = (data,status=200,extra={})=>Response.json(data,{status,headers:{'Cache-Control':'no-store','X-Content-Type-Options':'nosniff',...extra}});
 const MEDIA = { image: new Set(['image/png', 'image/jpeg', 'image/webp', 'image/heic', 'image/heif']), pdf: new Set(['application/pdf']), audio: new Set(['audio/wav']) };
 // Optional attachments (absent in 0.3.0 clients): extracted document text, or base64 images/PDFs/voice recordings (0.6.1+) for Gemini.
@@ -29,7 +31,7 @@ export function validatePayload(data) {
   let count=0;for(let i=0;i<data.history.length;i++){const m=data.history[i];if(!m||m.role!==(i%2?'assistant':'user')||typeof m.text!=='string')throw new Error('history');count+=m.text.length;}
   if(count>12000)throw new Error('history');
   // long: a referat/presentation plan; memory: what the app remembers about its user (absent = the app does not use memory).
-  return {question:data.question.trim(),deviceId:data.deviceId,history:data.history.map(m=>({role:m.role,text:m.text})),files:validateFiles(data.files),long:data.long===true,...(data.memory!==undefined?{memory:cleanFacts(data.memory)}:{})};
+  return {question:data.question.trim(),deviceId:data.deviceId,history:data.history.map(m=>({role:m.role,text:m.text})),files:validateFiles(data.files),long:data.long===true,cache:data.cache===true,...(data.memory!==undefined?{memory:cleanFacts(data.memory)}:{})};
 }
 export function validateSpeech(data) {
   if(!data||typeof data.text!=='string'||!data.text.trim()||data.text.length>SPEECH.maxChars)throw new Error('text');
@@ -138,9 +140,9 @@ async function setupBot(env,url,secret){
   }catch(error){console.log(`telegram setup failed: ${error?.message||'Error'}`);return json({ok:false,error:'Telegram rejected the setup: check the TELEGRAM_TOKEN secret.'},502);}
 }
 export class AiGateway {
-  constructor(state,env){this.state=state;this.env=env;this.router=new Router({fetcher:(url,options)=>url===URLS.Cloudflare?workersAi(env,options):upstream(url,options)});this.active=0;}
+  constructor(state,env){this.state=state;this.env=env;this.router=new Router({fetcher:(url,options)=>url===URLS.Cloudflare?workersAi(env,options):upstream(url,options),answers:{get:key=>this.answerGet(key),put:(key,value)=>this.answerPut(key,value)}});this.active=0;}
   async fetch(request){
-    if(new URL(request.url).pathname==='/tick'){if(this.env.TELEGRAM_TOKEN)await this.groups().tick();return json({ok:true});}
+    if(new URL(request.url).pathname==='/tick'){await this.sweepAnswers().catch(error=>console.log(`cache sweep failed: ${error?.name||'Error'}`));if(this.env.TELEGRAM_TOKEN)await this.groups().tick();return json({ok:true});}
     if(new URL(request.url).pathname==='/telegram'){
       const {update}=await request.json();const item=parseUpdate(update);
       if(item&&this.env.TELEGRAM_TOKEN&&await this.firstDelivery(item)){const work=this.telegram(item);this.state.waitUntil?.(work);} // the reply goes on after this returns
@@ -156,9 +158,10 @@ export class AiGateway {
     const settings=this.settings(); // the apps get the same routes as the bot, Workers AI included
     this.active++;
     try{
-      const reply=await this.router.ask(settings,data.history,data.question,AbortSignal.timeout(data.long?110000:85000),data.files,{...(data.long?{long:true,search:false}:{}),...(data.memory?{memory:data.memory}:{})});
-      return json({text:withSources(reply),incomplete:reply.incomplete,...(data.memory?{facts:reply.facts}:{})}); // news answers carry their sources; new facts go back to the app
-    }catch(error){console.log(`chat failed: ${error instanceof UserError?error.message:error?.name||'Error'}; routes: ${this.router.diagnostics(settings).map(r=>`${r.provider}=${r.status}`).join(', ')}`);const rejected=error instanceof UserError&&error.code==='input';return json({error:rejected?'Input rejected':error instanceof UserError?'AI temporarily unavailable':'Service unavailable'},rejected?422:503);}finally{this.active--;}
+      const reply=await this.router.ask(settings,data.history,data.question,AbortSignal.timeout(data.long?110000:85000),data.files,{...(data.long?{long:true,search:false}:{cache:data.cache}),...(data.memory?{memory:data.memory}:{})});
+      const trace=traceLine(reply.trace);console.log(`chat: ${trace}`); // treys: route, time, cache and guard steps, never the question (wrangler tail)
+      return json({text:withSources(reply),incomplete:reply.incomplete,trace,...(data.memory?{facts:reply.facts}:{})}); // news answers carry their sources; new facts go back to the app
+    }catch(error){console.log(`chat failed: ${error instanceof UserError?error.message:error?.name||'Error'}; trace: ${traceLine(this.router.lastTrace)}; routes: ${this.router.diagnostics(settings).map(r=>`${r.provider}=${r.status}`).join(', ')}`);const rejected=error instanceof UserError&&error.code==='input';return json({error:rejected?'Input rejected':error instanceof UserError?'AI temporarily unavailable':'Service unavailable'},rejected?422:503);}finally{this.active--;}
   }
   // Gemini, then GPT-OSS and Qwen on Groq, then OpenRouter's free models (if its key is set), then Workers AI.
   settings(){return {keys:{Gemini:this.env.GEMINI_API_KEY||'',Groq:this.env.GROQ_API_KEY||'',OpenRouter:this.env.OPENROUTER_API_KEY||'',Cloudflare:this.env.AI?'binding':''},free:{Gemini:this.env.GEMINI_FREE_TIER==='true',Groq:this.env.GROQ_FREE_TIER==='true',Cloudflare:this.env.WORKERS_AI_FREE==='true'},autoFallback:true};}
@@ -172,6 +175,10 @@ export class AiGateway {
     this.active++;try{return (await this.router.ask(this.settings(),[],prompt,AbortSignal.timeout(60000),[],{search:false})).text;}finally{this.active--;}
   }
   // Telegram resends an update it thinks failed: each one is answered once (per chat, update ids only grow).
+  async answerGet(key){const hit=await this.state.storage.get(`ans:${key}`);if(!hit)return null;if(Date.now()-hit.at>ANSWER_TTL){await this.state.storage.delete(`ans:${key}`);return null;}return hit.value;}
+  async answerPut(key,value){await this.state.storage.put(`ans:${key}`,{at:Date.now(),value});}
+  // The cron tick drops expired answers, a thousand at a time.
+  async sweepAnswers(){const now=Date.now(),old=[];for(const [key,hit] of await this.state.storage.list({prefix:'ans:',limit:1000}))if(now-(hit?.at||0)>ANSWER_TTL)old.push(key);for(let i=0;i<old.length;i+=128)await this.state.storage.delete(old.slice(i,i+128));return old.length;}
   async firstDelivery(item){return this.state.storage.transaction(async tx=>{const key=`tg:seen:${item.chatId}`;if((await tx.get(key)||0)>=item.updateId)return false;await tx.put(key,item.updateId);return true;});}
   // One Telegram message -> one answer in the chat. The bot has its own daily budget (per Telegram user and in total) and
   // remembers the last few turns of each chat for three days; nothing else about the user is stored.
@@ -214,7 +221,8 @@ export class AiGateway {
       const files=[];if(item.fileId){const file=await bot.download(item.fileId);files.push({kind:item.kind==='voice'?'audio':item.kind==='pdf'?'pdf':'image',name:item.kind==='voice'?'Ovozli xabar':item.kind==='sticker'?'stiker':item.name||'rasm.jpg',mime:file.mime&&file.mime.split('/')[0]===item.mime.split('/')[0]?file.mime:item.mime,data:file.data});}
       // Long-term memory (src/shared/memory.js): what the user told about themself goes with the question; news needs none.
       const facts=(await store.get(memKey))?.facts||[];
-      let reply;this.active++;try{reply=await this.router.ask(this.settings(),history,question,AbortSignal.timeout(85000),files,{search:item.kind==='news'?'Bugungi yangiliklar':item.kind==='text'?undefined:false,...(item.kind==='news'?{}:{memory:facts})});}finally{this.active--;}
+      let reply;this.active++;try{reply=await this.router.ask(this.settings(),history,question,AbortSignal.timeout(85000),files,{search:item.kind==='news'?'Bugungi yangiliklar':item.kind==='text'?undefined:false,cache:item.kind==='text',...(item.kind==='news'?{}:{memory:facts})});}finally{this.active--;}
+      console.log(`telegram: ${traceLine(reply.trace)}`);
       if(reply.facts?.length)await store.put(memKey,{facts:mergeFacts(facts,reply.facts)});
       const {heard,text}=item.kind==='voice'?splitHeard(reply.text):{heard:'',text:reply.text};
       await store.put(chatKey,{updated:Date.now(),history:[...history,{role:'user',text:(heard?`🎤 ${heard}`:remember).slice(0,1000)},{role:'assistant',text:text.slice(0,2000)}].slice(-12)});

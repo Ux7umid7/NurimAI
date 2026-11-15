@@ -15,7 +15,8 @@
     "configure:release": "node scripts/configure-release.cjs",
     "verify:package": "node scripts/verify-package.cjs",
     "icons": "electron scripts/make-icons.cjs",
-    "mobile:sync": "node scripts/mobile-sync.cjs"
+    "mobile:sync": "node scripts/mobile-sync.cjs",
+    "eval": "node scripts/eval.cjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "1.3.0",

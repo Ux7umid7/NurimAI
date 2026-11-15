@@ -26,8 +26,8 @@ test('/chat takes the app\'s memory and returns the new facts; old apps (no memo
   const gw=new AiGateway({storage},{GEMINI_API_KEY:'g',GEMINI_FREE_TIER:'true',RATE_SALT:'s'});
   const call=data=>gw.fetch(new Request('https://internal/chat',{method:'POST',body:JSON.stringify({data:{files:[],...data},identities:{ip:'i',device:'d'}})}));
   const withMemory=await(await call({question:'Men Aliman',history:[],memory:['8-sinf']})).json();
-  assert.deepEqual(withMemory,{text:'Salom!',incomplete:false,facts:['Ismi Ali']});assert.match(sent[0].contents.at(-1).parts.at(-1).text,/: 8-sinf\]\n\nMen Aliman\n\nAgar/);
-  const old=await(await call({question:'Men Aliman',history:[]})).json();assert.deepEqual(old,{text:'Salom!\nXOTIRA: Ismi Ali',incomplete:false});assert.equal(sent[1].contents.at(-1).parts.at(-1).text,'Men Aliman');
+  const {trace,...answer}=withMemory;assert.match(trace,/Gemini ✓/,'the trace says which route answered');assert.deepEqual(answer,{text:'Salom!',incomplete:false,facts:['Ismi Ali']});assert.match(sent[0].contents.at(-1).parts.at(-1).text,/: 8-sinf\]\n\nMen Aliman\n\nAgar/);
+  const old=await(await call({question:'Men Aliman',history:[]})).json();assert.deepEqual({...old,trace:undefined},{text:'Salom!\nXOTIRA: Ismi Ali',incomplete:false,trace:undefined},'an old app gets what it got before (it ignores the new trace)');assert.equal(sent[1].contents.at(-1).parts.at(-1).text,'Men Aliman');
  }finally{globalThis.fetch=real;}
 });
 test('the gateway client sends memory only when it is on and reads the facts back',async()=>{

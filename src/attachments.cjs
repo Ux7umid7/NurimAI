@@ -87,4 +87,14 @@ function checkFits(existing, next) {
 const forRequest = files => files.map(f => f.kind === 'text' ? { kind: 'text', name: f.name, text: f.text } : { kind: f.kind, name: f.name, mime: f.mime, data: f.data });
 const forView = files => files.map(({ id, name, ext, kind, size, thumb, note }) => ({ id, name, ext, kind, size, thumb: thumb || '', note: note || '' }));
 
-module.exports = { prepare, checkFits, forRequest, forView, readZip, LIMITS, PICKER_EXTENSIONS };
+// The whole text of a Word, Excel, PowerPoint or text file, without the chat's length limit, for searching the user's own
+// documents (rag.cjs); null for pictures, PDFs and anything it cannot read.
+function fullText(name, bytes) {
+  const ext = extension(String(name || '')), isZip = bytes.length >= 4 && bytes.readUInt32LE(0) === 0x04034b50;
+  try {
+    if (isZip && ['docx', 'xlsx', 'pptx'].includes(ext)) { const zip = readZip(bytes); return ext === 'docx' ? docxText(zip) : ext === 'xlsx' ? xlsxText(zip) : pptxText(zip); }
+    if (TEXT_EXT.has(ext)) return plainText(bytes);
+  } catch { return null; }
+  return null;
+}
+module.exports = { prepare, fullText, checkFits, forRequest, forView, readZip, LIMITS, PICKER_EXTENSIONS };

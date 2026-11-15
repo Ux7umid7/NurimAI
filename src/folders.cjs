@@ -5,6 +5,8 @@
 // system dialog, and nothing is lost for good: deleted and overwritten files go to the Recycle Bin.
 const fs = require('node:fs'); const fsp = fs.promises; const path = require('node:path');
 const { prepare, LIMITS } = require('./attachments.cjs');
+const G = require('./shared/guard.js');
+const WARNING = '⚠️ Diqqat: o‘qilgan fayllardan birida AI’ga buyruq berishga urinish bor edi. Bu o‘zgarishni o‘zingiz so‘raganingizga ishonch hosil qiling.\n\n';
 const TOOLS = Object.freeze(['list', 'read', 'search', 'write', 'mkdir', 'move', 'delete']);
 const CHANGES = new Set(['write', 'mkdir', 'move', 'delete']);
 const LIMIT = Object.freeze({ folders: 10, entries: 200, results: 60, scanned: 20000, writeChars: 200000, steps: 8 });
@@ -108,7 +110,8 @@ class Folders {
     }
     return { text: found.length ? `«${query}» bo‘yicha topildi (${found.length}${found.length >= LIMIT.results ? '+' : ''}):\n${found.join('\n')}` : `«${query}» nomli fayl yoki papka topilmadi.` };
   }
-  async ask(action, title, detail) { return Boolean(await this.confirm({ action, title, detail })); }
+  // warned: something the AI read hid an instruction (guard.js), so the user is told before saying yes to a change.
+  async ask(action, title, detail) { return Boolean(await this.confirm({ action, title, detail: this.warned ? `${WARNING}${detail}` : detail })); }
   async write({ path: p, content }) {
     const at = await this.resolve(p); const ext = (/\.([a-z0-9]+)$/i.exec(at.full)?.[1] || '').toLowerCase();
     if (!WRITABLE.has(ext)) throw new ToolError(`.${ext || '?'} faylini yoza olmayman: faqat matnli fayllar (.txt, .md, .csv, .html, kod).`);
@@ -153,6 +156,7 @@ class Folders {
 async function work({ folders, question, history = [], files = [], askStep, onStep = () => {}, signal }) {
   const rules = { kind: 'text', name: 'NurimAI: kompyuter fayllari asboblari', text: protocol(folders.roots) };
   let turns = [...history], asked = question, attached = files, facts = [];
+  if (files.some(f => f.kind === 'text' && G.injection(f.text))) folders.warned = true;
   const notes = [];
   for (let step = 0; step < LIMIT.steps; step++) {
     signal?.throwIfAborted();
@@ -162,6 +166,7 @@ async function work({ folders, question, history = [], files = [], askStep, onSt
     if (!call) return { ...reply, facts, text: notes.length ? `${reply.text}\n\n📁 ${notes.join(' · ')}` : reply.text };
     if (!call.error) onStep(stepText(call));
     const result = call.error ? { text: `Xato: ${call.error}` } : await folders.run(call);
+    if (G.injection(result.text)) folders.warned = true;
     if (result.note) notes.push(result.note);
     turns = [...turns, { role: 'user', text: asked }, { role: 'assistant', text: reply.text }];
     asked = `Asbob natijasi (${call.tool || 'xato'}) ilovada. Davom et: kerak bo‘lsa keyingi asbobni chaqir yoki foydalanuvchiga javob ber.`;

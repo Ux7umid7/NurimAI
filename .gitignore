@@ -16,3 +16,6 @@ src/build-info.json
 # Android signing key: keep it outside git (it lives only in your backup and the GitHub secret)
 *.jks
 *.keystore
+
+# Eval reports (npm run eval)
+evals/results/

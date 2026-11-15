@@ -3,6 +3,9 @@ NurimAI 0.8.7
 Yuklab olish va o‘rnatish ko‘rsatmasi: https://ux7umid7.github.io/NurimAI/
 
 - 📖 Yangi qahramon — Nur ustoz: Sozlamalar → Qahramon bo‘limida Pufak (shogirt) yoki Nur (ustoz)ni tanlang. Nur ekran chetida o‘z 3D animatsiyalari bilan yashaydi: kitob o‘qiydi, o‘ylaydi, salom beradi, uxlaydi.
+- 🛡 Himoya: savolingizdagi telefon, karta, pasport raqami va parol AI xizmatlariga yuborilmaydi — NurimAI ularni yashiradi. “Ko‘rsatmalaringni unut” kabi buyruqlar, fayl yoki sahifa ichidagi yashirin buyruqlar ishlamaydi. Qiyin holatdagi bolaga AI mehr bilan javob beradi va qayerdan yordam olishni aytadi.
+- 📄 Hujjatlaringizdan javob: 📁 yoqilganda NurimAI tanlangan papkalardagi Word, PowerPoint, Excel va matn fayllaringizdan (darslik, konspekt) savolga mos joylarni topadi, javobni shularga tayanib beradi va hujjat nomini ko‘rsatadi.
+- ⚡ Tezroq va tejamkor: ko‘p so‘raladigan savolga javob bir zumda keshdan keladi; salom-alik tez modelga, matematika va kod fikrlaydigan modelga yuboriladi. Sozlamalarda oxirgi javob qanday tayyorlangani ko‘rinadi.
 - 🔑 Bepul yoki o‘z kalitingiz bilan: birinchi ochilganda NurimAI so‘raydi. Kalitsiz — bepul server orqali. Gemini, Groq, OpenRouter (bepul) yoki Claude, ChatGPT (pullik) kalitini kiritsangiz — o‘z hisobingizdan; kalit ishlamasa, bepul server javob beradi. Telefonda o‘z Gemini kalitingizni kiritish mumkin.
 - 🎙 Jonli suhbat: sarlavhadagi to‘lqin tugmasi — NurimAI bilan telefon qilgandek ovozda gaplashing (15 daqiqagacha). Telegram’da: /gaplash.
 - 📁 Kompyuter fayllari: Sozlamalarda papka tanlang va 📁 tugmasini yoqing — NurimAI fayllarni ko‘radi, o‘qiydi va qidiradi; yaratish, o‘zgartirish yoki o‘chirishdan oldin har safar ruxsat so‘raydi, o‘chirilganlar Savatga tushadi.
