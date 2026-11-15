@@ -1,11 +1,15 @@
-NurimAI 0.8.2
+NurimAI 0.8.7
 
 Yuklab olish va o‘rnatish ko‘rsatmasi: https://ux7umid7.github.io/NurimAI/
 
-- 🌓 Sozlamalarda mavzu tanlovi: Tizim, Yorug‘ yoki Qorong‘i. Tanlov darhol qo‘llanadi va Windows yoki telefon rejimidan qat’i nazar saqlanib qoladi; “Tizim” tanlansa, avvalgidek tizimga ergashadi.
-- 📰 Yangilik, valyuta kursi, ob-havo va sport savollarida NurimAI internetdan ma’lumot oladi: Kun.uz, Gazeta.uz, Daryo.uz, BBC, Sports.uz, Markaziy bank (ochilmasa — bozor kursi) va Open-Meteo. Javob oxirida manbalar ko‘rsatiladi.
-- 🛟 Bepul limit tugaganda ham javob: Gemini va Groq band bo‘lsa, zaxira AI (Cloudflare Workers AI, Gemma 4) javob beradi.
-- 🤖 NurimAI endi Telegram’da ham: @NurimAI_bot — matn, rasm, stiker, PDF va ovozli savollar, /yangiliklar.
+- 📖 Yangi qahramon — Nur ustoz: Sozlamalar → Qahramon bo‘limida Pufak (shogirt) yoki Nur (ustoz)ni tanlang. Nur ekran chetida o‘z 3D animatsiyalari bilan yashaydi: kitob o‘qiydi, o‘ylaydi, salom beradi, uxlaydi.
+- 🔑 Bepul yoki o‘z kalitingiz bilan: birinchi ochilganda NurimAI so‘raydi. Kalitsiz — bepul server orqali. Gemini, Groq, OpenRouter (bepul) yoki Claude, ChatGPT (pullik) kalitini kiritsangiz — o‘z hisobingizdan; kalit ishlamasa, bepul server javob beradi. Telefonda o‘z Gemini kalitingizni kiritish mumkin.
+- 🎙 Jonli suhbat: sarlavhadagi to‘lqin tugmasi — NurimAI bilan telefon qilgandek ovozda gaplashing (15 daqiqagacha). Telegram’da: /gaplash.
+- 📁 Kompyuter fayllari: Sozlamalarda papka tanlang va 📁 tugmasini yoqing — NurimAI fayllarni ko‘radi, o‘qiydi va qidiradi; yaratish, o‘zgartirish yoki o‘chirishdan oldin har safar ruxsat so‘raydi, o‘chirilganlar Savatga tushadi.
+- 🤖 Bepul GPT (OpenAI’ning ochiq gpt-oss modeli) qo‘shildi: biri band bo‘lsa, boshqasi javob beradi.
+- 🧠 Xotira: ismingiz, sinfingiz va qiziqishlaringizni eslab qoladi (Sozlamalarda ko‘rish va o‘chirish mumkin).
+- 📄 Referat va 📊 taqdimot: “Fotosintez haqida referat yozib ber” deb yozing — tayyor Word yoki PowerPoint fayl.
+- 👥 @NurimAI_bot sinf guruhida har kuni savol beradi, maslahat beradi va reyting yuritadi; ovozli xabarga ovoz bilan javob beradi.
 
 Windows’da yangilanish o‘zi yuklanadi va dasturdan to‘liq chiqqanda o‘rnatiladi. Mac’da yangi DMG’ni sahifadan yuklab, Applications’dagi eski NurimAI’ni almashtiring. Android’da yangi APK’ni yuklab, eski ilova ustidan o‘rnating — suhbatlar va kartochkalar saqlanib qoladi.
 
