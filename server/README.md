@@ -40,3 +40,23 @@ Model va ko‘rsatmadan tashqari har bir savol shu qavatlardan o‘tadi (kod: sr
 - **Arzon/kuchli model** — salom-alik avval Groq’ga, matematika va kod avval GPT-OSS’ga, qolganlari odatdagi tartibda (Gemini birinchi).
 - **Treys** — `npx wrangler tail --config server/wrangler.jsonc` har javob uchun bitta qator ko‘rsatadi: `chat: odatiy savol → Gemini ✗ → GPT ✓ · 1240 ms`. Savol matni yozilmaydi.
 - **Evallar** — `npm run eval` evals/cases.json’dagi ~24 savolni serverga beradi va javoblarni tekshiradi (bilim, matematika, format, til, halollik, himoya). Ko‘rsatma, model yoki yo‘nalish o‘zgarganda deploy’dan keyin ishga tushiring; har savol kunlik bepul limitdan bittadan oladi.
+
+## Kunlik hisobot (bot egasiga)
+
+@NurimAI_bot har kuni Toshkent vaqti 09:00 da faqat bot egasiga kechagi hisobotni yuboradi. `/hisobot` buyrug'i bugungi holatni istalgan vaqtda ko'rsatadi (faqat egasiga). Hisobotdagi bo'limlar:
+
+- **API kalitlardan qancha qolgani.** Gemini bepul kalitining qoldig'ini Google bermaydi, shuning uchun server Gemini'ga yuborgan har bir so'rovni o'zi sanaydi. Sanoq model bo'yicha (chat, ovoz, jonli suhbat) va Tinch okeani yarim tunidan (Toshkent 12:00/13:00) boshlanadi. Kunlik limit `GEMINI_DAILY_LIMIT` dan olinadi (AI Studio'dagi rate limit sahifasidagi RPD soni). U berilmasa, Google'ning birinchi "kunlik limit tugadi" (429) javobidan avtomatik aniqlanadi. Groq qoldig'i Groq'ning o'z sarlavhalaridan olinadi.
+- **NurimAI'ning o'z kunlik limitlari** (ilovalar, bot, guruhlar, ovoz, jonli suhbat): necha foizi ishlatilgani, nechta qurilma yoki kishi kirgani va kimlar limitga yetgani.
+- **AI xizmatlari:** qaysi biri nechta javob bergani, limit (429) va xatolar.
+- **Kesh, himoya va o'rtacha javob vaqti.**
+
+Ogohlantirishlar darhol keladi (kuniga bir martadan): Gemini limitining 90% ishlatilganda va limit tugaganda.
+
+Sozlash:
+
+1. Deploy qiling.
+2. Botga `/id` yozing — u Telegram ID raqamingizni aytadi.
+3. ID'ni `OWNER_TELEGRAM_ID` maxfiy kaliti sifatida kiriting.
+4. Ixtiyoriy: `GEMINI_DAILY_LIMIT` ni ham kiriting.
+
+Faqat sonlar saqlanadi: savol, javob yoki shaxsiy ma'lumot saqlanmaydi. Ma'lumotlar 15 kundan keyin o'chiriladi.

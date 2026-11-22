@@ -213,12 +213,12 @@ class Router {
         if (key && !options.memory?.length && !reply.incomplete && noted.text !== P.REFUSAL && !paid) { await this.answers.put(key, { text: noted.text, provider, model: reply.model }).catch(() => {}); step('cache', { stored: true }); }
         return finish({ ...reply, text: G.reply(noted.text, guard), facts: noted.facts, sources: web?.sources || [], queries: web?.queries || [] });
       } catch(error) {
-        signal.throwIfAborted(); if (error instanceof UserError) { finish({}, true); throw error; }
+        signal.throwIfAborted(); if (error instanceof UserError) { finish({}, true); error.trace = trace; throw error; }
         if (error instanceof RouteError) mark(error.message, error.delay, error.disabled);
         else mark(attempt.signal.aborted ? 'Kutish vaqti tugadi' : 'Tarmoq xatosi',30000);
       } finally { clearTimeout(timer); }
     }
-    signal.throwIfAborted(); finish({}, true); throw new UserError(hasMedia(files) ? 'Rasm, PDF yoki ovozli savolga hozir javob berib bo‘lmadi: Gemini limiti tugagan yoki internet uzilgan. Birozdan keyin qayta urinib ko‘ring.' : 'Ulangan AI xizmatlari hozir javob bera olmadi. Limit, internet yoki kalitni tekshiring. Tafsilotlar Sozlamalarda.');
+    signal.throwIfAborted(); finish({}, true); throw Object.assign(new UserError(hasMedia(files) ? 'Rasm, PDF yoki ovozli savolga hozir javob berib bo‘lmadi: Gemini limiti tugagan yoki internet uzilgan. Birozdan keyin qayta urinib ko‘ring.' : 'Ulangan AI xizmatlari hozir javob bera olmadi. Limit, internet yoki kalitni tekshiring. Tafsilotlar Sozlamalarda.'), { trace });
   }
 }
 // Text to speech (Gemini TTS, Interactions API): one request returns a 24 kHz mono WAV. Uzbek is supported by the 3.8 TTS models.
