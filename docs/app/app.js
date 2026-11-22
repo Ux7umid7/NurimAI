@@ -172,7 +172,7 @@ async function askAI(question, { extra = [], signal, voice = false, withHistory 
     const guard = NurimGuard.scan(question);
     if (guard.blocked) return { text: NurimGuard.BLOCKED_REPLY, incomplete: false, remembered: [] };
     try {
-      const asked = NurimGuard.forAI({ crisis: guard.crisis, text: facts ? NurimMemory.withMemory(guard.text, facts) : guard.text });
+      const asked = NurimPrompt.withLanguage(NurimGuard.forAI({ crisis: guard.crisis, text: facts ? NurimMemory.withMemory(guard.text, facts) : guard.text }), guard.text);
       const reply = await askOwn(key, asked, withHistory ? recent() : [], sentFiles.map(f => f.kind === 'text' ? { ...f, text: NurimGuard.untrusted(f.text).text } : f), long, signal);
       const noted = facts ? NurimMemory.splitMemory(reply.text) : { text: reply.text, facts: [] }; keepFacts(noted.facts);
       return { text: NurimGuard.reply(noted.text.trim(), guard), incomplete: reply.incomplete, remembered: noted.facts };

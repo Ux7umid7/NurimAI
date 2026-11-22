@@ -1,6 +1,11 @@
-NurimAI 0.8.7
+NurimAI 0.8.8
 
 Yuklab olish va o‘rnatish ko‘rsatmasi: https://ux7umid7.github.io/NurimAI/
+
+- 📚 PDF darsliklar: 📁 yoqilganda NurimAI tanlangan papkalardagi PDF darslik va qo‘llanmalarni ham o‘qiydi, savolga mos sahifalarni topib javob beradi va qaysi hujjatdan olganini aytadi. Darslik bir marta o‘qiladi, keyingi safar darhol topiladi.
+- 🌍 Ruscha savolga — ruscha, inglizcha savolga — inglizcha javob; o‘zbekcha (lotin yoki kirill) savolga — o‘zbekcha.
+
+0.8.7 dagi yangiliklar:
 
 - 📖 Yangi qahramon — Nur ustoz: Sozlamalar → Qahramon bo‘limida Pufak (shogirt) yoki Nur (ustoz)ni tanlang. Nur ekran chetida o‘z 3D animatsiyalari bilan yashaydi: kitob o‘qiydi, o‘ylaydi, salom beradi, uxlaydi.
 - 🛡 Himoya: savolingizdagi telefon, karta, pasport raqami va parol AI xizmatlariga yuborilmaydi — NurimAI ularni yashiradi. “Ko‘rsatmalaringni unut” kabi buyruqlar, fayl yoki sahifa ichidagi yashirin buyruqlar ishlamaydi. Qiyin holatdagi bolaga AI mehr bilan javob beradi va qayerdan yordam olishni aytadi.

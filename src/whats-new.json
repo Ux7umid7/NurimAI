@@ -1,4 +1,12 @@
 {
+  "0.8.8": [
+    "📚 PDF darsliklar: 📁 yoqilganda NurimAI tanlangan papkalardagi PDF darslik va qo‘llanmalarni ham o‘qiydi, savolga mos sahifalarni topib javob beradi va qaysi hujjatdan olganini aytadi. Darslik bir marta o‘qiladi, keyingi safar darhol topiladi.",
+    "🌍 Ruscha savolga — ruscha, inglizcha savolga — inglizcha javob; o‘zbekcha (lotin yoki kirill) savolga — o‘zbekcha.",
+    "📖 Yangi qahramon — Nur ustoz: Sozlamalar → Qahramon bo‘limida Pufak (shogirt) yoki Nur (ustoz)ni tanlang.",
+    "🛡 Himoya: savolingizdagi telefon, karta, pasport raqami va parol AI xizmatlariga yuborilmaydi — NurimAI ularni yashiradi. “Ko‘rsatmalaringni unut” kabi buyruqlar, fayl yoki sahifa ichidagi yashirin buyruqlar ishlamaydi. Qiyin holatdagi bolaga AI mehr bilan javob beradi va qayerdan yordam olishni aytadi.",
+    "📄 Hujjatlaringizdan javob: 📁 yoqilganda NurimAI tanlangan papkalardagi Word, PowerPoint, Excel va matn fayllaringizdan (darslik, konspekt) savolga mos joylarni topadi, javobni shularga tayanib beradi va hujjat nomini ko‘rsatadi.",
+    "⚡ Tezroq va tejamkor: ko‘p so‘raladigan savolga javob bir zumda keshdan keladi; salom-alik tez modelga, matematika va kod fikrlaydigan modelga yuboriladi. Sozlamalarda oxirgi javob qanday tayyorlangani ko‘rinadi."
+  ],
   "0.8.7": [
     "📖 Yangi qahramon — Nur ustoz: Sozlamalar → Qahramon bo‘limida Pufak (shogirt) yoki Nur (ustoz)ni tanlang.",
     "🛡 Himoya: savolingizdagi telefon, karta, pasport raqami va parol AI xizmatlariga yuborilmaydi — NurimAI ularni yashiradi. “Ko‘rsatmalaringni unut” kabi buyruqlar, fayl yoki sahifa ichidagi yashirin buyruqlar ishlamaydi. Qiyin holatdagi bolaga AI mehr bilan javob beradi va qayerdan yordam olishni aytadi.",

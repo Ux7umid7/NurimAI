@@ -6,7 +6,10 @@ module.exports = {
   asar: true, directories: { output: 'dist' },
   files: ['src/**/*', 'assets/Nuri.ico', 'assets/trayTemplate.png', 'assets/trayTemplate@2x.png', 'assets/nur/**/*', 'assets/pufak/**/*', 'assets/ustoz/**/*', 'assets/ustoz3d/**/*', 'assets/fonts/**/*', 'assets/brand/**/*', 'package.json',
     // Dependencies' type declarations, source maps and TypeScript sources are never loaded at run time (most of the Claude SDK's files).
-    '!**/node_modules/**/*.{map,d.ts,d.mts,d.cts}', '!**/node_modules/@anthropic-ai/sdk/src/**'],
+    '!**/node_modules/**/*.{map,d.ts,d.mts,d.cts}', '!**/node_modules/@anthropic-ai/sdk/src/**',
+    // PDF.js: only its Node build, text maps and font data are used (pdf-text.cjs reads text, it draws nothing), so the browser
+    // builds, viewer, image decoders and the optional native canvas (different on each Mac architecture) stay out.
+    '!**/node_modules/@napi-rs/**', '!**/node_modules/pdfjs-dist/{build,web,types,image_decoders,iccs,wasm}/**', '!**/node_modules/pdfjs-dist/legacy/{web,image_decoders}/**', '!**/node_modules/pdfjs-dist/**/*.min.mjs', '!**/node_modules/pdfjs-dist/webpack.mjs'],
   artifactName: 'NurimAI-${version}-${os}-${arch}.${ext}',
   publish: release.owner && release.repo ? [{ provider: 'github', owner: release.owner, repo: release.repo, releaseType: 'release' }] : null,
   win: { target: ['nsis'], icon: 'assets/Nuri.ico' },

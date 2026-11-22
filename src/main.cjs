@@ -160,7 +160,7 @@ async function fileWork(question,signal){
     try{return await once(step);}catch(e){if(e?.code!=='limit'||!(e.retry>0&&e.retry<=65))throw e;onStep(`⏳ Daqiqalik limit: ${e.retry} soniya kutyapman`);await require('node:timers/promises').setTimeout(e.retry*1000,undefined,{signal});return once(step);}
   };
   // RAG (rag.cjs): passages from the user's own documents in these folders go with the first step, and the answer names them.
-  const found=qa?null:await new Library({roots:named(store.value.folders)}).find(question).catch(()=>null);
+  const found=qa?null:await new Library({roots:named(store.value.folders),indexFile:path.join(app.getPath('userData'),'rag-index.json')}).find(question).catch(()=>null);
   if(found)onStep(`📄 Hujjatlardan ${found.sources.length} ta mos joy topildi`);
   const reply=await work({folders,question,history,files:[...forRequest(files),...(found?[found.file]:[])],signal,askStep,onStep});
   return remembered(found?{...reply,text:`${reply.text}

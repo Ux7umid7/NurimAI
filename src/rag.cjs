@@ -1,10 +1,10 @@
-// RAG (answers from the user's own documents): with 📁 on, NurimAI looks through the Word, PowerPoint, Excel and text files in
+// RAG (answers from the user's own documents): with 📁 on, NurimAI looks through the PDF, Word, PowerPoint, Excel and text files in
 // the folders the user chose (their textbooks, notes, tasks), finds the passages that match the question and sends them with
 // it, so the AI answers from those documents and names them. It runs on the computer: the files themselves never leave it,
 // only the few passages that match. Search is BM25 over words with common Uzbek endings removed (fotosintezning → fotosintez).
 const fs = require('node:fs'); const fsp = fs.promises; const path = require('node:path');
 const { fullText, LIMITS } = require('./attachments.cjs');
-const EXT = new Set(['docx', 'pptx', 'xlsx', 'txt', 'md', 'csv', 'html', 'htm']);
+const EXT = new Set(['pdf', 'docx', 'pptx', 'xlsx', 'txt', 'md', 'csv', 'html', 'htm']);
 const SKIP = new Set(['node_modules', '$recycle.bin', 'system volume information']);
 const LIMIT = Object.freeze({ files: 400, scanned: 20000, chunk: 900, overlap: 150, top: 4, chars: 7000, indexMs: 8000 });
 const NAME = 'Hujjatlaringizdan parchalar';
@@ -33,9 +33,27 @@ function chunks(text) {
 }
 // Read files are kept by path, size and date, so a second question does not read them again.
 const known = new Map();
+// The index is kept on the computer (indexFile, in the app's own data folder) so textbooks are read once, not at each launch:
+// the passages' text by file path, size and date. Files that left the folders leave the index on the next save.
+const loaded = new Set();
+async function loadIndex(file) {
+  if (!file || loaded.has(file)) return; loaded.add(file);
+  try { const saved = JSON.parse(await fsp.readFile(file, 'utf8')); if (saved?.v === 1) for (const [id, texts] of Object.entries(saved.files || {})) if (!known.has(id) && Array.isArray(texts)) known.set(id, texts.map(t => ({ text: String(t), terms: words(t) }))); } catch { /* no index yet, or a broken one: it is rebuilt */ }
+}
+async function saveIndex(file, ids) {
+  if (!file) return;
+  const files = {}; for (const id of ids) if (known.has(id)) files[id] = known.get(id).map(p => p.text);
+  const temp = `${file}.tmp`; await fsp.mkdir(path.dirname(file), { recursive: true }); await fsp.writeFile(temp, JSON.stringify({ v: 1, files })); await fsp.rename(temp, file);
+}
+// PDFs: textbooks are big, so a larger size is allowed; the text is read by PDF.js (pdf-text.cjs).
+const PDF_BYTES = 80 * 1024 * 1024;
+async function readText(full, bytes) {
+  if (/\.pdf$/i.test(full)) { const { pdfText } = require('./pdf-text.cjs'); return pdfText(bytes); }
+  return fullText(full, bytes);
+}
 class Library {
-  // roots: [{ name, path }] (folders.cjs named()); read(full) → bytes.
-  constructor({ roots = [], read = full => fsp.readFile(full), now = Date.now } = {}) { this.roots = roots; this.read = read; this.now = now; }
+  // roots: [{ name, path }] (folders.cjs named()); read(full) → bytes; indexFile: where the index is kept (none in tests).
+  constructor({ roots = [], read = full => fsp.readFile(full), now = Date.now, indexFile = null } = {}) { this.roots = roots; this.read = read; this.now = now; this.indexFile = indexFile; }
   async files() {
     const found = []; let scanned = 0;
     for (const root of this.roots) {
@@ -55,20 +73,22 @@ class Library {
   }
   // Every passage of every readable file; files read before are not read again. Stops after LIMIT.indexMs (the rest next time).
   async passages() {
-    const started = this.now(), out = [];
+    await loadIndex(this.indexFile);
+    const started = this.now(), out = [], ids = []; let added = 0;
     for (const file of await this.files()) {
       let stat; try { stat = await fsp.stat(file.full); } catch { continue; }
-      if (stat.size > LIMITS.inputBytes) continue;
-      const id = `${file.full}|${stat.size}|${stat.mtimeMs}`; let parts = known.get(id);
+      if (stat.size > (/\.pdf$/i.test(file.full) ? PDF_BYTES : LIMITS.inputBytes)) continue;
+      const id = `${file.full}|${stat.size}|${stat.mtimeMs}`; let parts = known.get(id); ids.push(id);
       if (!parts) {
         if (this.now() - started > LIMIT.indexMs) continue;
-        let text = null; try { text = fullText(file.full, await this.read(file.full)); } catch { text = null; }
+        let text = null; try { text = await readText(file.full, await this.read(file.full)); } catch { text = null; }
         parts = text?.trim() ? chunks(text).map(t => ({ text: t, terms: words(t) })) : [];
         if (known.size > 3000) known.clear();
-        known.set(id, parts);
+        known.set(id, parts); added++;
       }
       for (const p of parts) out.push({ ...p, shown: file.shown });
     }
+    if (added) await saveIndex(this.indexFile, ids).catch(() => {});
     return out;
   }
   // → { file: a text attachment with the best passages, sources: [file names] } or null when nothing fits the question.

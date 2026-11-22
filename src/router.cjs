@@ -174,7 +174,7 @@ class Router {
     const web = search ? await fresh(typeof search === 'string' ? search : question, { fetcher: this.fetcher, signal, now: this.now, cache: this.web }) : null;
     if (search) step('search', { sources: web?.sources?.length || 0 });
     // options.memory: facts the user told before (shared/memory.js) go with the question; new ones come back as reply.facts.
-    const remembering = Array.isArray(options.memory), asked = G.forAI({ crisis: guard.crisis, text: remembering ? withMemory(question, options.memory) : question });
+    const remembering = Array.isArray(options.memory), asked = P.withLanguage(G.forAI({ crisis: guard.crisis, text: remembering ? withMemory(question, options.memory) : question }), question);
     if (web) files = [...files, web.file];
     if (hasMedia(files)) { routes = routes.filter(p => files.every(f => this.reads(p, f))); if (!routes.length) throw new UserError('Rasm, PDF va ovozni faqat Gemini o‘qiydi. Sozlamalarda Gemini kalitini ulang.'); }
     // Arzon model: a greeting goes to a quick model first, maths and code to one that reasons; one chosen route stays as it is.
