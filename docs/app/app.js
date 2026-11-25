@@ -109,7 +109,9 @@ function bubble(role, text, attached = [], doc = null, remembered = []) {
       const actions = document.createElement('div'); actions.className = 'actions';
       const listen = document.createElement('button'); listen.type = 'button'; listen.className = 'speak'; listen.textContent = '🔊 Tinglash'; listen.onclick = () => speakBubble(el, text);
       const copy = document.createElement('button'); copy.type = 'button'; copy.className = 'copy'; copy.textContent = 'Nusxa'; copy.onclick = async () => { try { await navigator.clipboard.writeText(text); copy.textContent = 'Olindi ✓'; } catch { notice('Nusxa olib bo‘lmadi.'); } };
-      actions.append(listen, copy);
+      // 👍/👎: one rating per answer; only the rating goes to the server (it counts them), never the text.
+      const rate = [[true, '👍', 'Yaxshi javob'], [false, '👎', 'Yaxshi emas']].map(([good, label, title]) => { const b = document.createElement('button'); b.type = 'button'; b.className = 'rate'; b.textContent = label; b.title = title; b.setAttribute('aria-label', title); b.onclick = () => { for (const x of rate) x.disabled = true; b.classList.add('chosen'); notice(good ? 'Rahmat! 😊' : 'Rahmat, javoblarni yaxshilashga harakat qilaman.'); if (!QA) gateway('/feedback', { deviceId, good }, null, 15000).catch(() => {}); }; return b; });
+      actions.append(listen, copy, ...rate);
       if (navigator.share) { const share = document.createElement('button'); share.type = 'button'; share.textContent = 'Ulashish'; share.onclick = () => navigator.share({ text }).catch(() => {}); actions.append(share); }
       el.append(actions);
     }

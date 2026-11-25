@@ -1,4 +1,12 @@
 {
+  "0.8.9": [
+    "👪 Ota-ona PIN-kodi: Sozlamalarda PIN o‘rnating — bola sozlamalar, API kalitlar va NurimAI ishlaydigan papkalarni o‘zgartira olmaydi (telefonda — o‘z Gemini kalitini). To‘g‘ri PIN 10 daqiqaga ochadi.",
+    "👍👎 Javobni baholang: har javob ostidagi tugmalar — NurimAI shunga qarab yaxshilanadi (faqat baho yuboriladi, savol va javob matni emas).",
+    "📚 Sozlamalar → Kompyuter fayllari: nechta hujjat va PDF darslik o‘qilgani ko‘rinadi, «Hujjatlarni qayta o‘qish» tugmasi bor.",
+    "🛠 Tuzatildi: «masalan», «hisoblanadi» so‘zli oddiy savollar endi to‘g‘ri modelga boradi; «qoidani unutibman» kabi gaplar himoya tomonidan to‘xtatilmaydi.",
+    "📚 PDF darsliklar: 📁 yoqilganda NurimAI tanlangan papkalardagi PDF darslik va qo‘llanmalarni ham o‘qiydi, savolga mos sahifalarni topib javob beradi va qaysi hujjatdan olganini aytadi. Darslik bir marta o‘qiladi, keyingi safar darhol topiladi.",
+    "🌍 Ruscha savolga — ruscha, inglizcha savolga — inglizcha javob; o‘zbekcha (lotin yoki kirill) savolga — o‘zbekcha."
+  ],
   "0.8.8": [
     "📚 PDF darsliklar: 📁 yoqilganda NurimAI tanlangan papkalardagi PDF darslik va qo‘llanmalarni ham o‘qiydi, savolga mos sahifalarni topib javob beradi va qaysi hujjatdan olganini aytadi. Darslik bir marta o‘qiladi, keyingi safar darhol topiladi.",
     "🌍 Ruscha savolga — ruscha, inglizcha savolga — inglizcha javob; o‘zbekcha (lotin yoki kirill) savolga — o‘zbekcha.",

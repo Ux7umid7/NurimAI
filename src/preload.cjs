@@ -2,12 +2,13 @@ const { contextBridge, ipcRenderer } = require('electron');
 const listen = channel => callback => { const listener = (_event, data) => callback(data); ipcRenderer.on(channel, listener); return () => ipcRenderer.removeListener(channel, listener); };
 contextBridge.exposeInMainWorld('nurim',Object.freeze({
   init:()=>ipcRenderer.invoke('init'), send:(question,options)=>ipcRenderer.invoke('send',question,options),
-  folders:()=>ipcRenderer.invoke('folders'), folderAdd:()=>ipcRenderer.invoke('folder-add'), folderRemove:index=>ipcRenderer.invoke('folder-remove',index), stop:()=>ipcRenderer.invoke('stop'),
+  folders:()=>ipcRenderer.invoke('folders'), docsIndex:fresh=>ipcRenderer.invoke('docs-index',fresh===true), folderAdd:()=>ipcRenderer.invoke('folder-add'), folderRemove:index=>ipcRenderer.invoke('folder-remove',index), stop:()=>ipcRenderer.invoke('stop'),
   sendVoice:(wav,seconds)=>ipcRenderer.invoke('send-voice',wav,seconds), speak:text=>ipcRenderer.invoke('speak',text), micAccess:()=>ipcRenderer.invoke('mic-access'),
   petMood:state=>ipcRenderer.invoke('pet-mood',state),
   reset:()=>ipcRenderer.invoke('reset'), settings:()=>ipcRenderer.invoke('settings'), saveSettings:value=>ipcRenderer.invoke('save-settings',value),
+  parentUnlock:pin=>ipcRenderer.invoke('parent-unlock',pin), parentLock:()=>ipcRenderer.invoke('parent-lock'), parentSet:(pin,again)=>ipcRenderer.invoke('parent-set',pin,again), parentRemove:()=>ipcRenderer.invoke('parent-remove'),
   hide:()=>ipcRenderer.invoke('hide'), toggle:()=>ipcRenderer.invoke('toggle'), quit:()=>ipcRenderer.invoke('quit'),
-  copy:text=>ipcRenderer.invoke('copy',text), exportChat:()=>ipcRenderer.invoke('export'),
+  copy:text=>ipcRenderer.invoke('copy',text), feedback:good=>ipcRenderer.invoke('feedback',good), exportChat:()=>ipcRenderer.invoke('export'),
   docOpen:file=>ipcRenderer.invoke('doc-open',file), docShow:file=>ipcRenderer.invoke('doc-show',file),
   memory:()=>ipcRenderer.invoke('memory'), memorySet:on=>ipcRenderer.invoke('memory-set',on), memoryRemove:index=>ipcRenderer.invoke('memory-remove',index), memoryClear:()=>ipcRenderer.invoke('memory-clear'),
   checkUpdate:()=>ipcRenderer.invoke('check-update'), installUpdate:()=>ipcRenderer.invoke('install-update'),

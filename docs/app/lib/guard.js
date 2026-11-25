@@ -23,10 +23,14 @@ function luhn(match) {
   let sum = 0; for (let i = 0; i < digits.length; i++) { let d = Number(digits[digits.length - 1 - i]); if (i % 2) { d *= 2; if (d > 9) d -= 9; } sum += d; }
   return sum % 10 === 0;
 }
+// A command ending the word (unut, unuting, unutgin, bekor qil, e'tiborsiz qoldir, o'chir) — not unutib, unutdim, o'chirib.
+const COMMAND = "(unut(ing|gin)?|e(Q)?tiborsiz\\s+qoldir(ing)?|bekor\\s+qil(ing)?|o(Q)?chir(ing)?)(?![\\p{L}'‘’ʻ`])";
 const INJECTION = [
   re('\\b(ignore|disregard|forget|override)\\s+(all\\s+|any\\s+|the\\s+)?(previous|prior|above|earlier|your|system|these)\\s+(instructions|prompts?|rules)'),
-  re('(oldingi|avvalgi|barcha|hamma|o(Q)?z(ingning)?|tizim)\\s+(ko(Q)?rsatma|qoida|buyruq|ko(Q)?rsatkich)\\w*\\s+(unut|e(Q)?tiborsiz|bekor\\s+qil|o(Q)?chir)'),
-  re('ko(Q)?rsatma(lar)?(ing|ingni|laringni|ni|larni)\\s+(unut|e(Q)?tiborsiz\\s+qoldir|bekor\\s+qil)'),
+  // Only the commanding forms (unut, unuting, bekor qil, o‘chir…): "qoidani unutibman", "unutdim", "o‘chirib qo‘ydim" are a
+  // student talking about themself, not an attack.
+  re(`(oldingi|avvalgi|barcha|hamma|o(Q)?z(ingning)?|tizim)\\s+(ko(Q)?rsatma|qoida|buyruq|ko(Q)?rsatkich)\\w*\\s+${COMMAND}`, 'iu'),
+  re(`ko(Q)?rsatma(lar)?(ing|ingni|laringni|ni|larni)\\s+${COMMAND}`, 'iu'),
   re('(забудь|игнорируй|проигнорируй|отмени)\\s+(все\\s+)?(свои\\s+|предыдущие\\s+|прошлые\\s+|системные\\s+)?(инструкц|правил|указан)'),
   re('(reveal|show|print|repeat)\\s+(me\\s+)?(your\\s+)?(system\\s+)?(prompt|instructions)\\b'),
   re('(tizim|system)\\s+(ko(Q)?rsatma|prompt)\\w*\\s*(ni|ingni)?\\s+(ko(Q)?rsat|ayt|yoz|chiqar)'),

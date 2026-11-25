@@ -28,4 +28,10 @@ async function speakGateway({ url, deviceId, text, signal, fetcher = fetch }) {
   if(typeof data.audio !== 'string' || !data.audio || data.audio.length > 16 * 1024 * 1024 || !/^audio\/[a-z0-9.+-]+(;.*)?$/i.test(String(data.mime))) throw new UserError('Ovozli javob o‘qilmadi.');
   return { mime: data.mime, audio: data.audio };
 }
-module.exports = { askGateway, speakGateway, validateGateway };
+// 👍/👎 under an answer: only the rating goes to the server (it counts them for its daily report), never the text.
+async function sendFeedback({ url, deviceId, good, fetcher = fetch }) {
+  const origin = validateGateway(url); if (!origin) return false;
+  const response = await fetcher(`${origin}/feedback`, { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15000), headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ deviceId, good: good === true }) });
+  return response.ok;
+}
+module.exports = { askGateway, speakGateway, sendFeedback, validateGateway };

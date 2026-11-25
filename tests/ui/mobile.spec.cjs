@@ -118,3 +118,21 @@ test('phone app: first run asks free or own Gemini key; a key is kept on the pho
  await page.goto(home.replace('?qa=1','?qa=1&onboard=1'));await page.locator('#question').waitFor();await page.waitForTimeout(300);await expect(page.locator('#onboard-sheet')).toBeHidden(); // asked once
  await page.goto(home);await page.locator('#question').waitFor();
 });
+test('phone app: a parent PIN locks the own Gemini key until the PIN is given',async()=>{
+ await page.locator('#menu').click();await page.locator('#settings').click();await expect(page.locator('#parent-go')).toHaveText('PIN o‘rnatish');
+ await page.locator('#parent-pin').fill('2468');await page.locator('#parent-pin2').fill('2460');await page.locator('#parent-go').click();await expect(page.locator('#parent-error')).toContainText('bir xil emas');
+ await page.locator('#parent-pin').fill('2468');await page.locator('#parent-pin2').fill('2468');await page.locator('#parent-go').click();await expect(page.locator('#parent-status')).toContainText('daqiqaga ochiq');
+ expect(await page.evaluate(()=>localStorage.getItem('nurim.parent'))).not.toContain('2468');
+ await page.reload();await page.locator('#question').waitFor();await page.locator('#menu').click();await page.locator('#settings').click();
+ await expect(page.locator('#parent-status')).toContainText('qulflangan');await expect(page.locator('#own-key-set')).toBeDisabled();
+ await page.locator('#parent-pin').fill('1111');await page.locator('#parent-go').click();await expect(page.locator('#parent-error')).toContainText('noto‘g‘ri');await expect(page.locator('#own-key-set')).toBeDisabled();
+ await page.locator('#parent-pin').fill('2468');await page.locator('#parent-go').click();await expect(page.locator('#own-key-set')).toBeEnabled();await page.screenshot({path:'test-results/mobile-parent.png'});
+ await page.locator('#parent-off').click();await expect(page.locator('#parent-go')).toHaveText('PIN o‘rnatish');expect(await page.evaluate(()=>localStorage.getItem('nurim.parent'))).toBe('null');
+ await page.locator('#settings-dialog .icon-btn').click();
+});
+test('phone app: an answer is rated once with 👍 or 👎',async()=>{
+ await page.locator('#question').fill('Kasr nima?');await page.locator('#send').click();
+ const answer=page.locator('.bubble.assistant').last();await expect(answer).toContainText('Jonli AI emas');
+ const up=answer.locator('.rate').first(),down=answer.locator('.rate').last();await up.click();
+ await expect(up).toHaveClass(/chosen/);await expect(up).toBeDisabled();await expect(down).toBeDisabled();
+});

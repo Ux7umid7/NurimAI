@@ -3,6 +3,7 @@
 // (sooner for a hard question), and gives the answer itself after 25 minutes.
 // Group admins set it up with commands; the AI is called only to make a question and to judge answers that are not an exact match.
 import webModule from '../src/web.cjs';
+import { TaskBoard } from './tasks.mjs';
 import { escape } from './telegram.mjs';
 const { normalize } = webModule;
 
@@ -26,14 +27,15 @@ export function hintTimes(level, reveal) {
   return times.length || reveal < 6 ? times : [Math.floor(reveal / 2)]; // a short /muddat still gets one hint, half-way
 }
 const MAX_GROUPS = 300, MAX_RECENT = 20, MAX_TRIES = 5, MAX_JUDGED = 40, MAX_HINTS = 6, WINDOW = 30, RETRY = 5 * 60000;
-const ADMIN = new Set(['mavzu', 'vaqt', 'muddat', 'savol', 'javob', 'toxtat', 'boshla', 'reset']);
+const ADMIN = new Set(['mavzu', 'vaqt', 'muddat', 'savol', 'javob', 'toxtat', 'boshla', 'reset', 'vazifa', 'yopish', 'natijalar']);
 export const GROUP_COMMANDS = Object.freeze([
   { command: 'reyting', description: 'Kim ko‘p topdi' }, { command: 'holat', description: 'Guruh sozlamalari' }, { command: 'yordam', description: 'Qanday ishlayman' }]);
 export const ADMIN_COMMANDS = Object.freeze([
   { command: 'mavzu', description: 'Savollar mavzusi, masalan: Tarix 8-sinf' }, { command: 'vaqt', description: 'Har kuni qachon (20:00)' },
   { command: 'muddat', description: 'Necha daqiqada javobni aytay (25)' }, { command: 'savol', description: 'Hozir savol berish' },
   { command: 'javob', description: 'Javobni hozir ochish' }, { command: 'toxtat', description: 'Kunlik savolni o‘chirish' },
-  { command: 'boshla', description: 'Kunlik savolni yoqish' }, { command: 'reset', description: 'Reytingni tozalash (kunlik yoki qo‘lda)' }, ...GROUP_COMMANDS]);
+  { command: 'boshla', description: 'Kunlik savolni yoqish' }, { command: 'reset', description: 'Reytingni tozalash (kunlik yoki qo‘lda)' },
+  { command: 'vazifa', description: 'Uyga vazifa berish (javoblar faqat sizga)' }, { command: 'natijalar', description: 'Vazifa natijalari (shaxsiy xabarda)' }, { command: 'yopish', description: 'Vazifani hozir yopish' }, ...GROUP_COMMANDS]);
 
 // Tashkent is UTC+5 all year.
 export function tashkent(now) { const t = new Date(now + 5 * 3600000); return { day: t.toISOString().slice(0, 10), minutes: t.getUTCHours() * 60 + t.getUTCMinutes() }; }
@@ -104,7 +106,7 @@ export function parseVerdict(text) {
 
 const mention = (id, who) => `<a href="tg://user?id=${Number(id)}">${escape(who)}</a>`;
 export const GROUP_TEXTS = Object.freeze({
-  welcome: g => `<b>Salom! Men NurimAI</b> 🧠\nHar kuni soat ${timeOf(g)} da shu guruhga bitta savol beraman, javoblaringizni o‘qib, to‘g‘ri yoki yaqin kelsa aytaman. Hech kim topmasa, savol qiyinligiga qarab 5–10 daqiqada maslahat beraman, ${g.reveal} daqiqadan keyin esa javobni o‘zim aytaman.\n\n<b>Sozlash (guruh adminlari):</b>\n/mavzu Tarix 8-sinf — savollar mavzusi\n/vaqt 20:00 — har kuni qachon (Toshkent vaqti)\n/muddat 25 — necha daqiqada javobni aytay\n/savol — hozir savol berish\n/javob — javobni hozir ochish\n/toxtat, /boshla — kunlik savolni o‘chirish yoki yoqish\n/reset — reytingni hozir tozalash (/reset qo‘lda — faqat shu buyruq bilan, /reset kunlik — har kuni)\n\nHamma uchun: /reyting — kim nechta topdi va necha ball, /holat — sozlamalar.\n🟢 Oson savol — 1 ball, 🟡 o‘rtacha — 2, 🔴 qiyin — 3 ball.\n\n<i>Javobni savol xabariga reply qilib yozing. Savol ochiq turganda javob sifatida yozilgan qisqa xabarlar AI orqali tekshiriladi; reytingda ism va ball saqlanadi.</i>`,
+  welcome: g => `<b>Salom! Men NurimAI</b> 🧠\nHar kuni soat ${timeOf(g)} da shu guruhga bitta savol beraman, javoblaringizni o‘qib, to‘g‘ri yoki yaqin kelsa aytaman. Hech kim topmasa, savol qiyinligiga qarab 5–10 daqiqada maslahat beraman, ${g.reveal} daqiqadan keyin esa javobni o‘zim aytaman.\n\n<b>Sozlash (guruh adminlari):</b>\n/mavzu Tarix 8-sinf — savollar mavzusi\n/vaqt 20:00 — har kuni qachon (Toshkent vaqti)\n/muddat 25 — necha daqiqada javobni aytay\n/savol — hozir savol berish\n/javob — javobni hozir ochish\n/toxtat, /boshla — kunlik savolni o‘chirish yoki yoqish\n/reset — reytingni hozir tozalash (/reset qo‘lda — faqat shu buyruq bilan, /reset kunlik — har kuni)\n/vazifa Matn — uyga vazifa: o‘quvchilar javobni menga shaxsiy xabarda yuboradi, javoblar va AI bahosi faqat o‘qituvchiga keladi (/natijalar, /yopish)\n\nHamma uchun: /reyting — kim nechta topdi va necha ball, /holat — sozlamalar.\n🟢 Oson savol — 1 ball, 🟡 o‘rtacha — 2, 🔴 qiyin — 3 ball.\n\n<i>Javobni savol xabariga reply qilib yozing. Savol ochiq turganda javob sifatida yozilgan qisqa xabarlar AI orqali tekshiriladi; reytingda ism va ball saqlanadi.</i>`,
   status: g => `<b>Guruh sozlamalari</b>\nMavzu: ${g.topic ? escape(g.topic) : 'tanlanmagan — /mavzu Tarix 8-sinf'}\nVaqt: har kuni ${timeOf(g)} (Toshkent)\nJavob: ${g.reveal} daqiqadan keyin\nKunlik savol: ${g.on ? 'yoqilgan' : 'o‘chirilgan (/boshla)'}\nReyting: ${dailyReset(g) ? 'har kuni yangidan' : 'faqat /reset bilan tozalanadi'}${g.active ? '\n\nHozir javobi topilmagan savol bor.' : ''}`,
   question: (g, q) => { const first = hintTimes(q.level, g.reveal)[0]; return `🧠 <b>Kunlik savol</b> · ${escape(g.topic)} · ${(LEVELS[q.level] || LEVELS.orta).label}\n\n${escape(q.question)}\n\n<i>Javobni shu xabarga reply qilib yozing. Hech kim topmasa, ${first ? `${first} daqiqadan keyin maslahat beraman, ` : ''}${g.reveal} daqiqada javobni o‘zim aytaman.</i>`; },
   hint: (i, text) => `💡 <b>${i ? 'Yana bir maslahat' : 'Maslahat'}:</b> ${escape(text)}`,
@@ -134,7 +136,7 @@ export const GROUP_TEXTS = Object.freeze({
 // The game: `store` is Durable Object storage, `bot` a TelegramBot, `ask(prompt, groupId)` returns the AI's text
 // (throws {code:'limit'} when the group's daily AI budget is used up). Every storage change goes through a transaction.
 export class GroupGame {
-  constructor({ store, bot, ask, now = Date.now, username = 'NurimAI_bot' }) { this.store = store; this.bot = bot; this.ask = ask; this.now = now; this.username = username.toLowerCase(); }
+  constructor({ store, bot, ask, now = Date.now, username = 'NurimAI_bot' }) { this.store = store; this.bot = bot; this.ask = ask; this.now = now; this.username = username.toLowerCase(); this.tasks = new TaskBoard({ store, bot, ask, now, username }); }
   key(id) { return `tg:group:${id}`; }
   async load(id) { return this.store.get(this.key(id)); }
   // Applies `change` to the group's latest state; returns the new state (or null when the group is gone).
@@ -195,6 +197,10 @@ export class GroupGame {
     if (item.command === 'reyting') { const board = await this.board(group); return reply(GROUP_TEXTS.ranking(this.top(board), group, board.since)); }
     if (!await this.isAdmin(item)) return reply(GROUP_TEXTS.adminOnly);
     const args = String(item.args || '').trim();
+    // O'qituvchi roli (server/tasks.mjs): homework answered privately, results to the teacher only.
+    if (item.command === 'vazifa') return this.tasks.create(item, group, args);
+    if (item.command === 'yopish') return this.tasks.close(item, group);
+    if (item.command === 'natijalar') return this.tasks.results(item, group);
     if (item.command === 'mavzu') {
       if (args.length < 2) return reply(group.topic ? `Hozirgi mavzu: <b>${escape(group.topic)}</b>\n${GROUP_TEXTS.topicUsage}` : GROUP_TEXTS.topicUsage);
       group = await this.edit(item.chatId, g => { if (g.topic !== args.slice(0, 80)) g.recent = []; g.topic = args.slice(0, 80); });
@@ -284,7 +290,7 @@ export class GroupGame {
       const found = await this.store.get(ids.slice(i, i + 100).map(id => this.key(id)));
       for (const group of found.values()) {
         const step = due(group, now);
-        try { if (step === 'reveal') await this.reveal(group); else if (step === 'hint') await this.hint(group); else if (step === 'ask') await this.askQuestion(group, true); }
+        try { await this.tasks.tick(group); if (step === 'reveal') await this.reveal(group); else if (step === 'hint') await this.hint(group); else if (step === 'ask') await this.askQuestion(group, true); }
         catch (error) { console.log(`group tick failed: ${error?.message?.slice(0, 120) || error?.name || 'Error'}`); }
       }
     }

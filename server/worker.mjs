@@ -34,6 +34,11 @@ export function validatePayload(data) {
   // long: a referat/presentation plan; memory: what the app remembers about its user (absent = the app does not use memory).
   return {question:data.question.trim(),deviceId:data.deviceId,history:data.history.map(m=>({role:m.role,text:m.text})),files:validateFiles(data.files),long:data.long===true,cache:data.cache===true,...(data.memory!==undefined?{memory:cleanFacts(data.memory)}:{})};
 }
+// 👍/👎: the device and the rating, nothing else.
+export function validateFeedback(data) {
+  if(!data||typeof data.deviceId!=='string'||!/^[a-f0-9-]{36}$/i.test(data.deviceId)||typeof data.good!=='boolean')throw new Error('feedback');
+  return {deviceId:data.deviceId,good:data.good};
+}
 export function validateSpeech(data) {
   if(!data||typeof data.text!=='string'||!data.text.trim()||data.text.length>SPEECH.maxChars)throw new Error('text');
   if(typeof data.deviceId!=='string'||!/^[a-f0-9-]{36}$/i.test(data.deviceId))throw new Error('device');
@@ -96,16 +101,16 @@ async function handle(request,env,ctx){
   const url=new URL(request.url);
   if(request.method==='GET'&&url.pathname==='/health'){const fallback=Boolean(env.AI&&env.WORKERS_AI_FREE==='true');return json({service:'NurimAI',ready:Boolean(env.RATE_SALT&&((env.GEMINI_API_KEY&&env.GEMINI_FREE_TIER==='true')||(env.GROQ_API_KEY&&env.GROQ_FREE_TIER==='true')||fallback)),telegram:Boolean(env.TELEGRAM_TOKEN),fallback});}
   if(url.pathname==='/telegram'||url.pathname==='/telegram/setup')return telegramRoute(request,env,ctx,url);
-  if(request.method!=='POST'||!['/chat','/speak','/live'].includes(url.pathname))return json({error:'Not found'},404);
+  if(request.method!=='POST'||!['/chat','/speak','/live','/feedback'].includes(url.pathname))return json({error:'Not found'},404);
   if(!request.headers.get('content-type')?.startsWith('application/json'))return json({error:'JSON required'},415);
   if(!env.RATE_SALT||!env.BUDGET)return json({error:'Service not configured'},503);
   if(url.pathname==='/live')return liveRoute(request,env);
-  const speech=url.pathname==='/speak';
-  let data;try{const body=await readBounded(request,speech?16*1024:14*1024*1024);data=speech?validateSpeech(body):validatePayload(body);}catch(error){return error instanceof TooLarge?json({error:'Request too large'},413):json({error:'Invalid request'},400);}
+  const speech=url.pathname==='/speak',feedback=url.pathname==='/feedback';
+  let data;try{const body=await readBounded(request,feedback?1024:speech?16*1024:14*1024*1024);data=feedback?validateFeedback(body):speech?validateSpeech(body):validatePayload(body);}catch(error){return error instanceof TooLarge?json({error:'Request too large'},413):json({error:'Invalid request'},400);}
   const ip=request.headers.get('CF-Connecting-IP');if(!ip)return json({error:'Client unavailable'},403);
   const day=Math.floor(Date.now()/86400000);
   const identities={ip:await hash(`${env.RATE_SALT}:${day}:${ip}`),device:await hash(`${env.RATE_SALT}:${day}:${data.deviceId}`)};
-  try{return await env.BUDGET.get(env.BUDGET.idFromName('global')).fetch(new Request(speech?'https://internal/speak':'https://internal/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data,identities})}));}catch{return json({error:'Service unavailable'},503);}
+  try{return await env.BUDGET.get(env.BUDGET.idFromName('global')).fetch(new Request(`https://internal${speech?'/speak':feedback?'/feedback':'/chat'}`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({data,identities})}));}catch{return json({error:'Service unavailable'},503);}
 }
 // Live conversation token: from the Telegram Mini App the signed user is the identity, from the apps their device id.
 async function liveRoute(request,env){
@@ -152,6 +157,7 @@ export class AiGateway {
     if(this.active>=4)return json({error:'Busy'},429,{'Retry-After':'20'});
     const {data,identities}=await request.json();
     if(new URL(request.url).pathname==='/speak')return this.speech(data,identities);
+    if(new URL(request.url).pathname==='/feedback')return this.feedback(data,identities);
     if(new URL(request.url).pathname==='/live')return this.live(identities);
     const limits=limitsFor(this.env).budget;
     const result=await this.state.storage.transaction(async tx=>{const next=budget(await tx.get('budget'),Date.now(),identities.ip,identities.device,limits);if(next.allowed)await tx.put('budget',next.data);return next;});
@@ -221,9 +227,19 @@ export class AiGateway {
     if(minute<4*60||minute>=6*60||!this.env.OWNER_TELEGRAM_ID||!this.env.TELEGRAM_TOKEN||await store.get(`report:sent:${day-1}`))return false;
     await store.put(`report:sent:${day-1}`,true);
     await this.tellOwner(await this.report('NurimAI — kunlik hisobot',day-1,await store.get(`report:snap:${day-1}`)||null,now));
-    await store.delete([`stats:${day-15}`,`report:snap:${day-15}`,`report:sent:${day-15}`,`gem:${ptDate(now-16*86400000)}`]);
+    await store.delete([`stats:${day-15}`,`report:snap:${day-15}`,`report:sent:${day-15}`,`gem:${ptDate(now-16*86400000)}`,`fb:${day-2}`]);
     return true;
   }
+  // 👍/👎 under an answer in the apps: only the count is kept (never the question or the answer), with its own small daily limit.
+  async feedback(data,identities){
+    const limits={total:5000,ip:200,device:100,minute:30};
+    const result=await this.state.storage.transaction(async tx=>{const next=budget(await tx.get('feedback'),Date.now(),identities.ip,identities.device,limits);if(next.allowed)await tx.put('feedback',next.data);return next;});
+    if(!result.allowed)return json({error:'Free limit reached'},429);
+    await this.feedbackNote(data.good);return json({ok:true});
+  }
+  async feedbackNote(good){const day=dayOf(Date.now()),key=`stats:${day}`,s=await this.state.storage.get(key)||emptyStats(day);s.feedback||={good:0,bad:0};s.feedback[good?'good':'bad']++;await this.state.storage.put(key,s);}
+  // A bot answer is rated once: the answers rated today are kept for the day (dropped with the day's other counts).
+  async feedbackOnce(id){const key=`fb:${dayOf(Date.now())}`,seen=await this.state.storage.get(key)||{};if(seen[id]||Object.keys(seen).length>=5000)return false;seen[id]=1;await this.state.storage.put(key,seen);return true;}
   async answerGet(key){const hit=await this.state.storage.get(`ans:${key}`);if(!hit)return null;if(Date.now()-hit.at>ANSWER_TTL){await this.state.storage.delete(`ans:${key}`);return null;}return hit.value;}
   async answerPut(key,value){await this.state.storage.put(`ans:${key}`,{at:Date.now(),value});}
   // The cron tick drops expired answers, a thousand at a time.
@@ -235,9 +251,15 @@ export class AiGateway {
     if(item.kind==='command'&&item.command==='yangiliklar')item={...item,kind:'news'}; // answered by the AI with Google Search
     const bot=new TelegramBot(this.env.TELEGRAM_TOKEN,upstream),store=this.state.storage,chatKey=`tg:chat:${item.chatId}`,memKey=`tg:mem:${item.userId}`;
     try{
+      // 👍/👎 under a bot answer: counted once per answer (server/report.mjs shows how satisfied people are).
+      if(item.kind==='callback'&&/^fb:[01]$/.test(item.data)){const first=await this.feedbackOnce(`${item.chatId}:${item.messageId}`);if(first)await this.feedbackNote(item.data==='fb:1');await bot.call('answerCallbackQuery',{callback_query_id:item.id,text:first?'Rahmat! Bahoingiz qabul qilindi 🙏':'Bahoingiz allaqachon qabul qilingan.'}).catch(()=>{});return;}
       if(item.kind==='callback'){await bot.call('answerCallbackQuery',{callback_query_id:item.id}).catch(()=>{});if(item.data==='new'){await store.delete(chatKey);await bot.send(item.chatId,TEXTS.fresh);}return;}
       // Groups: the daily question game (server/group.mjs). A failure there is only logged, never posted to the group.
       if(!item.private){if(item.group)await this.groups(bot).update(item).catch(error=>console.log(`group failed: ${String(error?.message||error?.name||'Error').slice(0,160)}`));return;}
+      // O'qituvchi roli (server/tasks.mjs): a student opens the group's task from its button and answers it here, privately.
+      const tasks=this.groups(bot).tasks;
+      if(item.kind==='command'&&item.command==='start'&&/^v_/.test(item.args)){await tasks.open(item,item.args);return;}
+      if(item.kind==='text'){const pending=await tasks.pending(item.userId);if(pending){await tasks.submit(item,pending);return;}}
       // /referat Mavzu and /taqdimot Mavzu are the same as asking for one in words.
       if(item.kind==='command'&&(item.command==='referat'||item.command==='taqdimot')){if(!item.args){await bot.send(item.chatId,TEXTS.docUsage[item.command]);return;}item={...item,kind:'text',text:`${item.command} tayyorla: ${item.args}`};}
       if(item.kind==='command'){

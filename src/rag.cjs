@@ -75,21 +75,31 @@ class Library {
   async passages() {
     await loadIndex(this.indexFile);
     const started = this.now(), out = [], ids = []; let added = 0;
+    const last = { files: 0, read: 0, pdf: 0, empty: 0, big: 0, waiting: 0, passages: 0 };
     for (const file of await this.files()) {
       let stat; try { stat = await fsp.stat(file.full); } catch { continue; }
-      if (stat.size > (/\.pdf$/i.test(file.full) ? PDF_BYTES : LIMITS.inputBytes)) continue;
+      last.files++; const pdf = /\.pdf$/i.test(file.full);
+      if (stat.size > (pdf ? PDF_BYTES : LIMITS.inputBytes)) { last.big++; continue; }
       const id = `${file.full}|${stat.size}|${stat.mtimeMs}`; let parts = known.get(id); ids.push(id);
       if (!parts) {
-        if (this.now() - started > LIMIT.indexMs) continue;
+        if (this.now() - started > LIMIT.indexMs) { last.waiting++; continue; }
         let text = null; try { text = await readText(file.full, await this.read(file.full)); } catch { text = null; }
         parts = text?.trim() ? chunks(text).map(t => ({ text: t, terms: words(t) })) : [];
         if (known.size > 3000) known.clear();
         known.set(id, parts); added++;
       }
+      if (parts.length) { last.read++; if (pdf) last.pdf++; } else last.empty++;
       for (const p of parts) out.push({ ...p, shown: file.shown });
     }
+    last.passages = out.length; this.last = last;
     if (added) await saveIndex(this.indexFile, ids).catch(() => {});
     return out;
+  }
+  // For Settings: how many documents are read (PDFs among them), how many have no text (scans), are too big or still wait.
+  // fresh: read every file again (after the user changed or replaced textbooks in place).
+  async status({ fresh = false } = {}) {
+    if (fresh) { await loadIndex(this.indexFile); for (const id of [...known.keys()]) if (this.roots.some(r => id.startsWith(r.path + path.sep))) known.delete(id); }
+    await this.passages(); return this.last;
   }
   // → { file: a text attachment with the best passages, sources: [file names] } or null when nothing fits the question.
   async find(question) {

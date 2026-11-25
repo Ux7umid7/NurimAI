@@ -41,8 +41,17 @@ function renderMemory(view){
 }
 // Kompyuter fayllari: the folders the AI may work in (Settings), and the 📁 switch that lets the next questions use them.
 let useFolders=false,folderList=[];
+// 📚 What the document search has read in the chosen folders (PDF, Word, PowerPoint, Excel, text).
+async function showIndex(fresh=false){
+  const el=$('docs-index');el.hidden=$('docs-reindex').hidden=!folderList.length;if(!folderList.length)return;
+  el.textContent=fresh?'📚 Hujjatlar qayta o‘qilmoqda…':'📚 Hujjatlar tekshirilmoqda…';
+  try{const s=await call(window.nurim.docsIndex(fresh));
+    el.textContent=!s.files?'📚 Papkalarda o‘qiladigan hujjat (PDF, Word, PowerPoint, Excel, matn) topilmadi.':`📚 ${s.read} ta hujjat o‘qilgan${s.pdf?` (${s.pdf} tasi PDF)`:''} · ${s.passages} parcha${s.empty?` · ${s.empty} tasida matn yo‘q (skaner qilingan bo‘lishi mumkin)`:''}${s.big?` · ${s.big} tasi juda katta`:''}${s.waiting?` · ${s.waiting} tasi keyingi savolda o‘qiladi`:''}. Savolga mos joylar javobga qo‘shiladi.`;
+  }catch(e){el.textContent=`📚 ${e.message}`;}
+}
+$('docs-reindex').onclick=()=>showIndex(true);
 function renderFolders(list){
-  folderList=list;$('folders-empty').hidden=list.length>0;
+  folderList=list;$('folders-empty').hidden=list.length>0;showIndex();
   $('folder-list').replaceChildren(...list.map((f,i)=>{const li=document.createElement('li'),span=document.createElement('span'),x=document.createElement('button');span.textContent=`${f.name} — ${f.path}`;span.title=f.path;x.type='button';x.textContent='×';x.setAttribute('aria-label',`${f.name} papkasini olib tashlash`);x.onclick=async()=>{try{renderFolders(await call(window.nurim.folderRemove(i)));if(!folderList.length)setFolders(false);}catch(e){notice(e.message);}};li.append(span,x);return li;}));
 }
 function setFolders(on){useFolders=on&&folderList.length>0;$('files').setAttribute('aria-pressed',String(useFolders));$('files').title=useFolders?`Kompyuter fayllari yoqilgan: ${folderList.map(f=>f.name).join(', ')}`:'Kompyuter fayllari: tanlagan papkalaringiz bilan ishlash';$('question').placeholder=useFolders?'Fayllar bilan nima qilay? Masalan: «Maktab papkasidagi fayllarni ko‘rib, ro‘yxatini yoz»':'Istalgan savolingizni yozing…';}
@@ -52,12 +61,17 @@ $('folder-add').onclick=addFolder;
 window.nurim.onFilesStep(text=>{$('waiting-text').textContent=text;});
 $('memory-on').onchange=async()=>{try{renderMemory(await call(window.nurim.memorySet($('memory-on').checked)));}catch(e){notice(e.message);}};
 $('memory-clear').onclick=async()=>{try{renderMemory(await call(window.nurim.memoryClear()));}catch(e){notice(e.message);}};
+// 👍/👎 under an answer: one rating per answer; only the rating goes to the server's daily count.
+function rateButtons(){
+  const make=(good,label,title)=>{const b=document.createElement('button');b.type='button';b.className='rate';b.textContent=label;b.title=title;b.setAttribute('aria-label',title);b.onclick=async()=>{for(const x of pair)x.disabled=true;b.classList.add('chosen');try{await call(window.nurim.feedback(good));notice(good?'Rahmat! 😊':'Rahmat, javoblarni yaxshilashga harakat qilaman.');}catch{}};return b;};
+  const pair=[make(true,'👍','Yaxshi javob'),make(false,'👎','Yaxshi emas')];return pair;
+}
 function bubble(role,text,attached=[],doc=null,remembered=[]){
   if(role!=='user')text=NurimMath.plainMath(text); // LaTeX math ($\frac{1}{2}$ -> 1/2) is shown, copied and read aloud as plain text
   $('welcome').hidden=true;const el=document.createElement('article');el.className=`bubble ${role}`;const head=document.createElement('div');head.className='bubble-head';const label=document.createElement('span');label.textContent=role==='user'?'SIZ':'NurimAI';head.append(label);
   if(role!=='user'){const tools=document.createElement('span');tools.className='bubble-tools';const copy=document.createElement('button');copy.className='copy';copy.textContent='Nusxa';copy.onclick=async()=>{await call(window.nurim.copy(text));copy.textContent='Olindi ✓';};
     if(!text.startsWith('Javob olinmadi')){const listen=document.createElement('button');listen.className='speak';listen.textContent='🔊 Tinglash';listen.title='Javobni ovoz chiqarib o‘qish';listen.onclick=()=>speakBubble(el,text);tools.append(listen);}
-    tools.append(copy);head.append(tools);}
+    tools.append(copy);if(!text.startsWith('Javob olinmadi'))tools.append(...rateButtons());head.append(tools);}
   el.append(head);
   if(attached.length){const row=document.createElement('div');row.className='bubble-files';row.append(...attached.map(f=>chip(f,false)));el.append(row);}
   if(role==='user'){const p=document.createElement('p');p.textContent=text;el.append(p);}else{const body=document.createElement('div');body.className='rich';rich(body,text);el.append(body);}
@@ -189,8 +203,25 @@ $('settings').onclick=async()=>{
   function check(id,text,checked){const label=document.createElement('label');label.className='check';const input=document.createElement('input');input.type='checkbox';input.id=id;input.checked=checked;label.append(input,document.createTextNode(text));section.append(label);}
   if(FREE_TIER.includes(provider))check(`free-${provider}`,'Hisobim Free tarifda',s.free[provider]);check(`clear-${provider}`,'Saqlangan kalitni o‘chirish',false);$('providers').append(section);
  }
- $('route-status').textContent=state.routes.map(r=>`${r.provider}: ${r.status}${r.retrySeconds?' · '+r.retrySeconds+' soniya':''}`).join('\n')+(state.trace?`\n\nOxirgi javob qanday tayyorlandi:\n${state.trace}`:'');$('settings-dialog').showModal();
+ $('route-status').textContent=state.routes.map(r=>`${r.provider}: ${r.status}${r.retrySeconds?' · '+r.retrySeconds+' soniya':''}`).join('\n')+(state.trace?`\n\nOxirgi javob qanday tayyorlandi:\n${state.trace}`:'');renderParent();$('settings-dialog').showModal();
 };
+// Ota-ona nazorati (src/parent-lock.cjs checks it in the main process): locked Settings keep only the look (theme, hero),
+// memory and closing usable; the right PIN opens them for ten minutes.
+function renderParent(p=state.parent||{enabled:false,open:true}){
+ const locked=p.enabled&&!p.open;
+ $('parent-text').textContent=!p.enabled?'PIN o‘rnatsangiz, bola sozlamalar, API kalitlar va NurimAI ishlaydigan papkalarni o‘zgartira olmaydi.':locked?'🔒 Sozlamalar qulflangan. O‘zgartirish uchun PIN kiriting.':`🔓 Sozlamalar ${p.minutes} daqiqaga ochiq. Yangi PIN yozib almashtirishingiz yoki hozir qulflashingiz mumkin.`;
+ $('parent-pin2').hidden=locked;$('parent-action').textContent=!p.enabled?'PIN o‘rnatish':locked?'Ochish':'PIN’ni almashtirish';
+ $('parent-lock').hidden=$('parent-remove').hidden=!(p.enabled&&!locked);$('parent-pin').value=$('parent-pin2').value='';
+ for(const el of $('settings-form').querySelectorAll('input,button,select,textarea')){
+  if(el.closest('#parent-card,#theme-choice,#character-choice,.dialog-title')||el.id==='quit'||el.closest('.memory-card')?.querySelector('#memory-on'))continue;
+  if(locked&&!el.disabled){el.disabled=true;el.dataset.parentLock='1';}else if(!locked&&el.dataset.parentLock){el.disabled=false;delete el.dataset.parentLock;}
+ }
+ $('settings-form').classList.toggle('locked',locked);
+}
+async function parentDo(action){$('settings-error').textContent='';try{state.parent=await call(action());renderParent();}catch(e){$('settings-error').textContent=e.message;$('parent-pin').value='';}}
+$('parent-action').onclick=()=>{const p=state.parent||{};parentDo(()=>p.enabled&&!p.open?window.nurim.parentUnlock($('parent-pin').value):window.nurim.parentSet($('parent-pin').value,$('parent-pin2').value));};
+$('parent-pin').onkeydown=$('parent-pin2').onkeydown=event=>{if(event.key==='Enter'){event.preventDefault();$('parent-action').click();}}; // Enter sets or opens, never submits all Settings
+$('parent-lock').onclick=()=>parentDo(()=>window.nurim.parentLock());$('parent-remove').onclick=()=>parentDo(()=>window.nurim.parentRemove());
 $('close-settings').onclick=()=>$('settings-dialog').close();$('quit').onclick=()=>window.nurim.quit();
 $('settings-form').onsubmit=async event=>{event.preventDefault();const keys={},clear={},free={};for(const p of KEYED){keys[p]=$(`key-${p}`).value;clear[p]=$(`clear-${p}`).checked;if(FREE_TIER.includes(p))free[p]=$(`free-${p}`).checked;}
  try{const saved=await call(window.nurim.saveSettings({keys,clear,free,topmost:$('topmost').checked,saveHistory:$('save-history').checked,autoSpeak:$('auto-speak').checked,autoUpdate:$('auto-update').checked,usePersonalKeys:$('personal').checked,autoFallback:$('fallback').checked,remember:$('remember').checked}));state.settings=saved;for(const p of Object.keys(keys))$(`key-${p}`).value='';$('settings-dialog').close();setBusy(false);notice('Sozlamalar saqlandi.');renderSide();}catch(error){$('settings-error').textContent=error.message;}

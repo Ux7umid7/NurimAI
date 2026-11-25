@@ -47,7 +47,7 @@ const GROUPS = new Set(['group', 'supergroup']);
 export function parseUpdate(update) {
   if (!update || !Number.isSafeInteger(update.update_id)) return null;
   const callback = update.callback_query;
-  if (callback?.message?.chat && callback.from) return { kind: 'callback', updateId: update.update_id, id: callback.id, chatId: callback.message.chat.id, userId: callback.from.id, data: String(callback.data || '') };
+  if (callback?.message?.chat && callback.from) return { kind: 'callback', updateId: update.update_id, id: callback.id, chatId: callback.message.chat.id, messageId: callback.message.message_id || 0, userId: callback.from.id, data: String(callback.data || '') };
   // The bot was added to a group or removed from it.
   const member = update.my_chat_member;
   if (member?.chat && GROUPS.has(member.chat.type)) {
@@ -61,11 +61,11 @@ export function parseUpdate(update) {
   if (!m?.chat || !m.from || (m.from.is_bot && !anonymousAdmin) || m.is_automatic_forward) return null;
   const group = GROUPS.has(m.chat.type);
   if (group && m.migrate_to_chat_id) return { kind: 'migrated', updateId: update.update_id, chatId: m.chat.id, to: m.migrate_to_chat_id, private: false, group };
-  const base = { updateId: update.update_id, chatId: m.chat.id, userId: m.from.id, private: m.chat.type === 'private', caption: typeof m.caption === 'string' ? m.caption.slice(0, 1000) : '',
+  const base = { updateId: update.update_id, chatId: m.chat.id, userId: m.from.id, sender: displayName(m.from), private: m.chat.type === 'private', caption: typeof m.caption === 'string' ? m.caption.slice(0, 1000) : '',
     ...(group ? { group, title: String(m.chat.title || '').slice(0, 80), messageId: m.message_id, name: anonymousAdmin ? 'Admin' : displayName(m.from), replyTo: m.reply_to_message?.message_id || 0, replyToBot: Boolean(m.reply_to_message?.from?.is_bot), anonymousAdmin } : {}) };
   if (typeof m.text === 'string') {
     const command = /^\/(\w+)(?:@(\w+))?(?:\s|$)/.exec(m.text);
-    if (command) return { ...base, kind: 'command', command: command[1].toLowerCase(), target: command[2] || '', args: m.text.slice(command[0].length).trim().slice(0, 200) };
+    if (command) return { ...base, kind: 'command', command: command[1].toLowerCase(), target: command[2] || '', args: m.text.slice(command[0].length).trim().slice(0, 1000) };
     return { ...base, kind: 'text', text: m.text.slice(0, 4000) };
   }
   if (Array.isArray(m.photo) && m.photo.length) { const best = m.photo.filter(p => !p.file_size || p.file_size <= MAX_FILE).sort((a, b) => b.width * b.height - a.width * a.height)[0]; return best ? { ...base, kind: 'photo', fileId: best.file_id, mime: 'image/jpeg' } : { ...base, kind: 'too-big' }; }
@@ -134,7 +134,9 @@ export const LIVE_KEYBOARD = { inline_keyboard: [[{ text: '🎙 Jonli suhbatni b
 export const HELP_KEYBOARD = { inline_keyboard: [...LIVE_KEYBOARD.inline_keyboard, [{ text: '👥 Guruhga qo‘shish', url: GROUP_LINK }], ...KEYBOARD.inline_keyboard] };
 // Answers built from the internet end with their sources as links; when the question had a topic, a button opens it on Google too.
 export function sourcesHtml(reply) { return reply.sources?.length ? `\n\n<b>🔎 Manbalar:</b> ${reply.sources.map(s => `<a href="${escape(s.uri).replace(/"/g, '&quot;')}">${escape(s.title)}</a>`).join(' · ')}` : ''; }
-export function keyboardFor(reply) { const query = reply.sources?.length && reply.queries?.[0]; return query ? { inline_keyboard: [[{ text: `🔎 Google: ${query.slice(0, 40)}`, url: `https://www.google.com/search?q=${encodeURIComponent(query)}` }], ...KEYBOARD.inline_keyboard] } : KEYBOARD; }
+// Under each answer: 👍/👎 (counted by the server, see report.mjs), then a Google link for news answers, then the usual row.
+export const RATE_ROW = [{ text: '👍', callback_data: 'fb:1' }, { text: '👎', callback_data: 'fb:0' }];
+export function keyboardFor(reply) { const query = reply.sources?.length && reply.queries?.[0]; return { inline_keyboard: [RATE_ROW, ...(query ? [[{ text: `🔎 Google: ${query.slice(0, 40)}`, url: `https://www.google.com/search?q=${encodeURIComponent(query)}` }]] : []), ...KEYBOARD.inline_keyboard] }; }
 
 // Thin Bot API client (fetcher = the worker's logged fetch). Errors throw with Telegram's description.
 export class TelegramBot {

@@ -1,8 +1,10 @@
 // Telefon ilovasi sozlamalari. Server manzili sir emas (desktop ilova ichida ham bor); himoya - serverdagi limitlar va ruxsat etilgan manbalar.
 window.NURIM_CONFIG = Object.freeze({
   gateway: 'https://nurimai-api.ux7umidjon7.workers.dev',
-  version: '0.8.8',
+  version: '0.8.9',
   whatsNew: [
+    '👪 Ota-ona PIN-kodi: Sozlamalarda PIN o‘rnating — bola o‘z Gemini kalitini o‘zgartira olmaydi. To‘g‘ri PIN 10 daqiqaga ochadi.',
+    '👍👎 Javobni baholang: har javob ostidagi tugmalar — NurimAI shunga qarab yaxshilanadi (faqat baho yuboriladi, savol va javob matni emas).',
     '🌍 Ruscha savolga — ruscha, inglizcha savolga — inglizcha javob; o‘zbekcha (lotin yoki kirill) savolga — o‘zbekcha.',
     '🛡 Himoya: savolingizdagi telefon, karta, pasport raqami va parol AI xizmatlariga yuborilmaydi — NurimAI ularni yashiradi. “Ko‘rsatmalaringni unut” kabi buyruqlar, fayl yoki sahifa ichidagi yashirin buyruqlar ishlamaydi. Qiyin holatdagi bolaga AI mehr bilan javob beradi va qayerdan yordam olishni aytadi.',
     '⚡ Ko‘p so‘raladigan savollarga javob endi bir zumda keladi.',

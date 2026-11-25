@@ -232,3 +232,9 @@ button.primary,.today-grid button,.gen-form button,.runner .row button,.deck-lis
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 @media (min-width:760px){.drawer{width:320px}}
 .bar:has(.rec:not([hidden])) textarea,.bar:has(.rec:not([hidden])) .plus{display:none}
+
+/* Ota-ona PIN-kodi */
+.parent-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.parent-row input{flex:1 1 100px;min-width:0;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--sunken, var(--surface));color:var(--ink);font:inherit;letter-spacing:.2em}.parent-row [hidden]{display:none}#parent-error{color:#c0392b;font-size:13px;margin:8px 0 0}#parent-error:empty{display:none}
+
+/* 👍/👎 */
+.actions .rate{min-width:40px}.actions .rate.chosen{background:var(--gold);color:#121317;border-color:var(--gold)}.actions .rate:disabled:not(.chosen){opacity:.35}

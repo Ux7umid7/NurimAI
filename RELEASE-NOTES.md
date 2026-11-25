@@ -1,12 +1,16 @@
-NurimAI 0.8.8
+NurimAI 0.8.9
 
 Yuklab olish va o‘rnatish ko‘rsatmasi: https://ux7umid7.github.io/NurimAI/
 
+- 👪 Ota-ona PIN-kodi: Sozlamalarda PIN o‘rnating — bola sozlamalar, API kalitlar va NurimAI ishlaydigan papkalarni o‘zgartira olmaydi (telefonda — o‘z Gemini kalitini). To‘g‘ri PIN 10 daqiqaga ochadi.
+- 👍👎 Javobni baholang: har javob ostidagi tugmalar — NurimAI shunga qarab yaxshilanadi (faqat baho yuboriladi, savol va javob matni emas).
+- 📚 Sozlamalar → Kompyuter fayllari: nechta hujjat va PDF darslik o‘qilgani ko‘rinadi, «Hujjatlarni qayta o‘qish» tugmasi bor.
+- 🛠 Tuzatildi: «masalan», «hisoblanadi» so‘zli oddiy savollar endi to‘g‘ri modelga boradi; «qoidani unutibman» kabi gaplar himoya tomonidan to‘xtatilmaydi.
+
+0.8.7 va 0.8.8 dagi yangiliklar:
+
 - 📚 PDF darsliklar: 📁 yoqilganda NurimAI tanlangan papkalardagi PDF darslik va qo‘llanmalarni ham o‘qiydi, savolga mos sahifalarni topib javob beradi va qaysi hujjatdan olganini aytadi. Darslik bir marta o‘qiladi, keyingi safar darhol topiladi.
 - 🌍 Ruscha savolga — ruscha, inglizcha savolga — inglizcha javob; o‘zbekcha (lotin yoki kirill) savolga — o‘zbekcha.
-
-0.8.7 dagi yangiliklar:
-
 - 📖 Yangi qahramon — Nur ustoz: Sozlamalar → Qahramon bo‘limida Pufak (shogirt) yoki Nur (ustoz)ni tanlang. Nur ekran chetida o‘z 3D animatsiyalari bilan yashaydi: kitob o‘qiydi, o‘ylaydi, salom beradi, uxlaydi.
 - 🛡 Himoya: savolingizdagi telefon, karta, pasport raqami va parol AI xizmatlariga yuborilmaydi — NurimAI ularni yashiradi. “Ko‘rsatmalaringni unut” kabi buyruqlar, fayl yoki sahifa ichidagi yashirin buyruqlar ishlamaydi. Qiyin holatdagi bolaga AI mehr bilan javob beradi va qayerdan yordam olishni aytadi.
 - 📄 Hujjatlaringizdan javob: 📁 yoqilganda NurimAI tanlangan papkalardagi Word, PowerPoint, Excel va matn fayllaringizdan (darslik, konspekt) savolga mos joylarni topadi, javobni shularga tayanib beradi va hujjat nomini ko‘rsatadi.

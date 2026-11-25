@@ -70,7 +70,7 @@ test('a question gets an HTML answer with buttons, the chat is remembered, repea
  try{
   const gw=new AiGateway({storage},env);const ask=async u=>{const item=parseUpdate(u);if(await gw.firstDelivery(item))await gw.telegram(item);};
   await ask(msg(10,'Kasr nima?'));
-  const answer=net.sent().at(-1);assert.equal(answer.chat_id,42);assert.equal(answer.parse_mode,'HTML');assert.equal(answer.text,'Javob: <b>12</b>');assert.equal(answer.reply_markup.inline_keyboard[0][0].callback_data,'new');
+  const answer=net.sent().at(-1);assert.equal(answer.chat_id,42);assert.equal(answer.parse_mode,'HTML');assert.equal(answer.text,'Javob: <b>12</b>');assert.equal(answer.reply_markup.inline_keyboard[1][0].callback_data,'new');
   await ask(msg(10,'Kasr nima?'));assert.equal(net.gemini().length,1); // Telegram's retry of the same update is not answered twice
   await ask(msg(11,'Misol ber'));const second=net.gemini().at(-1);assert.equal(second.contents.length,3);assert.equal(second.contents[0].parts.at(-1).text,'Kasr nima?');
   await ask(msg(12,'/yangi'));assert.match(net.sent().at(-1).text,/Yangi suhbat/);
@@ -127,12 +127,12 @@ test('/yangiliklar and news questions read the news sites; the answer links its 
   const gw=new AiGateway({storage},env);const ask=async u=>{const item=parseUpdate(u);if(await gw.firstDelivery(item))await gw.telegram(item);};
   await ask(msg(50,'/yangiliklar'));const prompt=net.gemini()[0].contents.at(-1).parts.at(-1).text;
   assert.match(prompt,/^Biriktirilgan fayl: Internetdan olingan ma’lumot \(.+, Toshkent vaqti\)\n"""\nYangiliklar \(Gazeta\.uz\):\n- \[Gazeta\.uz, 25\.10 09:41\] Toshkentdagi Elbek bog‘i yangilanadi/);assert.ok(prompt.endsWith(NEWS_QUESTION));
-  const answer=net.sent().at(-1);assert.equal(answer.text,'<b>Yangiliklar:</b> bugun …\n\n<b>🔎 Manbalar:</b> <a href="https://www.gazeta.uz/oz/">Gazeta.uz</a>');assert.equal(answer.reply_markup.inline_keyboard.length,1);
+  const answer=net.sent().at(-1);assert.equal(answer.text,'<b>Yangiliklar:</b> bugun …\n\n<b>🔎 Manbalar:</b> <a href="https://www.gazeta.uz/oz/">Gazeta.uz</a>');assert.equal(answer.reply_markup.inline_keyboard.length,2);assert.equal(answer.reply_markup.inline_keyboard[0][0].callback_data,'fb:1');
   assert.deepEqual(map.get('tg:chat:42').history.map(m=>m.text),['📰 Bugungi yangiliklar','**Yangiliklar:** bugun …']);
   await ask(msg(51,'Elbek bog‘i haqida yangilik bormi?'));const topic=net.sent().at(-1);
   assert.ok(topic.text.endsWith('<a href="https://www.gazeta.uz/oz/park/?a=1&amp;b=&quot;2&quot;">Gazeta.uz: Toshkentdagi Elbek bog‘i yangilanadi</a>'));
-  assert.equal(topic.reply_markup.inline_keyboard[0][0].url,'https://www.google.com/search?q=elbek%20bogi');assert.equal(topic.reply_markup.inline_keyboard[1][0].callback_data,'new');
-  net.calls.length=0;await ask(msg(52,'Kasr nima?'));assert.deepEqual(net.sites(),[]);assert.equal(net.sent().at(-1).reply_markup.inline_keyboard.length,1);
+  assert.equal(topic.reply_markup.inline_keyboard[1][0].url,'https://www.google.com/search?q=elbek%20bogi');assert.equal(topic.reply_markup.inline_keyboard[2][0].callback_data,'new');
+  net.calls.length=0;await ask(msg(52,'Kasr nima?'));assert.deepEqual(net.sites(),[]);assert.equal(net.sent().at(-1).reply_markup.inline_keyboard.length,2,'rating and the usual row, no Google link');
   await ask(msg(53,undefined,{text:undefined,caption:'Bugungi yangiliklar',photo:[{file_id:'p',width:800,height:600}]}));assert.deepEqual(net.sites(),[]);
  }finally{globalThis.fetch=real;}
 });

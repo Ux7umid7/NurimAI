@@ -9,7 +9,7 @@ $('new').onclick = newChat; $('drawer-new').onclick = () => { closeDrawer(); new
 $('menu').onclick = openDrawer; $('scrim').onclick = closeDrawer;
 $('history-search').oninput = renderHistory;
 $('ustoz').addEventListener('click', closeDrawer); // ustoz.js o'zi Ustoz sahifasini ochadi
-$('settings').onclick = () => { closeDrawer(); $('auto-speak').checked = state.settings.autoSpeak !== false; $('save-history').checked = state.settings.saveHistory !== false; $('version').textContent = `NurimAI ${state.version} · ${NATIVE ? 'Android ilova' : 'veb-ilova'}`; NurimTheme.bind($('theme-choice')); NurimCharacter.bind($('character-choice'), c => { NurimCharacter.apply(); heroIdle(); notice(`${c.name} endi siz bilan 🙂`); }); renderMemory(); renderOwnKey(); $('settings-dialog').showModal(); };
+$('settings').onclick = () => { closeDrawer(); $('auto-speak').checked = state.settings.autoSpeak !== false; $('save-history').checked = state.settings.saveHistory !== false; $('version').textContent = `NurimAI ${state.version} · ${NATIVE ? 'Android ilova' : 'veb-ilova'}`; NurimTheme.bind($('theme-choice')); NurimCharacter.bind($('character-choice'), c => { NurimCharacter.apply(); heroIdle(); notice(`${c.name} endi siz bilan 🙂`); }); renderMemory(); renderOwnKey(); renderParent(); $('settings-dialog').showModal(); };
 // Birinchi kirish: bepul (NurimAI serveri) yoki o'z Gemini kaliti; Sozlamalarda kalitni almashtirish yoki o'chirish.
 function openOnboard(own = false) {
   $('onboard-form').elements.mode.value = own ? 'own' : 'free'; onboardMode(); $('onboard-error').textContent = ''; $('own-key-input').value = '';
@@ -36,8 +36,43 @@ function renderOwnKey() {
   $('own-key-status').textContent = key ? `Kalit saqlangan (…${key.slice(-4)}). Savollar to‘g‘ridan-to‘g‘ri Google Gemini’ga boradi; ishlamasa — NurimAI bepul serveri.` : 'Kalit kiritilmagan: NurimAI bepul server orqali ishlaydi.';
   $('own-key-set').textContent = key ? 'Kalitni almashtirish' : 'Kalit kiritish'; $('own-key-remove').hidden = !key;
 }
-$('own-key-set').onclick = () => { $('settings-dialog').close(); openOnboard(true); };
-$('own-key-remove').onclick = () => { if (!confirm('Gemini kaliti shu telefondan o‘chirilsinmi? NurimAI bepul server orqali ishlaydi.')) return; ownKey.set(''); renderOwnKey(); notice('Kalit o‘chirildi: bepul server orqali ishlayman.'); };
+$('own-key-set').onclick = () => { if (!parentPin.open()) return; $('settings-dialog').close(); openOnboard(true); };
+$('own-key-remove').onclick = () => { if (!parentPin.open()) return; if (!confirm('Gemini kaliti shu telefondan o‘chirilsinmi? NurimAI bepul server orqali ishlaydi.')) return; ownKey.set(''); renderOwnKey(); notice('Kalit o‘chirildi: bepul server orqali ishlayman.'); };
+// Ota-ona PIN-kodi: with it set, the own Gemini key cannot be changed or removed without the PIN, which opens it for ten
+// minutes; five wrong tries make the next one wait a minute. Kept on this phone only, as a salted PBKDF2 hash.
+const parentPin = {
+  openUntil: 0, wrong: 0, waitUntil: 0,
+  saved: () => saved.get('parent', null),
+  open() { return !this.saved() || Date.now() < this.openUntil; },
+  async hash(pin, salt) {
+    const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(pin), 'PBKDF2', false, ['deriveBits']);
+    const bits = await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: Uint8Array.from(atob(salt), c => c.charCodeAt(0)), iterations: 150000 }, key, 256);
+    return btoa(String.fromCharCode(...new Uint8Array(bits)));
+  }
+};
+function renderParent() {
+  const on = Boolean(parentPin.saved()), locked = on && !parentPin.open();
+  $('parent-status').textContent = !on ? 'PIN o‘rnatsangiz, bola o‘z Gemini kalitini o‘zgartira yoki o‘chira olmaydi.' : locked ? '🔒 Kalit sozlamasi qulflangan. O‘zgartirish uchun PIN kiriting.' : `🔓 ${Math.max(1, Math.ceil((parentPin.openUntil - Date.now()) / 60000))} daqiqaga ochiq.`;
+  $('parent-pin2').hidden = on; $('parent-pin').hidden = on && !locked; $('parent-go').textContent = !on ? 'PIN o‘rnatish' : locked ? 'Ochish' : 'Qulflash';
+  $('parent-off').hidden = !on || locked; $('own-key-set').disabled = $('own-key-remove').disabled = locked; $('parent-pin').value = $('parent-pin2').value = ''; $('parent-error').textContent = '';
+}
+$('parent-go').onclick = async () => {
+  const pin = $('parent-pin').value, p = parentPin.saved(), fail = text => { renderParent(); $('parent-error').textContent = text; };
+  if (!p) {
+    if (!/^\d{4,8}$/.test(pin)) return fail('PIN 4–8 ta raqamdan iborat bo‘lsin.');
+    if (pin !== $('parent-pin2').value) return fail('Ikkala PIN bir xil emas.');
+    const salt = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))));
+    saved.set('parent', { salt, hash: await parentPin.hash(pin, salt) }); parentPin.openUntil = Date.now() + 600000; renderParent(); notice('PIN o‘rnatildi.'); return;
+  }
+  if (parentPin.open()) { parentPin.openUntil = 0; renderParent(); return; }
+  if (Date.now() < parentPin.waitUntil) return fail(`Juda ko‘p noto‘g‘ri urinish. ${Math.ceil((parentPin.waitUntil - Date.now()) / 1000)} soniyadan keyin qayta kiriting.`);
+  if (/^\d{4,8}$/.test(pin) && await parentPin.hash(pin, p.salt) === p.hash) { parentPin.wrong = 0; parentPin.openUntil = Date.now() + 600000; renderParent(); return; }
+  if (++parentPin.wrong >= 5) { parentPin.wrong = 0; parentPin.waitUntil = Date.now() + 60000; }
+  fail('PIN noto‘g‘ri.');
+};
+$('parent-off').onclick = () => { if (!parentPin.open()) return; saved.set('parent', null); parentPin.openUntil = 0; renderParent(); notice('PIN o‘chirildi.'); };
+// Enter in a PIN field sets or opens it; it must not close the Settings page (its form is method="dialog").
+for (const id of ['parent-pin', 'parent-pin2']) $(id).onkeydown = event => { if (event.key === 'Enter') { event.preventDefault(); $('parent-go').click(); } };
 // Xotira: yoqish/o'chirish, eslab qolinganlar ro'yxati (har birini unutish mumkin).
 function renderMemory() {
   const m = memory.get(); $('memory-on').checked = m.enabled; $('memory-empty').hidden = m.facts.length > 0; $('memory-clear').hidden = !m.facts.length;

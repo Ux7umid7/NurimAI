@@ -1,6 +1,6 @@
 const {app,BrowserWindow,ipcMain,screen,Menu,Tray,nativeImage,globalShortcut,safeStorage,dialog,clipboard,ClipboardItem,shell,desktopCapturer,systemPreferences,Notification} = require('electron');
 const fs = require('node:fs');const path = require('node:path');const {pathToFileURL} = require('node:url');
-const {Router,UserError,PAID,speak,withSources,memoryAnswers,traceLine} = require('./router.cjs');const {Store,KEYS} = require('./store.cjs');const {claude} = require('./claude.cjs');const {Folders,work,named} = require('./folders.cjs');const {askGateway,speakGateway} = require('./gateway.cjs');
+const {Router,UserError,PAID,speak,withSources,memoryAnswers,traceLine} = require('./router.cjs');const {Store,KEYS} = require('./store.cjs');const {claude} = require('./claude.cjs');const {Folders,work,named} = require('./folders.cjs');const {askGateway,speakGateway,sendFeedback} = require('./gateway.cjs');
 const {UpdateController} = require('./updater.cjs');const release = require('./release-config.json');
 const {prepare,checkFits,forRequest,forView,LIMITS,PICKER_EXTENSIONS} = require('./attachments.cjs');const whatsNew = require('./whats-new.json');
 const {Chats} = require('./chats.cjs');const {grabSelection} = require('./selection.cjs');const practiceModule = require('./practice.cjs');const {Practice} = practiceModule;
@@ -14,7 +14,9 @@ let files=[],fileSeq=0,previousVersion='';const sentIds=new Set(); // attachment
 let chats,chatId=Chats.newId(),explainKey=false,explaining=false; // chatId: the conversation on screen, as saved in history
 let practice,generating=null,remindTimer; // Ustoz rejimi: testlar, kartochkalar, eslatmalar
 const router = new Router({extra:{Claude:claude()},answers:memoryAnswers()}); // kesh: the same first chat question is answered once
-const {Library} = require('./rag.cjs');
+const {Library} = require('./rag.cjs');const ragIndex=()=>path.join(app.getPath('userData'),'rag-index.json');
+// Ota-ona nazorati (parent-lock.cjs): with a PIN set, Settings, API keys and the AI's folders change only after the PIN.
+const {ParentLock} = require('./parent-lock.cjs');let parent;const parentLock=()=>parent||(parent=new ParentLock({file:path.join(app.getPath('userData'),'parent-lock.json')}));
 let lastTrace=''; // treys: how the last answer was made (Settings shows it)
 const asset = name=>path.join(root,'assets',name);
 const PET={width:144,height:180};
@@ -26,7 +28,7 @@ function activity(){lastActive=Date.now();if(sleeping){sleeping=false;mood('wave
 function drowse(){if(!sleeping&&!controller&&!chat?.isFocused()&&Date.now()-lastActive>SLEEP_AFTER){sleeping=true;mood('sleep');}}
 const explainLabel=()=>process.platform==='darwin'?'⌘ + ⌥ + E':'Ctrl + Alt + E';
 // onboard: the first-run choice (free or own key) is still to be made; QA shows it only when a test asks (NURIMAI_QA_ONBOARD).
-function summary(){return {version:app.getVersion(),platform:process.platform,settings:store.public(),onboard:!store.value.onboarded&&(!qa||process.env.NURIMAI_QA_ONBOARD==='1'),routes:router.diagnostics(store.value),last:router.last,trace:lastTrace,update:updates.state,gatewayConfigured:Boolean(release.gateway),history:visible,busy:Boolean(controller),files:forView(files),sentIds:[...sentIds],whatsNew:previousVersion&&previousVersion!==app.getVersion()?whatsNew[app.getVersion()]||[]:[],explainKey:explainKey?explainLabel():'',historyAvailable:chats.available,historyWarning:chats.warning};}
+function summary(){return {version:app.getVersion(),platform:process.platform,settings:store.public(),onboard:!store.value.onboarded&&(!qa||process.env.NURIMAI_QA_ONBOARD==='1'),routes:router.diagnostics(store.value),last:router.last,trace:lastTrace,parent:parentLock().status(),update:updates.state,gatewayConfigured:Boolean(release.gateway),history:visible,busy:Boolean(controller),files:forView(files),sentIds:[...sentIds],whatsNew:previousVersion&&previousVersion!==app.getVersion()?whatsNew[app.getVersion()]||[]:[],explainKey:explainKey?explainLabel():'',historyAvailable:chats.available,historyWarning:chats.warning};}
 function clamp(point,width,height){const area=screen.getDisplayNearestPoint(point).workArea;return {x:Math.max(area.x,Math.min(Math.round(point.x),area.x+area.width-width)),y:Math.max(area.y,Math.min(Math.round(point.y),area.y+area.height-height))};}
 function showChat(){if(!chat || chat.isDestroyed())return;activity();if(!chat.isVisible()){const p=pet.getBounds(),[w,h]=chat.getSize();const next=clamp({x:p.x-w-10,y:p.y+p.height-h},w,h);chat.setPosition(next.x,next.y);}chat.show();chat.focus();} // opens beside Nur, whatever size the window has
 function toggle(){activity();if(chat.isVisible())chat.hide();else showChat();}
@@ -160,7 +162,7 @@ async function fileWork(question,signal){
     try{return await once(step);}catch(e){if(e?.code!=='limit'||!(e.retry>0&&e.retry<=65))throw e;onStep(`⏳ Daqiqalik limit: ${e.retry} soniya kutyapman`);await require('node:timers/promises').setTimeout(e.retry*1000,undefined,{signal});return once(step);}
   };
   // RAG (rag.cjs): passages from the user's own documents in these folders go with the first step, and the answer names them.
-  const found=qa?null:await new Library({roots:named(store.value.folders),indexFile:path.join(app.getPath('userData'),'rag-index.json')}).find(question).catch(()=>null);
+  const found=qa?null:await new Library({roots:named(store.value.folders),indexFile:ragIndex()}).find(question).catch(()=>null);
   if(found)onStep(`📄 Hujjatlardan ${found.sources.length} ta mos joy topildi`);
   const reply=await work({folders,question,history,files:[...forRequest(files),...(found?[found.file]:[])],signal,askStep,onStep});
   return remembered(found?{...reply,text:`${reply.text}
@@ -230,7 +232,11 @@ function registerIPC(){
   });
   // Folders the AI may work in: chosen in a system dialog (a whole drive or Windows itself is refused), listed and removed in Settings.
   register('folders',()=>named(store.value.folders));
-  register('folder-add',async()=>{
+  // How many documents in the chosen folders the search has read; fresh: read them all again.
+  register('docs-index',fresh=>new Library({roots:named(store.value.folders),indexFile:ragIndex()}).status({fresh:fresh===true}));
+  register('parent-unlock',pin=>parentLock().unlock(String(pin??'')));register('parent-lock',()=>parentLock().lock());
+  register('parent-set',(pin,again)=>parentLock().set(String(pin??''),String(again??'')));register('parent-remove',()=>parentLock().remove());
+  register('folder-add',async()=>{parentLock().check();
     let picked;
     if(qa){picked=path.join(app.getPath('userData'),'qa-papka');fs.mkdirSync(picked,{recursive:true});fs.writeFileSync(path.join(picked,'reja.txt'),'Dars rejasi');}
     else{const result=await dialog.showOpenDialog(chat,{title:'NurimAI ishlashi mumkin bo‘lgan papkani tanlang',properties:['openDirectory']});if(result.canceled||!result.filePaths[0])return named(store.value.folders);picked=result.filePaths[0];}
@@ -240,7 +246,7 @@ function registerIPC(){
     if(store.value.folders.length>=10&&!store.value.folders.includes(full))throw new UserError('10 tagacha papka qo‘shish mumkin.');
     store.setFolders([...store.value.folders,full]);return named(store.value.folders);
   });
-  register('folder-remove',index=>{if(Number.isInteger(index))store.setFolders(store.value.folders.filter((_,i)=>i!==index));return named(store.value.folders);});
+  register('folder-remove',index=>{parentLock().check();if(Number.isInteger(index))store.setFolders(store.value.folders.filter((_,i)=>i!==index));return named(store.value.folders);});
   // Voice question: a WAV recording goes to Gemini once (it is not kept as a chat attachment); the answer starts with what was heard.
   register('send-voice',(data,seconds)=>{
     if(!(data instanceof ArrayBuffer||ArrayBuffer.isView(data)))throw new UserError('Ovoz yozilmadi.');
@@ -274,9 +280,11 @@ function registerIPC(){
   register('history-list',query=>({items:chats.search(query),current:chatId,enabled:store.value.saveHistory,available:chats.available,warning:chats.warning}));
   register('history-open',id=>{if(controller)throw new UserError('Avval javob tugashini kuting.');const saved=chats.get(id);if(!saved)throw new UserError('Suhbat topilmadi.');activity();chatId=saved.id;visible=saved.messages.map(m=>({...m}));history=pairs(saved.messages);files=[];sentIds.clear();return {history:visible,files:[]};});
   register('history-delete',id=>{chats.remove(id);return chats.search();});register('history-clear',()=>{chats.clear();return [];});
-  register('save-settings',value=>{if(controller)throw new UserError('Javob tugashini kuting.');const old=store.value.keys;const result=store.update(value);for(const p of KEYS)if(old[p]!==store.value.keys[p])router.reset(p);chat.setAlwaysOnTop(store.value.topmost);pet.setAlwaysOnTop(store.value.topmost);updates.setEnabled(store.value.autoUpdate);return result;});
+  register('save-settings',value=>{parentLock().check();if(controller)throw new UserError('Javob tugashini kuting.');const old=store.value.keys;const result=store.update(value);for(const p of KEYS)if(old[p]!==store.value.keys[p])router.reset(p);chat.setAlwaysOnTop(store.value.topmost);pet.setAlwaysOnTop(store.value.topmost);updates.setEnabled(store.value.autoUpdate);return result;});
   register('hide',()=>chat.hide());register('toggle',toggle,true);register('quit',()=>app.quit(),true);
   register('copy',text=>{if(typeof text==='string'&&text.length<=100000)clipboard.writeText(text);});
+  // 👍/👎: only the rating goes to the server, never the text (QA runs never send it).
+  register('feedback',good=>{if(typeof good!=='boolean')throw new UserError('Baho noto‘g‘ri.');if(!qa&&release.gateway)sendFeedback({url:release.gateway,deviceId:store.value.deviceId,good}).catch(()=>{});return true;});
   register('memory',()=>memory.view());
   register('memory-set',on=>{memory.setEnabled(on===true);return memory.view();});
   register('memory-remove',index=>{memory.remove(index);return memory.view();});

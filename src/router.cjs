@@ -85,7 +85,8 @@ function ready(settings, provider) { const owner = KEY_OF[provider] || provider;
 // How much thinking a question needs. A greeting or thanks goes to a quick model first (Gemini's daily limit stays for real
 // questions, pictures and voice); maths, proofs and code go first to GPT-OSS, which reasons; the rest keep the usual order.
 const SIMPLE = /^\s*(assalomu?\s+alaykum|salom(\s+nurim(ai)?)?|qalays[ai]n|yaxshimis(an|iz)|rahmat|raxmat|katta\s+rahmat|xayr|ok(ey)?|xo(['‘’`ʻ])?p|ha|yo(['‘’`ʻ])?q|hi|hello|hey|thanks|thank you|bye|привет|спасибо|пока)[\s!.,)?😊🙂👋🙏❤️]*$/i;
-const HARD = /\d\s*[+*/×÷^=]\s*\(?\s*[\dx]|\d\s+-\s+\d|\b(yech|isbotla|isbot\s+qil|tenglama|tengsizlik|masala|hisobla|integral|hosila|logarifm|kod\s+yoz|dastur(ini)?\s+yoz|algoritm|funksiya\s+yoz|решить|реши|уравнен|неравенств|докаж|задач[аиу]|вычисли|solve|prove|equation|calculate|algorithm|write\s+(a\s+)?(code|program|function))/i;
+// "masalan" (for example) and "hisoblanadi/hisoblangan" (is considered) are everyday words, not maths.
+const HARD = /\d\s*[+*/×÷^=]\s*\(?\s*[\dx]|\d\s+-\s+\d|\b(yech|isbotla|isbot\s+qil|tenglama|tengsizlik|masala(?!n(?![a-z]))|hisobla(?!nadi|ngan|nar|nish)|integral|hosila|logarifm|kod\s+yoz|dastur(ini)?\s+yoz|algoritm|funksiya\s+yoz|решить|реши|уравнен|неравенств|докаж|задач[аиу]|вычисли|solve|prove|equation|calculate|algorithm|write\s+(a\s+)?(code|program|function))/i;
 // A short "ha" or "rahmat" in the middle of a conversation may continue it, so only a first message can be simple.
 function difficulty(question, files = [], long = false, history = []) {
   if (long || files.length) return 'normal';

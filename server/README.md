@@ -60,3 +60,19 @@ Sozlash:
 4. Ixtiyoriy: `GEMINI_DAILY_LIMIT` ni ham kiriting.
 
 Faqat sonlar saqlanadi: savol, javob yoki shaxsiy ma'lumot saqlanmaydi. Ma'lumotlar 15 kundan keyin o'chiriladi.
+
+## O'qituvchi roli (guruhlarda vazifa)
+
+Guruh admini (o'qituvchi) guruhda `/vazifa Matn` yozadi. Bot vazifani "✍️ Javob yuborish" tugmasi bilan joylaydi.
+
+- O'quvchi tugmani bosganda bot bilan shaxsiy chat ochiladi. Javob shu yerda yoziladi va sinfdoshlarga ko'rinmaydi.
+- Har bir javobga AI taxminiy baho (0–10) va bitta izoh beradi; bu guruhning AI limitidan oladi.
+- Natijalar faqat o'qituvchiga shaxsiy xabarda keladi:
+  - muddat tugaganda (24 soat);
+  - guruhda `/yopish` yozilganda;
+  - istalgan vaqtda `/natijalar` bilan.
+- Guruhga baho chiqmaydi, o'quvchilar ham baholarni ko'rmaydi.
+- O'qituvchi natijalarni olishi uchun botga shaxsiy xabarda bir marta /start yozgan bo'lishi kerak. Yozmagan bo'lsa, bot buni guruhda eslatadi.
+- Har guruhda oxirgi 5 ta vazifa saqlanadi.
+
+Deploy'dan keyin admin buyruqlari menyusini yangilash uchun `/telegram/setup` ni qayta oching.

@@ -121,6 +121,8 @@ export function reportText({ title, day, budgets, stats, env = {}, keys = '' }) 
   }
   const answered = sum(s.answers), failed = sum(s.failed);
   lines.push(`✅ Javoblar: ${num(answered)} (ilovalar ${num(s.answers.app)}, bot ${num(s.answers.telegram)}, guruhlar ${num(s.answers.group)})${failed ? ` · ❌ javobsiz: ${num(failed)}` : ''}`);
+  const rated = (s.feedback?.good || 0) + (s.feedback?.bad || 0);
+  if (rated) { const pct = Math.round(s.feedback.good * 100 / rated); lines.push(`⭐ Foydalanuvchilar bahosi: 👍 ${num(s.feedback.good)} · 👎 ${num(s.feedback.bad)} — ${pct}% mamnun`); if (rated >= 10 && pct < 70) warn.push(`⚠️ 👎 ko‘paydi (${100 - pct}%): evallarni ishga tushirib ko‘ring (npm run eval).`); }
   if (s.ms.count) lines.push(`⚡ O‘rtacha javob vaqti: ${(s.ms.sum / s.ms.count / 1000).toFixed(1)} s · savollar: oddiy ${num(s.levels.simple)}, odatiy ${num(s.levels.normal)}, qiyin ${num(s.levels.hard)}`);
   lines.push('', '<b>Tejash va himoya</b>');
   const asked = s.cache.hit + s.cache.stored;
